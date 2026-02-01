@@ -20,5 +20,3 @@ Closes #
 
 Explain how to test your changes.
 
-
-
