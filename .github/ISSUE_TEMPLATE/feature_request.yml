@@ -1,0 +1,13 @@
+name: Feature request
+description: Suggest a new feature for Rein
+title: "[Feature]: "
+labels: ["enhancement"]
+
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the feature
+    validations:
+      required: true

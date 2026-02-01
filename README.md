@@ -51,4 +51,9 @@ sudo ufw allow 3000/tcp
 
 ---
 
+## Contributing
+
+Please see CONTRIBUTING.md.
+
+
 > Contributions are welcome! Please leave a star ⭐ to show your support.
