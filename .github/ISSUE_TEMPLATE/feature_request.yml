@@ -1,0 +1,82 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for Rein
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a feature! Please fill out the form below.  
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: Is your feature request related to a problem? Please describe.
+      placeholder: A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like.
+      placeholder: A clear and concise description of what you want to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or features you've considered.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      description: What area of Rein does this feature relate to?
+      options:
+        - Trackpad / Cursor Control
+        - Keyboard Input
+        - Scroll Functionality
+        - Connection / Networking
+        - Settings / Configuration
+        - UI / User Experience
+        - Cross-Platform Support
+        - Wayland Compatibility
+        - Performance
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platforms
+    attributes:
+      label: Affected Platforms
+      description: Which platforms would benefit from this feature?
+      multiple: true
+      options:
+        - Windows
+        - macOS
+        - Linux (X11)
+        - Linux (Wayland)
+        - All Platforms
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context, mockups, or screenshots about the feature request.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched for existing feature requests to avoid duplicates
+          required: true
+        - label: I have joined the [Discord server](https://discord.gg/hjUhu33uAn)
+          required: true

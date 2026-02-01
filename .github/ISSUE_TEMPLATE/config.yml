@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discord Community
+    url: https://discord.gg/hjUhu33uAn
+    about: Join AOSSIE Discord for questions, discussions, and support
+  - name: Project Wiki
+    url: https://github.com/imxade/rein/wiki
+    about: Check the wiki for documentation and guides
+  - name: Contribution Guidelines
+    url: https://github.com/imxade/rein/wiki/contribution
+    about: Read before contributing to the project
