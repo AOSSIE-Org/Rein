@@ -1,0 +1,90 @@
+name: Bug Report
+description: Report a bug or unexpected behavior in Rein
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of the bug.
+      placeholder: Describe what happened...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Open the app on '...'
+        2. Navigate to '...'
+        3. Perform action '...'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: Describe what should happen...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Desktop Operating System
+      description: The OS running the Rein server
+      options:
+        - Windows 10
+        - Windows 11
+        - macOS (Intel)
+        - macOS (Apple Silicon)
+        - Linux (X11)
+        - Linux (Wayland - GNOME)
+        - Linux (Wayland - KDE)
+        - Linux (Wayland - Other)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: mobile
+    attributes:
+      label: Mobile Device (Client)
+      description: The device/browser used to control (e.g., iPhone 15 Safari, Android Chrome)
+      placeholder: e.g., iPhone 15 Safari, Samsung Galaxy S24 Chrome
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Rein Version
+      description: Version of Rein (check in Settings or package.json)
+      placeholder: e.g., 1.0.0
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console Logs / Error Messages
+      description: Any relevant logs from browser console or terminal
+      render: shell
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots / Recordings
+      description: If applicable, add screenshots or recordings to help explain the problem.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched for existing issues to avoid duplicates
+          required: true
