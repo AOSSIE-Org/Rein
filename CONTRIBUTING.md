@@ -23,11 +23,6 @@ Add upstream:
 
 git remote add upstream https://github.com/AOSSIE-Org/Rein.git
 
-Install and run:
-
-npm install
-npm run dev
-
 ## Making changes
 
 Create a new branch:
