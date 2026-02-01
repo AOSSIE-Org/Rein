@@ -1,28 +1,24 @@
-name: Bug report
-
-description: Report a problem in Rein
-
-title: "\[Bug]: "
-
-labels: \["bug"]
+\## Description
 
 
 
-body:
+Brief description of the changes.
 
-&nbsp; - type: textarea
 
-&nbsp;   id: description
 
-&nbsp;   attributes:
+\## Related issue
 
-&nbsp;     label: Description
 
-&nbsp;     description: What went wrong?
 
-&nbsp;   validations:
+Closes #
 
-&nbsp;     required: true
+
+
+\## How to test
+
+
+
+Explain how to test your changes.
 
 
 
