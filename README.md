@@ -2,7 +2,6 @@
 
 A cross-platform, LAN-based remote control. It allows touchscreen devices to act as a trackpad and keyboard for a desktop system through a locally served web interface.
 
-
 ## Features
 - Use any phone or tablet as a remote trackpad and keyboard
 - LAN-based communication (no external server required)
@@ -30,6 +29,13 @@ Rein uses a local client–server architecture over LAN.
 ## Development Setup
 
 This project behaves like a standard Node.js application and can run on Windows, macOS, or Linux. 
+
+## Project Structure
+
+- /src – Application source code
+- /public – Static assets and icons
+- Server logic – WebSocket and input handling
+- Web UI – Mobile remote control interface
 
 ### Quick Start
 
@@ -67,23 +73,20 @@ sudo ufw allow 3000/tcp
 - **Scroll**: Toggle "Scroll Mode" or use two fingers.
 - **Keyboard**: Tap the "Keyboard" button to use your phone's native keyboard.
 
-
 ## Troubleshooting
 
 - If the mobile device cannot connect, ensure both devices are on the same network.
 - Make sure port 3000 is allowed through your firewall.
 - On some systems (especially Wayland), cursor synchronization may behave differently.
 
----
-## Community
-
-Join the AOSSIE Discord server to chat with mentors and contributors:  
-Visit the [Discord Channel](https://discord.com/invite/C8wHmwtczs) for interacting with the community!
-(IN Group go to Projects → Rein)
 
 ## License
 
 This project is licensed under the terms specified in the LICENSE file.
 
+
+<h3> Visit the [Discord Channel](https://discord.com/invite/C8wHmwtczs) for interacting with the community! <h3>
+
+---
 
 > Contributions are welcome! Please leave a star ⭐ to show your support.
