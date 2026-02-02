@@ -86,6 +86,7 @@ This project is licensed under the terms specified in the LICENSE file.
 
 
 <h3> Visit the [Discord Channel](https://discord.com/invite/C8wHmwtczs) for interacting with the community! <h3>
+(Go to Project-> Rein)
 
 ---
 
