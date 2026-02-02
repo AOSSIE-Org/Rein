@@ -17,16 +17,34 @@ function TrackpadPage() {
     const { status, send } = useRemoteConnection();
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode);
 
+    // detect if keyboard is visible by checking if viewport shrank significantly
+    const isKeyboardVisible = (): boolean => {
+        if (typeof window === 'undefined') return false;
+
+        if (window.visualViewport) {
+            // if visual viewport is significantly smaller than window height, keyboard is open
+            return window.visualViewport.height < window.innerHeight * 0.85;
+        }
+        
+        // Fallback: check if input is focused
+        return document.activeElement === hiddenInputRef.current;
+    };
+
     const toggleKeyboard = () => {
         const input = hiddenInputRef.current;
         if (!input) return;
         
-        // check actual focus state, not tracked state as in testing this didnt account for cases where keyboard was dismissed via back button
-        // this handles cases where keyboard was dismissed via back button
-        if (document.activeElement === input) {
+        if (isKeyboardVisible()) {
+            // Keyboard is visible - close it
             input.blur();
         } else {
-            input.focus();
+            // Keyboard is hidden - open it
+            // Always blur first then focus to ensure a fresh focus event
+            input.blur();
+            // Small delay to ensure blur completes before focus
+            requestAnimationFrame(() => {
+                input.focus();
+            });
         }
     };
 

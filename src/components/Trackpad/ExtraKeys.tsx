@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 
 interface ExtraKeysProps {
     sendKey: (key: string) => void;
@@ -6,20 +6,50 @@ interface ExtraKeysProps {
 
 const KEYS = ['Esc', 'Tab', 'Ctrl', 'Alt', 'Shift', 'Meta', 'Home', 'End', 'PgUp', 'PgDn', 'Del'];
 
+// if finger moves more than this, it's a scroll not a tap
+const MOVE_THRESHOLD = 10;
+
 export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey }) => {
     const [activeKey, setActiveKey] = useState<string | null>(null);
+    const startPosRef = useRef<{ x: number; y: number } | null>(null);
+    const hasMoved = useRef(false);
 
     const handlePointerDown = (e: React.PointerEvent, key: string) => {
-        e.preventDefault();
-        // Blur any focused input to prevent keyboard from re-showing
-        if (document.activeElement instanceof HTMLElement) {
-            document.activeElement.blur();
-        }
+        // record starting position to detect scrolling vs tapping
+        startPosRef.current = { x: e.clientX, y: e.clientY };
+        hasMoved.current = false;
         setActiveKey(key);
-        sendKey(key.toLowerCase());
     };
 
-    const handlePointerUp = () => {
+    const handlePointerMove = (e: React.PointerEvent) => {
+        if (!startPosRef.current) return;
+        
+        const dx = Math.abs(e.clientX - startPosRef.current.x);
+        const dy = Math.abs(e.clientY - startPosRef.current.y);
+        
+        if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
+            hasMoved.current = true;
+            setActiveKey(null); // cancel visual feedback if scrolling
+        }
+    };
+
+    const handlePointerUp = (e: React.PointerEvent, key: string) => {
+        if (!hasMoved.current && activeKey === key) {
+            e.preventDefault();
+            if (document.activeElement instanceof HTMLElement) {
+                document.activeElement.blur();
+            }
+            sendKey(key.toLowerCase());
+        }
+        
+        startPosRef.current = null;
+        hasMoved.current = false;
+        setActiveKey(null);
+    };
+
+    const handlePointerLeave = () => {
+        startPosRef.current = null;
+        hasMoved.current = false;
         setActiveKey(null);
     };
 
@@ -40,8 +70,10 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey }) => {
                         }
                     `}
                     onPointerDown={(e) => handlePointerDown(e, k)}
-                    onPointerUp={handlePointerUp}
-                    onPointerLeave={handlePointerUp}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={(e) => handlePointerUp(e, k)}
+                    onPointerLeave={handlePointerLeave}
+                    onPointerCancel={handlePointerLeave}
                 >
                     {k}
                 </button>
