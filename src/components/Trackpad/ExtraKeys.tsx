@@ -5,8 +5,6 @@ interface ExtraKeysProps {
 }
 
 const KEYS = ['Esc', 'Tab', 'Ctrl', 'Alt', 'Shift', 'Meta', 'Home', 'End', 'PgUp', 'PgDn', 'Del'];
-
-// if finger moves more than this, it's a scroll not a tap
 const MOVE_THRESHOLD = 10;
 
 export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey }) => {
@@ -15,7 +13,9 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey }) => {
     const hasMoved = useRef(false);
 
     const handlePointerDown = (e: React.PointerEvent, key: string) => {
-        // record starting position to detect scrolling vs tapping
+        // Prevent ALL focus changes
+        e.preventDefault();
+        e.stopPropagation();
         startPosRef.current = { x: e.clientX, y: e.clientY };
         hasMoved.current = false;
         setActiveKey(key);
@@ -23,25 +23,22 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey }) => {
 
     const handlePointerMove = (e: React.PointerEvent) => {
         if (!startPosRef.current) return;
-        
         const dx = Math.abs(e.clientX - startPosRef.current.x);
         const dy = Math.abs(e.clientY - startPosRef.current.y);
-        
         if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
             hasMoved.current = true;
-            setActiveKey(null); // cancel visual feedback if scrolling
+            setActiveKey(null);
         }
     };
 
     const handlePointerUp = (e: React.PointerEvent, key: string) => {
+        // Prevent focus changes on up event too
+        e.preventDefault();
+        e.stopPropagation();
+
         if (!hasMoved.current && activeKey === key) {
-            e.preventDefault();
-            if (document.activeElement instanceof HTMLElement) {
-                document.activeElement.blur();
-            }
             sendKey(key.toLowerCase());
         }
-        
         startPosRef.current = null;
         hasMoved.current = false;
         setActiveKey(null);

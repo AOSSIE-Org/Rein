@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRemoteConnection } from '../hooks/useRemoteConnection';
 import { useTrackpadGesture } from '../hooks/useTrackpadGesture';
 import { ControlBar } from '../components/Trackpad/ControlBar';
@@ -13,44 +13,42 @@ export const Route = createFileRoute('/trackpad')({
 function TrackpadPage() {
     const [scrollMode, setScrollMode] = useState(false);
     const hiddenInputRef = useRef<HTMLInputElement>(null);
+    // Use ref for immediate sync access (no async state delay)
+    const keyboardOpenRef = useRef(false);
 
     const { status, send } = useRemoteConnection();
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode);
 
-    // detect if keyboard is visible by checking if viewport shrank significantly
-    const isKeyboardVisible = (): boolean => {
-        if (typeof window === 'undefined') return false;
+    // Sync keyboard state from viewport resize (handles back button dismissal)
+    useEffect(() => {
+        const viewport = window.visualViewport;
+        if (!viewport) return;
 
-        if (window.visualViewport) {
-            // if visual viewport is significantly smaller than window height, keyboard is open
-            return window.visualViewport.height < window.innerHeight * 0.85;
-        }
+        const syncKeyboardState = () => {
+            const isVisible = viewport.height < window.innerHeight * 0.85;
+            keyboardOpenRef.current = isVisible;
+        };
         
-        // Fallback: check if input is focused
-        return document.activeElement === hiddenInputRef.current;
-    };
+        viewport.addEventListener('resize', syncKeyboardState);
+        return () => viewport.removeEventListener('resize', syncKeyboardState);
+    }, []);
 
-    const toggleKeyboard = () => {
+    const toggleKeyboard = useCallback(() => {
         const input = hiddenInputRef.current;
         if (!input) return;
         
-        if (isKeyboardVisible()) {
-            // Keyboard is visible - close it
+        // Read from ref for immediate accurate value
+        if (keyboardOpenRef.current) {
             input.blur();
+            keyboardOpenRef.current = false;
         } else {
-            // Keyboard is hidden - open it
-            // Always blur first then focus to ensure a fresh focus event
-            input.blur();
-            // Small delay to ensure blur completes before focus
-            requestAnimationFrame(() => {
-                input.focus();
-            });
+            input.focus();
+            keyboardOpenRef.current = true;
         }
-    };
+    }, []);
 
     const handleClick = (button: 'left' | 'right') => {
         send({ type: 'click', button, press: true });
-        // Release after short delay to simulate click
         setTimeout(() => send({ type: 'click', button, press: false }), 50);
     };
 
@@ -73,15 +71,12 @@ function TrackpadPage() {
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
-            {/* Touch Surface */}
             <TouchArea
                 isTracking={isTracking}
                 scrollMode={scrollMode}
                 handlers={handlers}
                 status={status}
             />
-
-            {/* Controls */}
             <ControlBar
                 scrollMode={scrollMode}
                 onToggleScroll={() => setScrollMode(!scrollMode)}
@@ -89,13 +84,7 @@ function TrackpadPage() {
                 onRightClick={() => handleClick('right')}
                 onKeyboardToggle={toggleKeyboard}
             />
-
-            {/* Extra Keys */}
-            <ExtraKeys
-                sendKey={(k) => send({ type: 'key', key: k })}
-            />
-
-            {/* Hidden Input for Mobile Keyboard */}
+            <ExtraKeys sendKey={(k) => send({ type: 'key', key: k })} />
             <input
                 ref={hiddenInputRef}
                 className="opacity-0 absolute bottom-0 pointer-events-none h-0 w-0"
