@@ -2,29 +2,12 @@
 
 A cross-platform, LAN-based remote control. It allows touchscreen devices to act as a trackpad and keyboard for a desktop system through a locally served web interface.
 
-## Features
-- Use any phone or tablet as a remote trackpad and keyboard
-- LAN-based communication (no external server required)
-- Real-time cursor and input streaming using WebSockets
-- QR-based quick connection from mobile devices
-- Cross-platform support (Windows, macOS, Linux)
-
 ## Tech Stack
 
 *   **Framework**: [TanStack Start](https://tanstack.com/start)
 *   **Language**: TypeScript
 *   **Real-time**: Native WebSockets (`ws`)
 *   **Input Simulation**: [@nut-tree/nut-js](https://github.com/nut-tree/nut.js)
-
-
-## Architecture
-
-Rein uses a local client–server architecture over LAN.
-
-- Desktop runs a local web server and input controller
-- Mobile device connects through a browser
-- Inputs are sent in real time using WebSockets
-- Desktop simulates mouse and keyboard actions using Nut.js
 
 ## Development Setup
 
@@ -72,18 +55,6 @@ sudo ufw allow 3000/tcp
 - **Trackpad**: Swipe to move, tap to click.
 - **Scroll**: Toggle "Scroll Mode" or use two fingers.
 - **Keyboard**: Tap the "Keyboard" button to use your phone's native keyboard.
-
-## Troubleshooting
-
-- If the mobile device cannot connect, ensure both devices are on the same network.
-- Make sure port 3000 is allowed through your firewall.
-- On some systems (especially Wayland), cursor synchronization may behave differently.
-
-
-## License
-
-This project is licensed under the terms specified in the LICENSE file.
-
 
 Visit the [Discord Channel](https://discord.com/invite/C8wHmwtczs) for interacting with the community!
 (Go to Project-> Rein)
