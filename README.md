@@ -13,6 +13,13 @@ A cross-platform, LAN-based remote control. It allows touchscreen devices to act
 
 This project behaves like a standard Node.js application and can run on Windows, macOS, or Linux. 
 
+## Project Structure
+
+- /src – Application source code
+- /public – Static assets and icons
+- Server logic – WebSocket and input handling
+- Web UI – Mobile remote control interface
+
 ### Quick Start
 
 1.  Install dependencies:
@@ -48,6 +55,9 @@ sudo ufw allow 3000/tcp
 - **Trackpad**: Swipe to move, tap to click.
 - **Scroll**: Toggle "Scroll Mode" or use two fingers.
 - **Keyboard**: Tap the "Keyboard" button to use your phone's native keyboard.
+
+Visit the [Discord Channel](https://discord.com/invite/C8wHmwtczs) for interacting with the community!
+(Go to Project-> Rein)
 
 ---
 
