@@ -39,11 +39,13 @@ export class InputHandler {
 
             case 'scroll':
                 const invertMultiplier = (CONFIG.MOUSE_INVERT ?? false) ? -1 : 1;
-                if (msg.dy !== undefined && msg.dy !== 0) await mouse.scrollDown(msg.dy * invertMultiplier);
-                if (msg.dx !== undefined && msg.dx !== 0) await mouse.scrollRight(msg.dx * -1 * invertMultiplier);
+                const promises: Promise<void>[] = [];
+                if (msg.dy) promises.push(mouse.scrollDown(msg.dy * invertMultiplier));
+                if (msg.dx) promises.push(mouse.scrollRight(-msg.dx * invertMultiplier));
+                if (promises.length) await Promise.all(promises);
                 break;
 
-            case 'key':
+            case 'key': 
                 if (msg.key) {
                     console.log(`Processing key: ${msg.key}`);
                     const nutKey = KEY_MAP[msg.key.toLowerCase()];

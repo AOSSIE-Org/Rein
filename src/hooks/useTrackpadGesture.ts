@@ -13,7 +13,8 @@ interface TrackedTouch {
 export const useTrackpadGesture = (
     send: (msg: any) => void,
     scrollMode: boolean,
-    sensitivity: number = 1.5
+    sensitivity: number = 1.5,
+    axisThreshold: number = 2.5 
 ) => {
     const [isTracking, setIsTracking] = useState(false);
 
@@ -123,10 +124,23 @@ export const useTrackpadGesture = (
         if (moved.current && e.timeStamp - lastEndTimeStamp.current >= TOUCH_TIMEOUT) {
             if (scrollMode || ongoingTouches.current.length === 2) {
                 // Scroll mode: single finger scrolls, or two-finger scroll in cursor mode
-                send({ type: 'scroll', dx: -sumX * sensitivity, dy: -sumY * sensitivity });
+                let scrollDx = sumX;
+                let scrollDy = sumY;
+                const absDx = Math.abs(scrollDx);
+                const absDy = Math.abs(scrollDy);
+                if (scrollMode) {
+                    if (absDx > absDy * axisThreshold) {
+                        // Horizontal is dominant - ignore vertical
+                        scrollDy = 0;
+                    } else if (absDy > absDx * axisThreshold) {
+                        // Vertical is dominant - ignore horizontal 
+                        scrollDx = 0;
+                    }
+                }
+                send({ type: 'scroll', dx: Math.round(-scrollDx * sensitivity * 10) / 10 , dy: Math.round(-scrollDy * sensitivity * 10) / 10 });
             } else if (ongoingTouches.current.length === 1 || dragging.current) {
                 // Cursor movement (only in cursor mode with 1 finger, or when dragging)
-                send({ type: 'move', dx: sumX * sensitivity, dy: sumY * sensitivity });
+                send({ type: 'move', dx: Math.round(sumX * sensitivity * 10) / 10 , dy: Math.round(sumY * sensitivity * 10) / 10 });
             }
         }
     };
