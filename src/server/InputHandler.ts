@@ -22,7 +22,13 @@ export class InputHandler {
             case 'move':
                 if (msg.dx !== undefined && msg.dy !== undefined) {
                     const currentPos = await mouse.getPosition();
-                    await mouse.setPosition(new Point(currentPos.x + msg.dx, currentPos.y + msg.dy));
+                    // Apply sensitivity multiplier
+                    const sensitivity = CONFIG.MOUSE_SENSITIVITY ?? 1.0;
+                    
+                    await mouse.setPosition(new Point(
+                        currentPos.x + (msg.dx * sensitivity), 
+                        currentPos.y + (msg.dy * sensitivity)
+                    ));
                 }
                 break;
 

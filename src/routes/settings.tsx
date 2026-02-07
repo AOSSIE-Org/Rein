@@ -11,6 +11,7 @@ function SettingsPage() {
     const [ip, setIp] = useState('');
     const [frontendPort, setFrontendPort] = useState(String(CONFIG.FRONTEND_PORT));
     const [invertScroll, setInvertScroll] = useState(CONFIG.MOUSE_INVERT);
+    const [sensitivity, setSensitivity] = useState(CONFIG.MOUSE_SENSITIVITY);
     const [qrData, setQrData] = useState('');
 
     // Load initial state
@@ -61,8 +62,6 @@ function SettingsPage() {
                 if (data.type === 'server-ip' && data.ip) {
                     console.log('Auto-detected IP:', data.ip);
                     setIp(data.ip);
-                    console.log('Auto-detected IP:', data.ip);
-                    setIp(data.ip);
                     socket.close();
                 }
             } catch (e) {
@@ -101,6 +100,34 @@ function SettingsPage() {
                     </label>
                 </div>
 
+                {/* SENSITIVITY SLIDER SECTION */} 
+                <div className="form-control w-full max-w-2xl mx-auto">
+                    <label className="label" htmlFor="sensitivity-slider">
+                        <span className="label-text">Mouse Sensitivity</span>
+                        <span className="label-text-alt font-mono">
+                        {sensitivity.toFixed(1)}x
+                        </span>
+                    </label>
+
+                    <input
+                        type="range"
+                        id="sensitivity-slider"
+                        min="0.1"
+                        max="3.0"
+                        step="0.1"
+                        value={sensitivity}
+                        onChange={(e) => setSensitivity(parseFloat(e.target.value))}
+                        className="range range-primary range-sm w-full"
+                    />
+
+                    <div className="mt-2 flex w-full justify-between px-2 text-xs opacity-50">
+                        <span>Slow</span>
+                        <span>Default</span>
+                        <span>Fast</span>
+                    </div>
+                </div>
+
+
                 <div className="form-control w-full">
                     <label className="label cursor-pointer">
                         <span className="label-text font-medium">Invert Scroll</span>
@@ -133,7 +160,11 @@ function SettingsPage() {
                 </div>
 
                 <div className="alert alert-warning text-xs shadow-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-4 w-4" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <title>Warning</title>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
                     <span>Important: Ensure port {frontendPort} is allowed in your computer's firewall!</span>
                 </div>
 
@@ -150,7 +181,8 @@ function SettingsPage() {
                                 type: 'update-config',
                                 config: {
                                     frontendPort: parseInt(frontendPort),
-                                    mouseInvert: invertScroll
+                                    mouseInvert: invertScroll,
+                                    mouseSensitivity: sensitivity,
                                 }
                             }));
 
@@ -179,8 +211,10 @@ function SettingsPage() {
                             </div>
                         )}
 
-                        <a className="link link-primary mt-2 break-all text-lg font-mono bg-base-100 px-4 py-2 rounded-lg inline-block max-w-full overflow-hidden text-ellipsis"
-                            href={displayUrl}>
+                        <a
+                            className="link link-primary mt-2 break-all text-lg font-mono bg-base-100 px-4 py-2 rounded-lg inline-block max-w-full overflow-hidden text-ellipsis"
+                            href={displayUrl}
+                        >
                             {ip}:{CONFIG.FRONTEND_PORT}/trackpad
                         </a>
                     </div>
