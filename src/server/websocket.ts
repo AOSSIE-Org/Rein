@@ -36,11 +36,17 @@ export function createWsServer(server: Server) {
         const pathname = request.url;
 
         if (pathname === '/ws') {
-            wss.handleUpgrade(request, , req: IncomingMessage) => {
-        console.log('Client connected to /ws');
+            wss.handleUpgrade(request, socket, head, (ws) => {
+                wss.emit('connection', ws, request);
+            });
+        }
+    });
+
+    wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
+        const remoteAddress = req.socket.remoteAddress;
+        console.log(`Client connected to /ws from ${remoteAddress}`);
 
         // Determine if client is local (localhost)
-        const remoteAddress = req.socket.remoteAddress;
         const isLocal = remoteAddress === '127.0.0.1' || remoteAddress === '::1' || remoteAddress === '::ffff:127.0.0.1';
 
         // Auto-authenticate localhost, otherwise require PIN
@@ -82,18 +88,9 @@ export function createWsServer(server: Server) {
 
                 // Reject all other messages if not authenticated
                 if (!clientAuth.get(ws)) {
-                    // Start of Selection
-                    // If the message is only checking IP, we might want to allow it?
-                    // But for security, let's block everything except auth.
                     // ws.send(JSON.stringify({ type: 'error', message: 'Authentication required' }));
                     return;
                 }
-        ws.send(JSON.stringify({ type: 'connected', serverIp: LAN_IP }));
-
-        ws.on('message', async (data: string) => {
-            try {
-                const raw = data.toString();
-                const msg = JSON.parse(raw);
 
                 if (msg.type === 'get-ip') {
                     ws.send(JSON.stringify({ type: 'server-ip', ip: LAN_IP }));

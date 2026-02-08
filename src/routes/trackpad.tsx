@@ -18,6 +18,31 @@ function TrackpadPage() {
     const { status, send, isAuthenticated, authRequired, authenticate, authError } = useRemoteConnection();
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode);
 
+    if (status === 'connecting') {
+        return (
+            <div className="h-full flex items-center justify-center p-6 bg-base-100">
+                <div className="flex flex-col items-center space-y-4">
+                    <span className="loading loading-spinner loading-lg text-primary"></span>
+                    <p className="opacity-70">Connecting to server...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (status === 'disconnected') {
+        return (
+            <div className="h-full flex items-center justify-center p-6 bg-base-100">
+                <div className="text-center space-y-4">
+                    <div className="text-error">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                    <h2 className="text-2xl font-bold">Disconnected</h2>
+                    <p className="opacity-70">Connection lost. Reconnecting...</p>
+                </div>
+            </div>
+        );
+    }
+
     if (authRequired && !isAuthenticated) {
         return (
             <div className="h-full flex flex-col items-center justify-center p-6 space-y-6 bg-base-100">
