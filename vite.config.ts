@@ -23,6 +23,11 @@ const config = defineConfig({
         if (server.httpServer) {
           createWsServer(server.httpServer);
         }
+      },
+      configurePreviewServer(server) {
+        if (server.httpServer) {
+          createWsServer(server.httpServer);
+        }
       }
     },
     devtools(),
