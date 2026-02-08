@@ -46,10 +46,14 @@ export class InputHandler {
 
             case 'zoom':
                 if (msg.delta !== undefined && msg.delta !== 0) {
-                    const amount = msg.delta > 0 ? -1 : 1;
+                    const invertMultiplier = (CONFIG.MOUSE_INVERT ?? false) ? -1 : 1;
+                    const amount = -msg.delta * invertMultiplier;
                     await keyboard.pressKey(Key.LeftControl);
-                    await mouse.scrollDown(amount);
-                    await keyboard.releaseKey(Key.LeftControl);
+                    try {
+                        await mouse.scrollDown(amount);
+                    } finally {
+                        await keyboard.releaseKey(Key.LeftControl);
+                    }
                 }
                 break;
 
