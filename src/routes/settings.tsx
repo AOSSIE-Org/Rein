@@ -12,6 +12,7 @@ function SettingsPage() {
     const [frontendPort, setFrontendPort] = useState(String(CONFIG.FRONTEND_PORT));
     const [invertScroll, setInvertScroll] = useState(CONFIG.MOUSE_INVERT);
     const [qrData, setQrData] = useState('');
+    const [pin, setPin] = useState<string | null>(null);
 
     // Load initial state
     useEffect(() => {
@@ -52,18 +53,27 @@ function SettingsPage() {
 
         socket.onopen = () => {
             console.log('Connected to local server for IP detection');
-            socket.send(JSON.stringify({ type: 'get-ip' }));
+            // socket.send(JSON.stringify({ type: 'get-ip' })); // Not strictly needed as connected sends logic
         };
 
         socket.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
+                
+                if (data.type === 'connected') {
+                    if (data.serverIp) {
+                        console.log('Auto-detected IP:', data.serverIp);
+                        setIp(data.serverIp);
+                    }
+                    if (data.pin) {
+                        console.log('Received session PIN');
+                        setPin(data.pin);
+                    }
+                }
+
                 if (data.type === 'server-ip' && data.ip) {
                     console.log('Auto-detected IP:', data.ip);
                     setIp(data.ip);
-                    console.log('Auto-detected IP:', data.ip);
-                    setIp(data.ip);
-                    socket.close();
                 }
             } catch (e) {
                 console.error(e);
@@ -84,6 +94,19 @@ function SettingsPage() {
         <div className="h-full overflow-y-auto w-full">
             <div className="p-6 pb-safe max-w-md mx-auto space-y-8 min-h-full">
                 <h1 className="text-3xl font-bold pt-4">Settings</h1>
+
+                {pin && (
+                    <div className="alert alert-info shadow-lg">
+                        <div>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current flex-shrink-0 w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <div>
+                                <h3 className="font-bold">Session PIN</h3>
+                                <div className="text-xs">Enter this PIN on your mobile device</div>
+                            </div>
+                        </div>
+                        <div className="font-mono text-4xl font-black">{pin}</div>
+                    </div>
+                )}
 
                 <div className="form-control w-full">
                     <label className="label">
