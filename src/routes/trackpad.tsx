@@ -13,9 +13,50 @@ export const Route = createFileRoute('/trackpad')({
 function TrackpadPage() {
     const [scrollMode, setScrollMode] = useState(false);
     const hiddenInputRef = useRef<HTMLInputElement>(null);
+    const [pinInput, setPinInput] = useState('');
 
-    const { status, send } = useRemoteConnection();
+    const { status, send, isAuthenticated, authRequired, authenticate, authError } = useRemoteConnection();
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode);
+
+    if (authRequired && !isAuthenticated) {
+        return (
+            <div className="h-full flex flex-col items-center justify-center p-6 space-y-6 bg-base-100">
+                <div className="text-center space-y-2">
+                    <h2 className="text-3xl font-bold">Authentication</h2>
+                    <p className="opacity-70">Enter the PIN shown on your desktop.</p>
+                </div>
+
+                <div className="form-control w-full max-w-xs">
+                    <input
+                        type="tel"
+                        className="input input-bordered w-full text-center text-4xl tracking-[0.5em] font-mono h-16"
+                        placeholder="000000"
+                        maxLength={6}
+                        value={pinInput}
+                        onChange={e => setPinInput(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') authenticate(pinInput);
+                        }}
+                    />
+                </div>
+
+                <button
+                    className="btn btn-primary w-full max-w-xs btn-lg"
+                    onClick={() => authenticate(pinInput)}
+                    disabled={pinInput.length < 6}
+                >
+                    Connect
+                </button>
+
+                {authError && (
+                    <div className="alert alert-error shadow-lg max-w-xs">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <span>Incorrect PIN</span>
+                    </div>
+                )}
+            </div>
+        )
+    }
 
     const focusInput = () => {
         hiddenInputRef.current?.focus();
