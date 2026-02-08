@@ -45,12 +45,12 @@ const EXTRA_KEYS: { label: string; key: string }[] = [
 export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey, onInputFocus: _onInputFocus }) => {
 	const [isPlaying, setIsPlaying] = useState(false);
 
-	const handleInteract = (e: React.PointerEvent, key: string) => {
+	const handleInteract = (e: React.MouseEvent, key: string) => {
 		e.preventDefault();
 		sendKey(key);
 	};
 
-	const handlePlayPause = (e: React.PointerEvent) => {
+	const handlePlayPause = (e: React.MouseEvent) => {
 		e.preventDefault();
 		if (isPlaying) {
 			sendKey("audiopause");
@@ -71,7 +71,7 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey, onInputFocus: _on
 						key={key}
 						type="button"
 						className="btn btn-sm btn-neutral min-w-[2.5rem] shrink-0"
-						onPointerDown={(e) => handleInteract(e, key)}
+						onClick={(e) => handleInteract(e, key)}
 					>
 						{label}
 					</button>
@@ -79,7 +79,7 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey, onInputFocus: _on
 				<button
 					type="button"
 					className="btn btn-sm btn-neutral min-w-[2.5rem] shrink-0"
-					onPointerDown={handlePlayPause}
+					onClick={handlePlayPause}
 					title={isPlaying ? "Pause" : "Play"}
 				>
 					{isPlaying ? "Pause" : "Play"}
