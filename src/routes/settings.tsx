@@ -63,7 +63,8 @@ function SettingsPage() {
                     console.log('Auto-detected IP:', data.ip);
                     
                     // Only override if user hasn't set one, or if it's default
-                    if (!localStorage.getItem('rein_ip')) {
+                    const stored = localStorage.getItem('rein_ip');
+                    if (!stored || stored === 'localhost' || stored === '127.0.0.1' || stored === window.location.hostname) {
                          setIp(data.ip);
                     }
                     
