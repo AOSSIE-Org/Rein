@@ -1,6 +1,6 @@
-// Configuration constants (from reference implementation)
-export const TOUCH_MOVE_THRESHOLD = [10, 15, 15]; // [1 finger, 2 fingers, 3 fingers] in pixels
-export const TOUCH_TIMEOUT = 250; // ms - max time for tap vs drag detection
+export const TOUCH_MOVE_THRESHOLD = [10, 15, 15];
+export const TOUCH_TIMEOUT = 250;
+export const PINCH_THRESHOLD = 10;
 export const POINTER_ACCELERATION = [
     [0, 0],
     [87, 1],
