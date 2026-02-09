@@ -31,7 +31,7 @@ export const TouchArea: React.FC<TouchAreaProps> = ({ scrollMode, isTracking, ha
     };
 
     const getLatencyColor = () => {
-        if (!latency) return 'text-neutral-500';
+        if (latency == null) return 'text-neutral-500';
         if (latency < 50) return 'text-success';
         if (latency < 150) return 'text-warning';
         return 'text-error';
@@ -47,7 +47,7 @@ export const TouchArea: React.FC<TouchAreaProps> = ({ scrollMode, isTracking, ha
         >
             <div className={`absolute top-0 left-0 w-full h-1 transition-colors duration-500 ${getStatusColor()}`} />
 
-            {latency !== null && status === 'connected' && (
+            {latency != null && status === 'connected' && (
                 <div className={`absolute top-4 left-4 text-[10px] font-mono font-bold ${getLatencyColor()}`}>
                     {latency}ms
                 </div>
@@ -57,10 +57,10 @@ export const TouchArea: React.FC<TouchAreaProps> = ({ scrollMode, isTracking, ha
                 <div className="absolute top-1/4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 z-10">
                     <div className="badge badge-warning gap-2 py-3 px-4 shadow-xl border-none">
                         <span className="loading loading-spinner loading-xs"></span>
-                        Reconnecting...
+                        Connection Unsteady
                     </div>
                     <span className="text-warning text-xs font-medium bg-black/40 px-3 py-1 rounded-full backdrop-blur-sm">
-                        Network Link Unstable
+                        Attempting recovery...
                     </span>
                 </div>
             )}

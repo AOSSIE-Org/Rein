@@ -1,9 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
-export const useRemoteConnection = () => {
+export const useRemoteConnection = (onMessage?: (data: any) => void) => {
     const [ws, setWs] = useState<WebSocket | null>(null);
     const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'stale'>('disconnected');
     const [latency, setLatency] = useState<number | null>(null);
+
+    // Use ref to keep onMessage stable across re-renders
+    const onMessageRef = useRef(onMessage);
+    useEffect(() => { onMessageRef.current = onMessage; }, [onMessage]);
 
     useEffect(() => {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -14,25 +18,37 @@ export const useRemoteConnection = () => {
         let heartbeatInterval: NodeJS.Timeout;
         let lastPongTime = Date.now();
         let lastPingStart = 0;
+        let missedPongs = 0;
+        let activeSocket: WebSocket | null = null;
 
         const connect = () => {
             console.log(`Connecting to ${wsUrl}`);
             setStatus('connecting');
             const socket = new WebSocket(wsUrl);
+            activeSocket = socket;
 
             socket.onopen = () => {
                 setStatus('connected');
                 lastPongTime = Date.now();
+                missedPongs = 0;
                 
                 heartbeatInterval = setInterval(() => {
                     if (socket.readyState === WebSocket.OPEN) {
                         lastPingStart = Date.now();
                         socket.send(JSON.stringify({ type: 'ping' }));
 
-                        // If no pong for > 4s, mark as stale
+                        // Increment missedPongs only if a pong timeout is confirmed (> 4s)
                         if (Date.now() - lastPongTime > 4000) {
-                            setStatus('stale');
-                            setLatency(null);
+                            missedPongs++;
+
+                            // Recovery strategy: if missed too many pongs, force closed to trigger reconnect
+                            if (missedPongs >= 3) {
+                                console.warn('Connection stale. Forcing reconnect...');
+                                socket.close();
+                            } else if (missedPongs >= 2) {
+                                setStatus('stale');
+                                setLatency(null);
+                            }
                         }
                     }
                 }, 2000);
@@ -45,7 +61,12 @@ export const useRemoteConnection = () => {
                         const now = Date.now();
                         setLatency(now - lastPingStart);
                         lastPongTime = now;
-                        setStatus('connected');
+                        missedPongs = 0;
+                        // Functional update to avoid stale closure on 'status'
+                        setStatus(prev => prev === 'stale' ? 'connected' : prev);
+                    } else {
+                        // Forward all other message types to the callback
+                        onMessageRef.current?.(data);
                     }
                 } catch (e) {
                     console.error("Message error", e);
@@ -56,6 +77,7 @@ export const useRemoteConnection = () => {
                 setStatus('disconnected');
                 setLatency(null);
                 clearInterval(heartbeatInterval);
+                activeSocket = null;
                 reconnectTimer = setTimeout(connect, 3000);
             };
 
@@ -72,7 +94,7 @@ export const useRemoteConnection = () => {
         return () => {
             clearTimeout(reconnectTimer);
             clearInterval(heartbeatInterval);
-            ws?.close();
+            activeSocket?.close();
         };
     }, []);
 
