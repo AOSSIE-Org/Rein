@@ -15,7 +15,7 @@ function TrackpadPage() {
     const hiddenInputRef = useRef<HTMLInputElement>(null);
     const isComposingRef = useRef(false);
 
-    const { status, send } = useRemoteConnection();
+    const { status, send, latency } = useRemoteConnection();
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode);
 
     const focusInput = () => {
@@ -83,6 +83,7 @@ function TrackpadPage() {
                 scrollMode={scrollMode}
                 handlers={handlers}
                 status={status}
+                latency={latency}
             />
 
             {/* Controls */}
