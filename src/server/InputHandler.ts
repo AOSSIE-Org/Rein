@@ -1,15 +1,16 @@
-import { mouse, Point, Button, keyboard } from '@nut-tree-fork/nut-js';
+import { mouse, Point, Button, keyboard, Key } from '@nut-tree-fork/nut-js';
 import { KEY_MAP } from './KeyMap';
 import { CONFIG } from '../config';
 
 export interface InputMessage {
-    type: 'move' | 'click' | 'scroll' | 'key' | 'text';
+    type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'swipe';
     dx?: number;
     dy?: number;
     button?: 'left' | 'right' | 'middle';
     press?: boolean;
     key?: string;
     text?: string;
+    direction?: 'left' | 'right' | 'up' | 'down';
 }
 
 export class InputHandler {
@@ -61,6 +62,47 @@ export class InputHandler {
             case 'text':
                 if (msg.text) {
                     await keyboard.type(msg.text);
+                }
+                break;
+
+            case 'swipe':
+                if (msg.direction) {
+                    const isMac = process.platform === 'darwin';
+                    const isWindows = process.platform === 'win32';
+
+                    if (msg.direction === 'left') {
+                        if (isMac) {
+                            await keyboard.pressKey(Key.LeftControl, Key.Right);
+                            await keyboard.releaseKey(Key.LeftControl, Key.Right);
+                        } else if (isWindows) {
+                            await keyboard.pressKey(Key.LeftControl, Key.LeftSuper, Key.Right);
+                            await keyboard.releaseKey(Key.LeftControl, Key.LeftSuper, Key.Right);
+                        }
+                    } else if (msg.direction === 'right') {
+                        if (isMac) {
+                            await keyboard.pressKey(Key.LeftControl, Key.Left);
+                            await keyboard.releaseKey(Key.LeftControl, Key.Left);
+                        } else if (isWindows) {
+                            await keyboard.pressKey(Key.LeftControl, Key.LeftSuper, Key.Left);
+                            await keyboard.releaseKey(Key.LeftControl, Key.LeftSuper, Key.Left);
+                        }
+                    } else if (msg.direction === 'up') {
+                        if (isMac) {
+                            await keyboard.pressKey(Key.LeftControl, Key.Up);
+                            await keyboard.releaseKey(Key.LeftControl, Key.Up);
+                        } else if (isWindows) {
+                            await keyboard.pressKey(Key.LeftSuper, Key.Tab);
+                            await keyboard.releaseKey(Key.LeftSuper, Key.Tab);
+                        }
+                    } else if (msg.direction === 'down') {
+                        if (isMac) {
+                            await keyboard.pressKey(Key.LeftControl, Key.Down);
+                            await keyboard.releaseKey(Key.LeftControl, Key.Down);
+                        } else if (isWindows) {
+                            await keyboard.pressKey(Key.LeftSuper, Key.D);
+                            await keyboard.releaseKey(Key.LeftSuper, Key.D);
+                        }
+                    }
                 }
                 break;
         }
