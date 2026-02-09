@@ -69,6 +69,11 @@ export function createWsServer(server: Server) {
                     return;
                 }
 
+                if (msg.type === 'ping') {
+                    ws.send(JSON.stringify({ type: 'pong' }));
+                    return;
+                }
+
                 await inputHandler.handleMessage(msg as InputMessage);
             } catch (err) {
                 console.error('Error processing message:', err);
