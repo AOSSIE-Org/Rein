@@ -1,5 +1,7 @@
-import { useState, useRef } from 'react';
-import { useGesture } from '@use-gesture/react';
+import { useRef, useState } from 'react';
+import { createUseGesture, dragAction, pinchAction } from '@use-gesture/react';
+
+const useGesture = createUseGesture([dragAction, pinchAction]);
 
 export const useTrackpadGesture = (
     send: (msg: any) => void,
@@ -7,76 +9,97 @@ export const useTrackpadGesture = (
     sensitivity: number = 1.5
 ) => {
     const [isTracking, setIsTracking] = useState(false);
-    
-    const maxTouches = useRef(0);
-    const swipeAccumulator = useRef({ x: 0, y: 0 });
-    const SWIPE_THRESHOLD = 100;
+    const maxFingers = useRef(0);
 
-    const handlers = useGesture({
-        onPointerDown: ({ touches }) => {
-            maxTouches.current = touches;
-            swipeAccumulator.current = { x: 0, y: 0 };
-        },
-        onDragStart: ({ touches }) => {
-            setIsTracking(true);
-            maxTouches.current = Math.max(maxTouches.current, touches);
-        },
-        onDrag: ({ delta: [dx, dy], touches, event }) => {
-            if (event.cancelable) event.preventDefault();
-            
-            maxTouches.current = Math.max(maxTouches.current, touches);
-            
-            if (touches === 1 && !scrollMode) {
-                 send({ type: 'move', dx: dx * sensitivity, dy: dy * sensitivity });
-            } 
-            else if (touches === 2 || (touches === 1 && scrollMode)) {
-                 const scrollSens = sensitivity * 2.5; 
-                 send({ type: 'scroll', dx: -dx * scrollSens, dy: -dy * scrollSens });
-            }
-            else if (touches === 3) {
-                swipeAccumulator.current.x += dx;
-                swipeAccumulator.current.y += dy;
+    const bind = useGesture(
+        {
+            onDragStart: ({ touches }) => {
+                maxFingers.current = touches;
+                setIsTracking(true);
+            },
 
-                if (Math.abs(swipeAccumulator.current.x) > SWIPE_THRESHOLD) {
-                    const dir = swipeAccumulator.current.x > 0 ? 'right' : 'left';
-                    send({ type: 'swipe', direction: dir });
-                    swipeAccumulator.current = { x: 0, y: 0 };
+            onDrag: ({ delta: [dx, dy], tap, touches }) => {
+                if (tap) return;
+
+                if (touches > maxFingers.current) {
+                    maxFingers.current = touches;
                 }
-                if (Math.abs(swipeAccumulator.current.y) > SWIPE_THRESHOLD) {
-                    const dir = swipeAccumulator.current.y > 0 ? 'down' : 'up';
-                    send({ type: 'swipe', direction: dir });
-                    swipeAccumulator.current = { x: 0, y: 0 };
+
+                const scaledDx = dx * sensitivity;
+                const scaledDy = dy * sensitivity;
+
+                const isScroll =
+                    maxFingers.current === 2 ||
+                    (scrollMode && maxFingers.current === 1);
+
+                if (isScroll) {
+                    send({
+                        type: 'scroll',
+                        dx: -scaledDx,
+                        dy: -scaledDy,
+                    });
+                } else if (maxFingers.current === 1) {
+                    send({
+                        type: 'move',
+                        dx: scaledDx,
+                        dy: scaledDy,
+                    });
                 }
-            }
+            },
+
+            onPinchStart: () => {
+                setIsTracking(true);
+            },
+
+            onPinch: ({ delta: [d], touches }) => {
+                if (touches === 2 && d !== 0) {
+                    send({
+                        type: 'zoom',
+                        delta: d * sensitivity,
+                    });
+                }
+            },
+
+            onDragEnd: ({ tap }) => {
+                if (tap) {
+                    let button: 'left' | 'right' | 'middle' | null = null;
+
+                    if (maxFingers.current === 1) button = 'left';
+                    else if (maxFingers.current === 2) button = 'right';
+                    else if (maxFingers.current === 3) button = 'middle';
+
+                    if (button) {
+                        send({ type: 'click', button, press: true });
+                        setTimeout(() => {
+                            send({ type: 'click', button, press: false });
+                        }, 50);
+                    }
+                }
+
+                maxFingers.current = 0;
+                setIsTracking(false);
+            },
+
+            onPinchEnd: () => {
+                setIsTracking(false);
+            },
         },
-        onDragEnd: ({ tap }) => {
-             setIsTracking(false);
-             if (tap) {
-                 const button = maxTouches.current === 2 ? 'right' : 'left';
-                 send({ type: 'click', button, press: true });
-                 setTimeout(() => send({ type: 'click', button, press: false }), 50);
-             }
-             maxTouches.current = 0;
-             swipeAccumulator.current = { x: 0, y: 0 };
-        },
-        onPinch: ({ delta: [d], event }) => {
-             if (event.cancelable) event.preventDefault();
-             
-             if (d !== 0) {
-                // FIX: Removed negative sign. Positive d = Zoom In.
-                send({ type: 'zoom', delta: d * 100 }); 
-             }
-        },
-        onPinchStart: () => setIsTracking(true),
-        onPinchEnd: () => setIsTracking(false)
-    }, {
-        drag: { filterTaps: true, threshold: 3 },
-        pinch: { scaleBounds: { min: 0.1, max: 10 }, rubberband: true },
-        eventOptions: { passive: false } 
-    });
+        {
+            drag: {
+                threshold: 5,
+                filterTaps: true,
+            },
+            pinch: {
+                scaleBounds: { min: 0.1, max: 10 },
+            },
+            eventOptions: {
+                passive: false,
+            },
+        }
+    );
 
     return {
         isTracking,
-        handlers: handlers()
+        handlers: bind(),
     };
 };
