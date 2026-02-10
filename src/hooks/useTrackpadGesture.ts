@@ -18,8 +18,7 @@ const getTouchDistance = (a: TrackedTouch, b: TrackedTouch): number => {
 
 export const useTrackpadGesture = (
     send: (msg: any) => void,
-    scrollMode: boolean,
-    sensitivity: number = 1.5
+    scrollMode: boolean
 ) => {
     const [isTracking, setIsTracking] = useState(false);
     
@@ -137,17 +136,17 @@ export const useTrackpadGesture = (
                 if (pinching.current || Math.abs(delta) > PINCH_THRESHOLD) {
                     pinching.current = true;
                     lastPinchDist.current = dist;
-                    send({ type: 'zoom', delta: delta * sensitivity });
+                    send({ type: 'zoom', delta: delta });
                 } else {
                     lastPinchDist.current = dist;
-                    send({ type: 'scroll', dx: -sumX * sensitivity, dy: -sumY * sensitivity });
+                    send({ type: 'scroll', dx: -sumX, dy: -sumY });
                 }
             } else if (scrollMode) {
                 // Scroll mode: single finger scrolls, or two-finger scroll in cursor mode
-                send({ type: 'scroll', dx: -sumX * sensitivity, dy: -sumY * sensitivity });
+                send({ type: 'scroll', dx: -sumX, dy: -sumY });
             } else if (ongoingTouches.current.length === 1 || dragging.current) {
                 // Cursor movement (only in cursor mode with 1 finger, or when dragging)
-                send({ type: 'move', dx: sumX * sensitivity, dy: sumY * sensitivity });
+                send({ type: 'move', dx: sumX, dy: sumY });
             }
         }
     };
