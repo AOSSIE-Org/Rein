@@ -1,105 +1,84 @@
-import { useRef, useState } from 'react';
-import { createUseGesture, dragAction, pinchAction } from '@use-gesture/react';
+import { useState, useRef } from 'react';
+import { useGesture } from '@use-gesture/react';
 
-const useGesture = createUseGesture([dragAction, pinchAction]);
+const MOVE_MULTIPLIER = 1.2;
+const SCROLL_MULTIPLIER = 3.0;
+
+const TAP_TIME = 200;
+const TAP_MOVE_THRESHOLD = 6;
 
 export const useTrackpadGesture = (
     send: (msg: any) => void,
-    scrollMode: boolean,
-    sensitivity: number = 1.5
+    scrollMode: boolean
 ) => {
     const [isTracking, setIsTracking] = useState(false);
-    const maxFingers = useRef(0);
+
+    const startTimeRef = useRef(0);
+    const movedRef = useRef(false);
+    const touchCountRef = useRef(1);
 
     const bind = useGesture(
         {
-            onDragStart: ({ touches }) => {
-                maxFingers.current = touches;
+            onPointerDown: () => {
+                startTimeRef.current = Date.now();
+                movedRef.current = false;
                 setIsTracking(true);
             },
 
-            onDrag: ({ delta: [dx, dy], tap, touches }) => {
-                if (tap) return;
+            onDrag: ({ delta, touches }) => {
+                const [dx, dy] = delta;
+                touchCountRef.current = touches;
 
-                if (touches > maxFingers.current) {
-                    maxFingers.current = touches;
+                if (
+                    Math.abs(dx) > TAP_MOVE_THRESHOLD ||
+                    Math.abs(dy) > TAP_MOVE_THRESHOLD
+                ) {
+                    movedRef.current = true;
                 }
 
-                const scaledDx = dx * sensitivity;
-                const scaledDy = dy * sensitivity;
-
-                const isScroll =
-                    maxFingers.current === 2 ||
-                    (scrollMode && maxFingers.current === 1);
-
-                if (isScroll) {
+                if (touches === 2 || scrollMode) {
                     send({
                         type: 'scroll',
-                        dx: -scaledDx,
-                        dy: -scaledDy,
+                        dx: dx * SCROLL_MULTIPLIER,
+                        dy: dy * SCROLL_MULTIPLIER
                     });
-                } else if (maxFingers.current === 1) {
+                } else {
                     send({
                         type: 'move',
-                        dx: scaledDx,
-                        dy: scaledDy,
+                        dx: dx * MOVE_MULTIPLIER,
+                        dy: dy * MOVE_MULTIPLIER
                     });
                 }
             },
 
-            onPinchStart: () => {
-                setIsTracking(true);
-            },
-
-            onPinch: ({ delta: [d], touches }) => {
-                if (touches === 2 && d !== 0) {
-                    send({
-                        type: 'zoom',
-                        delta: d * sensitivity,
-                    });
-                }
-            },
-
-            onDragEnd: ({ tap }) => {
-                if (tap) {
-                    let button: 'left' | 'right' | 'middle' | null = null;
-
-                    if (maxFingers.current === 1) button = 'left';
-                    else if (maxFingers.current === 2) button = 'right';
-                    else if (maxFingers.current === 3) button = 'middle';
-
-                    if (button) {
-                        send({ type: 'click', button, press: true });
-                        setTimeout(() => {
-                            send({ type: 'click', button, press: false });
-                        }, 50);
-                    }
-                }
-
-                maxFingers.current = 0;
+            onPointerUp: () => {
                 setIsTracking(false);
-            },
+                const duration = Date.now() - startTimeRef.current;
 
-            onPinchEnd: () => {
-                setIsTracking(false);
-            },
+                if (!movedRef.current && duration <= TAP_TIME) {
+                    const button =
+                        touchCountRef.current === 2 ? 'right' : 'left';
+
+                    send({ type: 'click', button, press: true });
+                    setTimeout(
+                        () =>
+                            send({
+                                type: 'click',
+                                button,
+                                press: false
+                            }),
+                        40
+                    );
+                }
+            }
         },
         {
             drag: {
-                threshold: 5,
-                filterTaps: true,
-            },
-            pinch: {
-                scaleBounds: { min: 0.1, max: 10 },
-            },
-            eventOptions: {
-                passive: false,
-            },
+                pointer: { touch: true },
+                threshold: 0
+            }
         }
     );
 
-    return {
-        isTracking,
-        handlers: bind(),
-    };
+    return { handlers: bind(), isTracking };
 };
