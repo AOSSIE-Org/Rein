@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useRemoteConnection } from '../hooks/useRemoteConnection';
 import { useTrackpadGesture } from '../hooks/useTrackpadGesture';
 import { ControlBar } from '../components/Trackpad/ControlBar';
@@ -10,6 +10,9 @@ export const Route = createFileRoute('/trackpad')({
     component: TrackpadPage,
 })
 
+const CLICK_RELEASE_DELAY_MS = 50;
+const INPUT_REFOCUS_DELAY_MS = 10;
+
 function TrackpadPage() {
     const [scrollMode, setScrollMode] = useState(false);
     const hiddenInputRef = useRef<HTMLInputElement>(null);
@@ -18,59 +21,58 @@ function TrackpadPage() {
     const { status, send } = useRemoteConnection();
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode);
 
-    const focusInput = () => {
+    const focusInput = useCallback(() => {
         hiddenInputRef.current?.focus();
-    };
+    }, []);
 
-    const handleClick = (button: 'left' | 'right') => {
+    const handleClick = useCallback((button: 'left' | 'right') => {
         send({ type: 'click', button, press: true });
         // Release after short delay to simulate click
-        setTimeout(() => send({ type: 'click', button, press: false }), 50);
-    };
+        setTimeout(() => send({ type: 'click', button, press: false }), CLICK_RELEASE_DELAY_MS);
+    }, [send]);
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
         const key = e.key.toLowerCase();
         if (key === 'backspace') send({ type: 'key', key: 'backspace' });
         else if (key === 'enter') send({ type: 'key', key: 'enter' });
         else if (key !== 'unidentified' && key.length > 1) {
             send({ type: 'key', key });
         }
-    };
+    }, [send]);
 
-    const sendText = (val: string) => {
+    const sendText = useCallback((val: string) => {
         if (!val) return;
-        const toSend = val.length > 1 ? `${val} ` : val;
-        send({ type: 'text', text: toSend });
-    };
+        send({ type: 'text', text: val });
+    }, [send]);
 
-    const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         if (isComposingRef.current) return;
         const val = e.target.value;
         if (val) {
             sendText(val);
             e.target.value = '';
         }
-    };
+    }, [sendText]);
 
-    const handleCompositionStart = () => {
+    const handleCompositionStart = useCallback(() => {
         isComposingRef.current = true;
-    };
+    }, []);
 
-    const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
+    const handleCompositionEnd = useCallback((e: React.CompositionEvent<HTMLInputElement>) => {
         isComposingRef.current = false;
         const val = (e.target as HTMLInputElement).value;
         if (val) {
             sendText(val);
             (e.target as HTMLInputElement).value = '';
         }
-    };
+    }, [sendText]);
 
-    const handleContainerClick = (e: React.MouseEvent) => {
+    const handleContainerClick = useCallback((e: React.MouseEvent) => {
         if (e.target === e.currentTarget) {
             e.preventDefault();
             focusInput();
         }
-    };
+    }, [focusInput]);
 
     return (
         <div
@@ -109,7 +111,7 @@ function TrackpadPage() {
                 onCompositionStart={handleCompositionStart}
                 onCompositionEnd={handleCompositionEnd}
                 onBlur={() => {
-                    setTimeout(() => hiddenInputRef.current?.focus(), 10);
+                    setTimeout(() => hiddenInputRef.current?.focus(), INPUT_REFOCUS_DELAY_MS);
                 }}
                 autoComplete="off"
                 autoCorrect="off"
