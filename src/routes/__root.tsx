@@ -1,6 +1,7 @@
-import { Outlet, createRootRoute, Link, Scripts } from '@tanstack/react-router'
+import { Outlet, createRootRoute, Link, Scripts, HeadContent } from '@tanstack/react-router'
 // import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import * as React from 'react'
+import '../styles.css'
 
 export const Route = createRootRoute({
   component: RootComponent,
@@ -27,11 +28,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <html>
       <head>
-        {/* <Meta /> */}
+        <HeadContent />
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, interactive-widget=resizes-content" />
         <title>Rein Remote</title>
-        <link rel="stylesheet" href="/src/styles.css" />
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="bg-neutral-900 text-white overflow-hidden overscroll-none">
