@@ -14,6 +14,7 @@ function TrackpadPage() {
     const [scrollMode, setScrollMode] = useState(false);
     const hiddenInputRef = useRef<HTMLInputElement>(null);
     const [pinInput, setPinInput] = useState('');
+    const isComposingRef = useRef(false);
 
     const { status, send, isAuthenticated, authRequired, authenticate, authError } = useRemoteConnection();
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode);
@@ -102,11 +103,31 @@ function TrackpadPage() {
         }
     };
 
+    const sendText = (val: string) => {
+        if (!val) return;
+        const toSend = val.length > 1 ? `${val} ` : val;
+        send({ type: 'text', text: toSend });
+    };
+
     const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (isComposingRef.current) return;
         const val = e.target.value;
         if (val) {
-            send({ type: 'text', text: val.slice(-1) });
+            sendText(val);
             e.target.value = '';
+        }
+    };
+
+    const handleCompositionStart = () => {
+        isComposingRef.current = true;
+    };
+
+    const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
+        isComposingRef.current = false;
+        const val = (e.target as HTMLInputElement).value;
+        if (val) {
+            sendText(val);
+            (e.target as HTMLInputElement).value = '';
         }
     };
 
@@ -151,6 +172,8 @@ function TrackpadPage() {
                 className="opacity-0 absolute bottom-0 pointer-events-none h-0 w-0"
                 onKeyDown={handleKeyDown}
                 onChange={handleInput}
+                onCompositionStart={handleCompositionStart}
+                onCompositionEnd={handleCompositionEnd}
                 onBlur={() => {
                     setTimeout(() => hiddenInputRef.current?.focus(), 10);
                 }}
