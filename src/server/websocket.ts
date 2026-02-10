@@ -21,10 +21,30 @@ function getLocalIp() {
 export function createWsServer(server: Server) {
     const wss = new WebSocketServer({ noServer: true });
     const inputHandler = new InputHandler();
-    const LAN_IP = getLocalIp();
+
+    let currentIp = getLocalIp();
 
     console.log(`WebSocket Server initialized (Upgrade mode)`);
-    console.log(`WS LAN IP: ${LAN_IP}`);
+    console.log(`Initial WS LAN IP: ${currentIp}`);
+
+    // Frequency for network interface polling (ms)
+    const POLLING_INTERVAL = 5000;
+
+    setInterval(() => {
+        const newIp = getLocalIp();
+        if (newIp !== currentIp) {
+            console.log(`Network Change Detected! IP: ${currentIp} -> ${newIp}`);
+            currentIp = newIp;
+
+            // Broadcast the new IP to all connected clients
+            const updateMsg = JSON.stringify({ type: 'server-ip', ip: currentIp });
+            wss.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(updateMsg);
+                }
+            });
+        }
+    }, POLLING_INTERVAL);
 
     server.on('upgrade', (request: IncomingMessage, socket: Socket, head: Buffer) => {
         const pathname = request.url;
@@ -39,7 +59,8 @@ export function createWsServer(server: Server) {
     wss.on('connection', (ws: WebSocket) => {
         console.log('Client connected to /ws');
 
-        ws.send(JSON.stringify({ type: 'connected', serverIp: LAN_IP }));
+        // Send current IP immediately on connection
+        ws.send(JSON.stringify({ type: 'connected', serverIp: currentIp }));
 
         ws.on('message', async (data: string) => {
             try {
@@ -47,9 +68,10 @@ export function createWsServer(server: Server) {
                 const msg = JSON.parse(raw);
 
                 if (msg.type === 'get-ip') {
-                    ws.send(JSON.stringify({ type: 'server-ip', ip: LAN_IP }));
+                    ws.send(JSON.stringify({ type: 'server-ip', ip: currentIp }));
                     return;
                 }
+                // ... existing update-config logic ...
 
                 if (msg.type === 'update-config') {
                     console.log('Updating config:', msg.config);

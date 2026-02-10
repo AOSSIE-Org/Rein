@@ -46,33 +46,35 @@ function SettingsPage() {
         if (typeof window === 'undefined') return;
         if (window.location.hostname !== 'localhost') return;
 
-        console.log('Attempting to auto-detect IP...');
+        console.log('Starting IP auto-detection stream...');
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws`;
         const socket = new WebSocket(wsUrl);
 
         socket.onopen = () => {
-            console.log('Connected to local server for IP detection');
+            console.log('Connected to local server for live IP tracking');
             socket.send(JSON.stringify({ type: 'get-ip' }));
         };
 
         socket.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                if (data.type === 'server-ip' && data.ip) {
-                    console.log('Auto-detected IP:', data.ip);
-                    setIp(data.ip);
-                    socket.close();
+                // Handle both initial response and subsequent broadcasts
+                if ((data.type === 'server-ip' || data.type === 'connected') && (data.ip || data.serverIp)) {
+                    const newIp = data.ip || data.serverIp;
+                    console.log('Received IP Update:', newIp);
+                    setIp(newIp);
                 }
             } catch (e) {
-                console.error(e);
+                console.error('WS Message Error:', e);
             }
         };
 
         return () => {
+            console.log('Closing IP detection socket');
             if (socket.readyState === WebSocket.OPEN) socket.close();
         }
-    }, []); // Run once
+    }, []); // Run once on mount, stays open for updates
 
     // Helper for display URL
     const displayUrl = typeof window !== 'undefined'
@@ -100,12 +102,12 @@ function SettingsPage() {
                     </label>
                 </div>
 
-                {/* SENSITIVITY SLIDER SECTION */} 
+                {/* SENSITIVITY SLIDER SECTION */}
                 <div className="form-control w-full max-w-2xl mx-auto">
                     <label className="label" htmlFor="sensitivity-slider">
                         <span className="label-text">Mouse Sensitivity</span>
                         <span className="label-text-alt font-mono">
-                        {sensitivity.toFixed(1)}x
+                            {sensitivity.toFixed(1)}x
                         </span>
                     </label>
 
