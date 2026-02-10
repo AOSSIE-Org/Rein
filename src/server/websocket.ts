@@ -23,8 +23,14 @@ export function createWsServer(server: Server) {
     const inputHandler = new InputHandler();
     const LAN_IP = getLocalIp();
 
+    // Generate a random 6-digit PIN
+    const PIN = Math.floor(100000 + Math.random() * 900000).toString();
+    // Map to track authentication status of clients
+    const clientAuth = new WeakMap<WebSocket, boolean>();
+
     console.log(`WebSocket Server initialized (Upgrade mode)`);
     console.log(`WS LAN IP: ${LAN_IP}`);
+    console.log(`SESSION PIN: ${PIN}`);
 
     server.on('upgrade', (request: IncomingMessage, socket: Socket, head: Buffer) => {
         const pathname = request.url;
@@ -36,15 +42,55 @@ export function createWsServer(server: Server) {
         }
     });
 
-    wss.on('connection', (ws: WebSocket) => {
-        console.log('Client connected to /ws');
+    wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
+        const remoteAddress = req.socket.remoteAddress;
+        console.log(`Client connected to /ws from ${remoteAddress}`);
 
-        ws.send(JSON.stringify({ type: 'connected', serverIp: LAN_IP }));
+        // Determine if client is local (localhost)
+        const isLocal = remoteAddress === '127.0.0.1' || remoteAddress === '::1' || remoteAddress === '::ffff:127.0.0.1';
+
+        // Auto-authenticate localhost, otherwise require PIN
+        if (isLocal) {
+            clientAuth.set(ws, true);
+            console.log('Local client authenticated automatically.');
+        } else {
+            clientAuth.set(ws, false);
+            console.log('Remote client connected. Waiting for authentication.');
+        }
+
+        // Send initial connection details. 
+        // If local, include the PIN so the desktop app can display it.
+        // If remote, indicate auth is required.
+        ws.send(JSON.stringify({ 
+            type: 'connected', 
+            serverIp: LAN_IP, 
+            authRequired: !isLocal,
+            pin: isLocal ? PIN : undefined 
+        }));
 
         ws.on('message', async (data: string) => {
             try {
                 const raw = data.toString();
                 const msg = JSON.parse(raw);
+
+                // Handle Authentication
+                if (msg.type === 'authenticate') {
+                    if (msg.pin === PIN) {
+                        clientAuth.set(ws, true);
+                        ws.send(JSON.stringify({ type: 'auth-success' }));
+                        console.log('Client authenticated successfully.');
+                    } else {
+                        ws.send(JSON.stringify({ type: 'auth-failed' }));
+                        console.log('Client failed authentication.');
+                    }
+                    return;
+                }
+
+                // Reject all other messages if not authenticated
+                if (!clientAuth.get(ws)) {
+                    // ws.send(JSON.stringify({ type: 'error', message: 'Authentication required' }));
+                    return;
+                }
 
                 if (msg.type === 'get-ip') {
                     ws.send(JSON.stringify({ type: 'server-ip', ip: LAN_IP }));
