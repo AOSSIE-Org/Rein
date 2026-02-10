@@ -18,6 +18,12 @@ export class InputHandler {
         mouse.config.mouseSpeed = 1000;
     }
 
+    /**
+     * Processes incoming input messages and performs corresponding system actions.
+     * Supports mouse movement, clicking, scrolling, zooming, keyboard input, and workspace switching.
+     * 
+     * @param {InputMessage} msg - The input message containing the action type and parameters.
+     */
     async handleMessage(msg: InputMessage) {
         switch (msg.type) {
             case 'move':
@@ -25,9 +31,9 @@ export class InputHandler {
                     const currentPos = await mouse.getPosition();
                     // Apply sensitivity multiplier
                     const sensitivity = CONFIG.MOUSE_SENSITIVITY ?? 1.0;
-                    
+
                     await mouse.setPosition(new Point(
-                        currentPos.x + (msg.dx * sensitivity), 
+                        currentPos.x + (msg.dx * sensitivity),
                         currentPos.y + (msg.dy * sensitivity)
                     ));
                 }
@@ -57,7 +63,7 @@ export class InputHandler {
                     const MAX_ZOOM_STEP = 5;
                     const scaledDelta = Math.sign(msg.delta) * Math.min(Math.abs(msg.delta) * sensitivityFactor, MAX_ZOOM_STEP);
                     const amount = -scaledDelta * invertMultiplier;
-                    
+
                     await keyboard.pressKey(Key.LeftControl);
                     try {
                         await mouse.scrollDown(amount);

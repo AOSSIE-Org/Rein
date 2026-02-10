@@ -7,6 +7,12 @@ export const Route = createFileRoute('/settings')({
     component: SettingsPage,
 })
 
+/**
+ * SettingsPage component for configuring server IP, ports, and mouse sensitivity.
+ * Also handles real-time IP detection and QR code generation.
+ * 
+ * @returns {JSX.Element} The rendered settings interface.
+ */
 function SettingsPage() {
     const [ip, setIp] = useState('');
     const [frontendPort, setFrontendPort] = useState(String(CONFIG.FRONTEND_PORT));
@@ -71,8 +77,10 @@ function SettingsPage() {
         };
 
         return () => {
-            console.log('Closing IP detection socket');
-            if (socket.readyState === WebSocket.OPEN) socket.close();
+            if (socket.readyState !== WebSocket.CLOSING && socket.readyState !== WebSocket.CLOSED) {
+                console.log('Closing IP detection socket');
+                socket.close();
+            }
         }
     }, []); // Run once on mount, stays open for updates
 

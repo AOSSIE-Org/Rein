@@ -5,7 +5,12 @@ import fs from 'fs';
 import { Server, IncomingMessage } from 'http';
 import { Socket } from 'net';
 
-// Helper to find LAN IP
+/**
+ * Retrieves the local IPv4 address of the host machine.
+ * Filters for non-internal (non-loopback) IPv4 interfaces.
+ * 
+ * @returns {string} The local IPv4 address or 'localhost' if no interface is found.
+ */
 function getLocalIp() {
     const nets = os.networkInterfaces();
     for (const name of Object.keys(nets)) {
@@ -18,6 +23,12 @@ function getLocalIp() {
     return 'localhost';
 }
 
+/**
+ * Initializes the WebSocket server and sets up network interface polling.
+ * Handles WebSocket upgrades, client connections, and real-time IP broadcasts.
+ * 
+ * @param {Server} server - The HTTP server instance to attach the WebSocket server to.
+ */
 export function createWsServer(server: Server) {
     const wss = new WebSocketServer({ noServer: true });
     const inputHandler = new InputHandler();
@@ -30,7 +41,7 @@ export function createWsServer(server: Server) {
     // Frequency for network interface polling (ms)
     const POLLING_INTERVAL = 5000;
 
-    setInterval(() => {
+    const pollingIntervalId = setInterval(() => {
         const newIp = getLocalIp();
         if (newIp !== currentIp) {
             console.log(`Network Change Detected! IP: ${currentIp} -> ${newIp}`);
@@ -46,6 +57,16 @@ export function createWsServer(server: Server) {
         }
     }, POLLING_INTERVAL);
 
+    // Cleanup interval when the WebSocket server closes
+    wss.on('close', () => {
+        console.log('Clearing network polling interval');
+        clearInterval(pollingIntervalId);
+    });
+
+    // Also handle process exit to ensure cleanup
+    process.on('SIGTERM', () => clearInterval(pollingIntervalId));
+    process.on('SIGINT', () => clearInterval(pollingIntervalId));
+
     server.on('upgrade', (request: IncomingMessage, socket: Socket, head: Buffer) => {
         const pathname = request.url;
 
@@ -60,7 +81,7 @@ export function createWsServer(server: Server) {
         console.log('Client connected to /ws');
 
         // Send current IP immediately on connection
-        ws.send(JSON.stringify({ type: 'connected', serverIp: currentIp }));
+        ws.send(JSON.stringify({ type: 'connected', ip: currentIp }));
 
         ws.on('message', async (data: string) => {
             try {
