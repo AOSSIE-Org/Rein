@@ -3,6 +3,7 @@ import React from "react";
 
 interface ControlBarProps {
 	scrollMode: boolean;
+	showKeyboard: boolean;
 	modifier: ModifierState;
 	buffer: string;
 	onToggleScroll: () => void;
@@ -14,6 +15,7 @@ interface ControlBarProps {
 
 export const ControlBar: React.FC<ControlBarProps> = ({
 	scrollMode,
+	showKeyboard,
 	modifier,
 	buffer,
 	onToggleScroll,
@@ -30,7 +32,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 	const getModifierButtonClass = () => {
 		switch (modifier) {
 			case "Active":
-				if (buffer.length > 0) return "btn-success"
+				if (buffer.length > 0) return "btn-success";
 				else return "btn-warning";
 			case "Hold":
 				return "btn-warning";
@@ -43,7 +45,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 	const getModifierLabel = () => {
 		switch (modifier) {
 			case "Active":
-				if (buffer.length > 0) return "Press"
+				if (buffer.length > 0) return "Press";
 				else return "Release";
 			case "Hold":
 				return "Release";
@@ -53,48 +55,36 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 	};
 
 	return (
-		<div className="bg-base-200 p-2 grid grid-cols-5 gap-2 shrink-0">
+		<div className="bg-base-200 p-2 grid grid-cols-5 gap-2 shrink-0 h-full">
 			<button
-				className={`btn btn-sm ${scrollMode ? "btn-primary" : "btn-outline"}`}
+				className={`btn h-full ${scrollMode ? "btn-primary" : "btn-outline"}`}
 				onPointerDown={(e) => handleInteraction(e, onToggleScroll)}
 			>
 				{scrollMode ? "Scroll" : "Cursor"}
 			</button>
 			<button
-				className="btn btn-sm btn-outline"
-			>
-				Copy
-			</button>
-			<button
-				className="btn btn-sm btn-outline"
-			>
-				Paste
-			</button>
-			{/* 
-			<button
-				className="btn btn-sm btn-outline"
+				className="btn btn-outline h-full"
 				onPointerDown={(e) => handleInteraction(e, onLeftClick)}
 			>
 				L-Click
 			</button>
-			*/}
 			<button
-				className="btn btn-sm btn-outline"
+				className="btn btn-outline h-full"
 				onPointerDown={(e) => handleInteraction(e, onRightClick)}
 			>
 				R-Click
 			</button>
 			<button
-				className={`btn btn-sm ${getModifierButtonClass()}`}
-				onPointerDown={(e) => handleInteraction(e, onModifierToggle)}
-			>
-				{getModifierLabel()}
-			</button>
-			<button
-				className="btn btn-sm btn-secondary"
+				className={`btn h-full ${showKeyboard ? "btn-secondary" : "btn-outline"}`}
 				onPointerDown={(e) => handleInteraction(e, onKeyboardToggle)}
 			>
 				Keyboard
+			</button>
+			<button
+				className={`btn h-full ${getModifierButtonClass()}`}
+				onPointerDown={(e) => handleInteraction(e, onModifierToggle)}
+			>
+				{getModifierLabel()}
 			</button>
 		</div>
 	);

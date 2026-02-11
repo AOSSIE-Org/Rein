@@ -1,9 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRemoteConnection } from '../hooks/useRemoteConnection';
 import { useTrackpadGesture } from '../hooks/useTrackpadGesture';
 import { ControlBar } from '../components/Trackpad/ControlBar';
 import { ExtraKeys } from '../components/Trackpad/ExtraKeys';
+import { FnKeys } from '../components/Trackpad/FnKeys';
+import { MediaKeys } from '../components/Trackpad/MediaKeys';
 import { TouchArea } from '../components/Trackpad/TouchArea';
 import { BufferBar } from '@/components/Trackpad/Buffer';
 import { ModifierState } from '@/types';
@@ -14,19 +16,22 @@ export const Route = createFileRoute('/trackpad')({
 
 function TrackpadPage() {
     const [scrollMode, setScrollMode] = useState(false);
+    const [showKeyboard, setShowKeyboard] = useState(false);
     const [modifier, setModifier] = useState<ModifierState>("Release");
     const [buffer, setBuffer] = useState<string[]>([]);
+    const [vh, setVh] = useState<number | null>(null);
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
     const bufferText = buffer.join(" + ");
+
     const hiddenInputRef = useRef<HTMLInputElement>(null);
     const isComposingRef = useRef(false);
-    
-    // Load Client Settings
+
     const [sensitivity] = useState(() => {
         if (typeof window === 'undefined') return 1.0;
         const s = localStorage.getItem('rein_sensitivity');
         return s ? parseFloat(s) : 1.0;
     });
-    
+
     const [invertScroll] = useState(() => {
         if (typeof window === 'undefined') return false;
         const s = localStorage.getItem('rein_invert');
@@ -34,22 +39,55 @@ function TrackpadPage() {
     });
 
     const { status, send, sendCombo } = useRemoteConnection();
-    // Pass sensitivity and invertScroll to the gesture hook
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
 
+    useEffect(() => {
+        setVh(window.innerHeight);
+        let lastWidth = window.innerWidth;
+        const handleResize = () => {
+            if (Math.abs(window.innerWidth - lastWidth) > 50) {
+                lastWidth = window.innerWidth;
+                setVh(window.innerHeight);
+            }
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    useEffect(() => {
+        if (!window.visualViewport) return;
+        const fullHeight = window.innerHeight;
+        const handleViewport = () => {
+            const vv = window.visualViewport!;
+            const diff = fullHeight - vv.height;
+            setKeyboardHeight(diff > 100 ? diff : 0);
+        };
+        window.visualViewport.addEventListener('resize', handleViewport);
+        return () => window.visualViewport?.removeEventListener('resize', handleViewport);
+    }, []);
+
     const focusInput = () => {
-        hiddenInputRef.current?.focus();
+        hiddenInputRef.current?.focus({ preventScroll: true });
+    };
+
+    const handleToggleKeyboard = () => {
+        if (showKeyboard) {
+            hiddenInputRef.current?.blur();
+            setShowKeyboard(false);
+        } else {
+            focusInput();
+            setShowKeyboard(true);
+        }
     };
 
     const handleClick = (button: 'left' | 'right') => {
         send({ type: 'click', button, press: true });
-        // Release after short delay to simulate click
         setTimeout(() => send({ type: 'click', button, press: false }), 50);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         const key = e.key.toLowerCase();
-        
+
         if (modifier !== "Release") {
             if (key === 'backspace') {
                 e.preventDefault();
@@ -76,7 +114,7 @@ function TrackpadPage() {
     };
 
     const handleModifierState = () => {
-        switch(modifier){
+        switch (modifier) {
             case "Active":
                 if (buffer.length > 0) {
                     setModifier("Hold");
@@ -96,11 +134,8 @@ function TrackpadPage() {
     };
 
     const handleModifier = (key: string) => {
-        console.log(`handleModifier called with key: ${key}, current modifier: ${modifier}, buffer:`, buffer);
-        
         if (modifier === "Hold") {
             const comboKeys = [...buffer, key];
-            console.log(`Sending combo:`, comboKeys);
             sendCombo(comboKeys);
             return;
         } else if (modifier === "Active") {
@@ -136,74 +171,83 @@ function TrackpadPage() {
         isComposingRef.current = false;
         const val = (e.target as HTMLInputElement).value;
         if (val) {
-            // Don't send text during modifier mode
             if (modifier !== "Release") {
                 handleModifier(val);
-            }else{
+            } else {
                 sendText(val);
             }
             (e.target as HTMLInputElement).value = '';
         }
     };
 
-    const handleContainerClick = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) {
-            e.preventDefault();
-            focusInput();
-        }
+    const sendKey = (k: string) => {
+        if (modifier !== "Release") handleModifier(k);
+        else send({ type: 'key', key: k });
     };
 
     return (
         <div
-            className="flex flex-col h-full overflow-hidden"
-            onClick={handleContainerClick}
+            className="grid grid-rows-[repeat(14,_minmax(0,_1fr))] w-full overflow-hidden bg-base-100"
+            style={{ height: vh ? `${vh}px` : '100vh' }}
         >
-            {/* Touch Surface */}
-            <TouchArea
-                isTracking={isTracking}
-                scrollMode={scrollMode}
-                handlers={handlers}
-                status={status}
-            />
-            {bufferText !== "" && <BufferBar bufferText={bufferText} />}
+            <div className="row-span-7">
+                <TouchArea
+                    isTracking={isTracking}
+                    scrollMode={scrollMode}
+                    handlers={handlers}
+                    status={status}
+                />
+            </div>
 
-            {/* Controls */}
-            <ControlBar
-                scrollMode={scrollMode}
-                modifier={modifier}
-                buffer={buffer.join(" + ")}
-                onToggleScroll={() => setScrollMode(!scrollMode)}
-                onLeftClick={() => handleClick('left')}
-                onRightClick={() => handleClick('right')}
-                onKeyboardToggle={focusInput}
-                onModifierToggle={handleModifierState}
-            />
+            <div className={`row-span-1 flex items-center px-4 bg-base-200 border-b border-base-300 overflow-hidden ${bufferText === "" ? "invisible" : ""}`}>
+                {bufferText !== "" && <BufferBar bufferText={bufferText} />}
+            </div>
 
-            {/* Extra Keys */}
-            <ExtraKeys
-                sendKey={(k) => {
-                    if (modifier !== "Release") handleModifier(k);
-                    else send({ type: 'key', key: k });
-                }}
-                onInputFocus={focusInput}
-            />
+            <div className="row-span-1">
+                <div style={keyboardHeight > 0 ? {
+                    position: 'fixed',
+                    bottom: `${keyboardHeight}px`,
+                    left: 0,
+                    right: 0,
+                    zIndex: 50,
+                    height: vh ? `${vh / 14}px` : '7.14vh'
+                } : { height: '100%' }}>
+                    <ControlBar
+                        scrollMode={scrollMode}
+                        showKeyboard={showKeyboard}
+                        modifier={modifier}
+                        buffer={bufferText}
+                        onToggleScroll={() => setScrollMode(!scrollMode)}
+                        onLeftClick={() => handleClick('left')}
+                        onRightClick={() => handleClick('right')}
+                        onKeyboardToggle={handleToggleKeyboard}
+                        onModifierToggle={handleModifierState}
+                    />
+                </div>
+            </div>
 
-            {/* Hidden Input for Mobile Keyboard */}
-            <input
-                ref={hiddenInputRef}
-                className="opacity-0 absolute bottom-0 pointer-events-none h-0 w-0"
-                onKeyDown={handleKeyDown}
-                onChange={handleInput}
-                onCompositionStart={handleCompositionStart}
-                onCompositionEnd={handleCompositionEnd}
-                onBlur={() => {
-                    setTimeout(() => hiddenInputRef.current?.focus(), 10);
-                }}
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                autoFocus // Attempt autofocus on mount
-            />
+            <div className="row-span-1 overflow-hidden">
+                <MediaKeys sendKey={sendKey} />
+            </div>
+
+            <div className="row-span-2 overflow-hidden">
+                <FnKeys sendKey={sendKey} />
+            </div>
+
+            <div className="row-span-2 relative overflow-hidden">
+                <input
+                    ref={hiddenInputRef}
+                    className="opacity-0 absolute top-0 left-0 pointer-events-none h-px w-px"
+                    onKeyDown={handleKeyDown}
+                    onChange={handleInput}
+                    onCompositionStart={handleCompositionStart}
+                    onCompositionEnd={handleCompositionEnd}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                />
+                <ExtraKeys sendKey={sendKey} />
+            </div>
         </div>
     )
 }
