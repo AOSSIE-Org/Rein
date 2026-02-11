@@ -54,9 +54,8 @@ export function createWsServer(server: Server) {
                 if (msg.type === 'update-config') {
                     console.log('Updating config:', msg.config);
                     try {
-                        // Only server settings belong in server-config.json. Client settings (like IP, theme)
-                        // must be stored on the client (localStorage) only and must never be written here.
-                        const SERVER_CONFIG_KEYS = ['host', 'frontendPort', 'address', 'mouseInvert', 'mouseSensitivity'] as const;
+                        // Only server config: host, port, address. Client settings (IP, theme, sensitivity, invert) are not written here.
+                        const SERVER_CONFIG_KEYS = ['host', 'frontendPort', 'address'] as const;
                         const configPath = './src/server-config.json';
                         // eslint-disable-next-line @typescript-eslint/no-require-imports
                         const current = fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, 'utf-8')) : {};

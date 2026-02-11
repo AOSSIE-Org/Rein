@@ -2,9 +2,8 @@ import serverConfig from "./server-config.json";
 
 /**
  * Server vs client settings:
- * - Server settings (server-config.json): host, frontendPort, address, mouseInvert, mouseSensitivity.
- *   Updated only when user clicks Save Config.
- * - Client settings (localStorage only): e.g. rein_ip, rein-theme. Never in server-config.json.
+ * - Server config (server-config.json): host, frontendPort, address are the only keys writable via Save Config.
+ *   mouseInvert/mouseSensitivity may exist in the file for reading but are not updated from the client.
  */
 export const APP_CONFIG = {
 	SITE_NAME: "Rein",
@@ -19,9 +18,9 @@ export const THEMES = {
 	DEFAULT: "dracula",
 };
 
-/** Server-only config (from server-config.json). Do not add client-only keys here. */
+/** Config from server-config.json. Only host, frontendPort, address are writable via Settings Save. */
 export const CONFIG = {
-	FRONTEND_PORT: serverConfig.frontendPort,
+	FRONTEND_PORT: serverConfig.frontendPort ?? 3000,
 	MOUSE_INVERT: serverConfig.mouseInvert ?? false,
 	MOUSE_SENSITIVITY: serverConfig.mouseSensitivity ?? 1.0,
 };
