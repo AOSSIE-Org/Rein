@@ -16,11 +16,21 @@ const getTouchDistance = (a: TrackedTouch, b: TrackedTouch): number => {
     return Math.sqrt(dx * dx + dy * dy);
 };
 
+const CLIENT_KEYS = { SENSITIVITY: 'rein_mouse_sensitivity', INVERT: 'rein_mouse_invert' } as const;
+
+function getClientSettings(): { sensitivity: number; invert: boolean } {
+    if (typeof localStorage === 'undefined') return { sensitivity: 1.0, invert: false };
+    const s = localStorage.getItem(CLIENT_KEYS.SENSITIVITY);
+    const sensitivity = s !== null && !Number.isNaN(Number(s)) ? Number(s) : 1.0;
+    const invert = localStorage.getItem(CLIENT_KEYS.INVERT) === 'true';
+    return { sensitivity, invert };
+}
+
 export const useTrackpadGesture = (
     send: (msg: any) => void,
     scrollMode: boolean,
-    sensitivity: number = 1.5,
-    axisThreshold: number = 2.5 
+    _defaultSensitivity: number = 1.5,
+    axisThreshold: number = 2.5
 ) => {
     const [isTracking, setIsTracking] = useState(false);
     
@@ -130,8 +140,10 @@ export const useTrackpadGesture = (
             tracked.timeStamp = e.timeStamp;
         }
 
-        // Send movement if we've moved and not in timeout period
+        // Send movement if we've moved and not in timeout period; use client settings so changes take effect immediately
         if (moved.current && e.timeStamp - lastEndTimeStamp.current >= TOUCH_TIMEOUT) {
+            const { sensitivity, invert } = getClientSettings();
+            const scrollSign = invert ? 1 : -1;
             if (!scrollMode && ongoingTouches.current.length === 2) {
                 const dist = getTouchDistance(ongoingTouches.current[0], ongoingTouches.current[1]);
                 const delta = lastPinchDist.current !== null ? dist - lastPinchDist.current : 0;
@@ -141,27 +153,30 @@ export const useTrackpadGesture = (
                     send({ type: 'zoom', delta: delta * sensitivity });
                 } else {
                     lastPinchDist.current = dist;
-                    send({ type: 'scroll', dx: -sumX * sensitivity, dy: -sumY * sensitivity });
+                    send({ type: 'scroll', dx: sumX * sensitivity * scrollSign, dy: sumY * sensitivity * scrollSign });
                 }
             } else if (scrollMode) {
-                // Scroll mode: single finger scrolls, or two-finger scroll in cursor mode
-                let scrollDx = sumX;
-                let scrollDy = sumY;
+                // Scroll mode: single finger scrolls; dominant axis (from main) for cleaner scroll
+                const scrollDx = -sumX;
+                const scrollDy = -sumY;
                 const absDx = Math.abs(scrollDx);
                 const absDy = Math.abs(scrollDy);
-                if (scrollMode) {
-                    if (absDx > absDy * axisThreshold) {
-                        // Horizontal is dominant - ignore vertical
-                        scrollDy = 0;
-                    } else if (absDy > absDx * axisThreshold) {
-                        // Vertical is dominant - ignore horizontal 
-                        scrollDx = 0;
-                    }
-                }
-                send({ type: 'scroll', dx: Math.round(-scrollDx * sensitivity * 10) / 10 , dy: Math.round(-scrollDy * sensitivity * 10) / 10 });
+                const useHorizontal = absDx > axisThreshold * absDy;
+                const useVertical = absDy > axisThreshold * absDx;
+                const dx = useHorizontal && !useVertical ? scrollDx : 0;
+                const dy = useVertical && !useHorizontal ? scrollDy : 0;
+                send({
+                    type: 'scroll',
+                    dx: Math.round(dx * sensitivity * scrollSign * 10) / 10,
+                    dy: Math.round(dy * sensitivity * scrollSign * 10) / 10,
+                });
             } else if (ongoingTouches.current.length === 1 || dragging.current) {
                 // Cursor movement (only in cursor mode with 1 finger, or when dragging)
-                send({ type: 'move', dx: Math.round(sumX * sensitivity * 10) / 10 , dy: Math.round(sumY * sensitivity * 10) / 10 });
+                send({
+                    type: 'move',
+                    dx: Math.round(sumX * sensitivity * 10) / 10,
+                    dy: Math.round(sumY * sensitivity * 10) / 10,
+                });
             }
         }
     };

@@ -1,7 +1,9 @@
 import { Outlet, createRootRoute, Link, Scripts, HeadContent } from '@tanstack/react-router'
 // import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import * as React from 'react'
+import { useEffect } from 'react'
 import '../styles.css'
+import { APP_CONFIG, THEMES } from '../config'
 
 export const Route = createRootRoute({
   component: RootComponent,
@@ -24,6 +26,15 @@ function RootComponent() {
   )
 }
 
+function ThemeInit() {
+  useEffect(() => {
+    const saved = typeof localStorage !== 'undefined' && localStorage.getItem(APP_CONFIG.THEME_STORAGE_KEY)
+    const theme = saved === THEMES.LIGHT || saved === THEMES.DARK ? saved : THEMES.DEFAULT
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [])
+  return null
+}
+
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <html>
@@ -35,6 +46,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="bg-neutral-900 text-white overflow-hidden overscroll-none">
+        <ThemeInit />
         <div className="flex flex-col h-[100dvh]">
           <Navbar />
           <main className="flex-1 overflow-hidden relative">

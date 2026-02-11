@@ -1,45 +1,91 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import QRCode from 'qrcode';
-import { CONFIG } from '../config';
+import { CONFIG, APP_CONFIG, THEMES } from '../config';
 
 export const Route = createFileRoute('/settings')({
     component: SettingsPage,
 })
 
+// Client-only settings: stored in localStorage, never sent to server-config.json
+const CLIENT_KEYS = {
+    SENSITIVITY: 'rein_mouse_sensitivity',
+    INVERT: 'rein_mouse_invert',
+    THEME: APP_CONFIG.THEME_STORAGE_KEY,
+} as const
+const DEFAULT_SENSITIVITY = 1.0
+const DEFAULT_INVERT = false
+
 function SettingsPage() {
-    const [ip, setIp] = useState('');
-    const [frontendPort, setFrontendPort] = useState(String(CONFIG.FRONTEND_PORT));
-    const [invertScroll, setInvertScroll] = useState(CONFIG.MOUSE_INVERT);
-    const [sensitivity, setSensitivity] = useState(CONFIG.MOUSE_SENSITIVITY);
-    const [qrData, setQrData] = useState('');
+    const [ip, setIp] = useState('')
+    const [frontendPort, setFrontendPort] = useState(String(CONFIG.FRONTEND_PORT))
+    const [invertScroll, setInvertScroll] = useState(DEFAULT_INVERT)
+    const [sensitivity, setSensitivity] = useState(DEFAULT_SENSITIVITY)
+    const [theme, setTheme] = useState(THEMES.DEFAULT)
+    const [qrData, setQrData] = useState('')
+    const hasLoadedFromStorage = useRef(false)
+    const isFirstSensitivity = useRef(true)
+    const isFirstInvert = useRef(true)
+    const isFirstTheme = useRef(true)
 
-    // Load initial state
+    // Load client settings from localStorage only on client, so they persist when navigating back
     useEffect(() => {
-        const storedIp = localStorage.getItem('rein_ip');
-        const defaultIp = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+        if (typeof window === 'undefined') return
+        const storedIp = localStorage.getItem('rein_ip')
+        const defaultIp = window.location.hostname || 'localhost'
+        setIp(storedIp || defaultIp)
 
-        setIp(storedIp || defaultIp);
-        // We don't store frontend port in local storage for now, just load from config default
-        setFrontendPort(String(CONFIG.FRONTEND_PORT));
-    }, []);
+        setFrontendPort(String(CONFIG.FRONTEND_PORT))
 
-    // Effect: Update LocalStorage and Generate QR
+        const s = localStorage.getItem(CLIENT_KEYS.SENSITIVITY)
+        if (s !== null) {
+            const n = Number(s)
+            if (!Number.isNaN(n)) setSensitivity(n)
+        }
+        const inv = localStorage.getItem(CLIENT_KEYS.INVERT)
+        if (inv === 'true') setInvertScroll(true)
+        if (inv === 'false') setInvertScroll(false)
+
+        const t = localStorage.getItem(CLIENT_KEYS.THEME)
+        if (t === THEMES.LIGHT || t === THEMES.DARK) {
+            setTheme(t)
+            document.documentElement.setAttribute('data-theme', t)
+        }
+
+        hasLoadedFromStorage.current = true
+    }, [])
+
+    // Persist client settings to localStorage after user changes (skip first run to avoid overwriting loaded values)
     useEffect(() => {
-        if (!ip) return;
-        localStorage.setItem('rein_ip', ip);
+        if (typeof window === 'undefined' || !hasLoadedFromStorage.current) return
+        if (isFirstSensitivity.current) { isFirstSensitivity.current = false; return }
+        localStorage.setItem(CLIENT_KEYS.SENSITIVITY, String(sensitivity))
+    }, [sensitivity])
+    useEffect(() => {
+        if (typeof window === 'undefined' || !hasLoadedFromStorage.current) return
+        if (isFirstInvert.current) { isFirstInvert.current = false; return }
+        localStorage.setItem(CLIENT_KEYS.INVERT, String(invertScroll))
+    }, [invertScroll])
+    useEffect(() => {
+        if (typeof window === 'undefined' || !hasLoadedFromStorage.current) return
+        if (isFirstTheme.current) { isFirstTheme.current = false; return }
+        localStorage.setItem(CLIENT_KEYS.THEME, theme)
+        document.documentElement.setAttribute('data-theme', theme)
+    }, [theme])
 
+    // Update LocalStorage for IP and generate QR
+    useEffect(() => {
+        if (!ip) return
+        localStorage.setItem('rein_ip', ip)
         if (typeof window !== 'undefined') {
-            // Point to Frontend
-            const appPort = String(CONFIG.FRONTEND_PORT);
-            const protocol = window.location.protocol;
-            const shareUrl = `${protocol}//${ip}:${appPort}/trackpad`;
-
+            const appPort = String(CONFIG.FRONTEND_PORT)
+            const protocol = window.location.protocol
+            const shareUrl = `${protocol}//${ip}:${appPort}/trackpad`
             QRCode.toDataURL(shareUrl)
                 .then(setQrData)
-                .catch((e) => console.error('QR Error:', e));
+                .catch((e) => console.error('QR Error:', e))
         }
-    }, [ip]);
+    }, [ip])
 
     // Effect: Auto-detect LAN IP from Server (only if on localhost)
     useEffect(() => {
@@ -148,6 +194,20 @@ function SettingsPage() {
 
                 <div className="form-control w-full">
                     <label className="label">
+                        <span className="label-text">Theme</span>
+                    </label>
+                    <select
+                        className="select select-bordered w-full"
+                        value={theme}
+                        onChange={(e) => setTheme(e.target.value as typeof THEMES.LIGHT | typeof THEMES.DARK)}
+                    >
+                        <option value={THEMES.DARK}>Dark (dracula)</option>
+                        <option value={THEMES.LIGHT}>Light (cupcake)</option>
+                    </select>
+                </div>
+
+                <div className="form-control w-full">
+                    <label className="label">
                         <span className="label-text">Port</span>
                     </label>
                     <input
@@ -171,30 +231,41 @@ function SettingsPage() {
                 <button
                     className="btn btn-neutral w-full"
                     onClick={() => {
-                        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                        const host = window.location.host;
-                        const wsUrl = `${protocol}//${host}/ws`;
-                        const socket = new WebSocket(wsUrl);
+                        const portNum = parseInt(frontendPort, 10)
+                        if (Number.isNaN(portNum) || portNum < 1 || portNum > 65535) {
+                            alert('Please enter a valid port (1–65535).')
+                            return
+                        }
+                        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+                        const host = window.location.host
+                        const wsUrl = `${protocol}//${host}/ws`
+                        const socket = new WebSocket(wsUrl)
 
+                        socket.onerror = () => {
+                            alert('Could not connect to server. Is the app running?')
+                        }
                         socket.onopen = () => {
                             socket.send(JSON.stringify({
                                 type: 'update-config',
-                                config: {
-                                    frontendPort: parseInt(frontendPort),
-                                    mouseInvert: invertScroll,
-                                    mouseSensitivity: sensitivity,
+                                config: { frontendPort: portNum },
+                            }))
+                        }
+                        socket.onmessage = (event) => {
+                            try {
+                                const data = JSON.parse(event.data)
+                                if (data.type === 'config-updated' && data.success) {
+                                    socket.close()
+                                    const newProtocol = window.location.protocol
+                                    const newHostname = window.location.hostname
+                                    const newUrl = `${newProtocol}//${newHostname}:${portNum}/settings`
+                                    setTimeout(() => { window.location.href = newUrl }, 800)
+                                } else if (data.type === 'config-updated' && !data.success) {
+                                    alert('Failed to save config: ' + (data.error || 'Unknown error'))
                                 }
-                            }));
-
-                            // Give server time to write config and restart
-                            setTimeout(() => {
-                                socket.close();
-                                const newProtocol = window.location.protocol;
-                                const newHostname = window.location.hostname;
-                                const newUrl = `${newProtocol}//${newHostname}:${frontendPort}/settings`;
-                                window.location.href = newUrl;
-                            }, 1000);
-                        };
+                            } catch (_e) {
+                                // ignore non-JSON messages
+                            }
+                        }
                     }}
                 >
                     Save Config
