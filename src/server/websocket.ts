@@ -5,7 +5,12 @@ import fs from 'fs';
 import { Server, IncomingMessage } from 'http';
 import { Socket } from 'net';
 
-// Helper to find LAN IP
+/**
+ * Retrieves the local IPv4 address of the host machine.
+ * Filters for non-internal (non-loopback) IPv4 interfaces.
+ * 
+ * @returns {string} The local IPv4 address or 'localhost' if no interface is found.
+ */
 function getLocalIp() {
     const nets = os.networkInterfaces();
     for (const name of Object.keys(nets)) {
@@ -18,13 +23,49 @@ function getLocalIp() {
     return 'localhost';
 }
 
+/**
+ * Initializes the WebSocket server and sets up network interface polling.
+ * Handles WebSocket upgrades, client connections, and real-time IP broadcasts.
+ * 
+ * @param {Server} server - The HTTP server instance to attach the WebSocket server to.
+ */
 export function createWsServer(server: Server) {
     const wss = new WebSocketServer({ noServer: true });
     const inputHandler = new InputHandler();
-    const LAN_IP = getLocalIp();
+
+    let currentIp = getLocalIp();
 
     console.log(`WebSocket Server initialized (Upgrade mode)`);
-    console.log(`WS LAN IP: ${LAN_IP}`);
+    console.log(`Initial WS LAN IP: ${currentIp}`);
+
+    // Frequency for network interface polling (ms)
+    const POLLING_INTERVAL = 5000;
+
+    const pollingIntervalId = setInterval(() => {
+        const newIp = getLocalIp();
+        if (newIp !== currentIp) {
+            console.log(`Network Change Detected! IP: ${currentIp} -> ${newIp}`);
+            currentIp = newIp;
+
+            // Broadcast the new IP to all connected clients
+            const updateMsg = JSON.stringify({ type: 'server-ip', ip: currentIp });
+            wss.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(updateMsg);
+                }
+            });
+        }
+    }, POLLING_INTERVAL);
+
+    // Cleanup interval when the WebSocket server closes
+    wss.on('close', () => {
+        console.log('Clearing network polling interval');
+        clearInterval(pollingIntervalId);
+    });
+
+    // Also handle process exit to ensure cleanup
+    process.on('SIGTERM', () => clearInterval(pollingIntervalId));
+    process.on('SIGINT', () => clearInterval(pollingIntervalId));
 
     server.on('upgrade', (request: IncomingMessage, socket: Socket, head: Buffer) => {
         const pathname = request.url;
@@ -39,7 +80,8 @@ export function createWsServer(server: Server) {
     wss.on('connection', (ws: WebSocket) => {
         console.log('Client connected to /ws');
 
-        ws.send(JSON.stringify({ type: 'connected', serverIp: LAN_IP }));
+        // Send current IP immediately on connection
+        ws.send(JSON.stringify({ type: 'connected', ip: currentIp }));
 
         ws.on('message', async (data: string) => {
             try {
@@ -47,9 +89,10 @@ export function createWsServer(server: Server) {
                 const msg = JSON.parse(raw);
 
                 if (msg.type === 'get-ip') {
-                    ws.send(JSON.stringify({ type: 'server-ip', ip: LAN_IP }));
+                    ws.send(JSON.stringify({ type: 'server-ip', ip: currentIp }));
                     return;
                 }
+                // ... existing update-config logic ...
 
                 if (msg.type === 'update-config') {
                     console.log('Updating config:', msg.config);
