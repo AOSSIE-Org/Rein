@@ -19,8 +19,23 @@ function TrackpadPage() {
     const bufferText = buffer.join(" + ");
     const hiddenInputRef = useRef<HTMLInputElement>(null);
     const isComposingRef = useRef(false);
+    
+    // Load Client Settings
+    const [sensitivity] = useState(() => {
+        if (typeof window === 'undefined') return 1.0;
+        const s = localStorage.getItem('rein_sensitivity');
+        return s ? parseFloat(s) : 1.0;
+    });
+    
+    const [invertScroll] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        const s = localStorage.getItem('rein_invert');
+        return s ? JSON.parse(s) : false;
+    });
+
     const { status, send, sendCombo } = useRemoteConnection();
-    const { isTracking, handlers } = useTrackpadGesture(send, scrollMode);
+    // Pass sensitivity and invertScroll to the gesture hook
+    const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
 
     const focusInput = () => {
         hiddenInputRef.current?.focus();
