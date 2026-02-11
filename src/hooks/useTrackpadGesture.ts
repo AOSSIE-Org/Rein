@@ -29,7 +29,8 @@ function getClientSettings(): { sensitivity: number; invert: boolean } {
 export const useTrackpadGesture = (
     send: (msg: any) => void,
     scrollMode: boolean,
-    _defaultSensitivity: number = 1.5
+    _defaultSensitivity: number = 1.5,
+    axisThreshold: number = 2.5
 ) => {
     const [isTracking, setIsTracking] = useState(false);
     
@@ -155,9 +156,27 @@ export const useTrackpadGesture = (
                     send({ type: 'scroll', dx: sumX * sensitivity * scrollSign, dy: sumY * sensitivity * scrollSign });
                 }
             } else if (scrollMode) {
-                send({ type: 'scroll', dx: sumX * sensitivity * scrollSign, dy: sumY * sensitivity * scrollSign });
+                // Scroll mode: single finger scrolls; dominant axis (from main) for cleaner scroll
+                const scrollDx = -sumX;
+                const scrollDy = -sumY;
+                const absDx = Math.abs(scrollDx);
+                const absDy = Math.abs(scrollDy);
+                const useHorizontal = absDx > axisThreshold * absDy;
+                const useVertical = absDy > axisThreshold * absDx;
+                const dx = useHorizontal && !useVertical ? scrollDx : 0;
+                const dy = useVertical && !useHorizontal ? scrollDy : 0;
+                send({
+                    type: 'scroll',
+                    dx: Math.round(dx * sensitivity * scrollSign * 10) / 10,
+                    dy: Math.round(dy * sensitivity * scrollSign * 10) / 10,
+                });
             } else if (ongoingTouches.current.length === 1 || dragging.current) {
-                send({ type: 'move', dx: sumX * sensitivity, dy: sumY * sensitivity });
+                // Cursor movement (only in cursor mode with 1 finger, or when dragging)
+                send({
+                    type: 'move',
+                    dx: Math.round(sumX * sensitivity * 10) / 10,
+                    dy: Math.round(sumY * sensitivity * 10) / 10,
+                });
             }
         }
     };
