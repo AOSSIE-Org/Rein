@@ -19,7 +19,9 @@ function TrackpadPage() {
     const bufferText = buffer.join(" + ");
     const hiddenInputRef = useRef<HTMLInputElement>(null);
     const isComposingRef = useRef(false);
-    
+    const sentinelRef = useRef<any>(null);
+    const mountedRef = useRef(false);
+
     // Load Client Settings
     const [sensitivity] = useState(() => {
         if (typeof window === 'undefined') return 1.0;
@@ -33,18 +35,28 @@ function TrackpadPage() {
         return s ? JSON.parse(s) : false;
     });
     useEffect(() => {
-        let wl: any;
-        const req = async () => {
+        mountedRef.current = true;
+        const requestWakeLock = async () => {
             try {
-                if ('wakeLock' in navigator) wl = await (navigator as any).wakeLock.request('screen');
-            } catch (err) {}
+                if ('wakeLock' in navigator) {
+                    const result = await (navigator as any).wakeLock.request('screen');
+                    if (mountedRef.current) {
+                        sentinelRef.current = result;
+                    } else {
+                        await result.release();
+                    }
+                }
+            } catch (err) {
+                console.warn('Wake lock request failed:', err);
+            }
         };
-        req();
-        const vc = () => document.visibilityState === 'visible' && req();
-        document.addEventListener('visibilitychange', vc);
+        requestWakeLock();
+        const handleVisibilityChange = () => document.visibilityState === 'visible' && requestWakeLock();
+        document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => {
-            document.removeEventListener('visibilitychange', vc);
-            wl?.release();
+            mountedRef.current = false;
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            sentinelRef.current?.release();
         };
     }, []);
     const { status, send, sendCombo } = useRemoteConnection();
