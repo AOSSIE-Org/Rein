@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
 import QRCode from 'qrcode';
-import { CONFIG } from '../config';
+import { CONFIG, APP_CONFIG, THEMES } from '../config';
 
 export const Route = createFileRoute('/settings')({
     component: SettingsPage,
@@ -29,6 +29,16 @@ function SettingsPage() {
         return Number.isFinite(parsed) ? parsed : 1.0;
     });
 
+    const [theme, setTheme] = useState(() => {
+        if (typeof window === 'undefined') return THEMES.DEFAULT;
+        try {
+            const saved = localStorage.getItem(APP_CONFIG.THEME_STORAGE_KEY);
+            return saved === THEMES.LIGHT || saved === THEMES.DARK ? saved : THEMES.DEFAULT;
+        } catch {
+            return THEMES.DEFAULT;
+        }
+    });
+
     const [qrData, setQrData] = useState('');
 
     // Load initial state
@@ -48,6 +58,12 @@ function SettingsPage() {
     useEffect(() => {
         localStorage.setItem('rein_invert', JSON.stringify(invertScroll));
     }, [invertScroll]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        localStorage.setItem(APP_CONFIG.THEME_STORAGE_KEY, theme);
+        document.documentElement.setAttribute('data-theme', theme);
+    }, [theme]);
 
     // Effect: Update LocalStorage and Generate QR
     useEffect(() => {
@@ -123,50 +139,6 @@ function SettingsPage() {
                     </label>
                 </div>
 
-                <div className="form-control w-full max-w-2xl mx-auto">
-                    <label className="label" htmlFor="sensitivity-slider">
-                        <span className="label-text">Mouse Sensitivity</span>
-                        <span className="label-text-alt font-mono">
-                            {sensitivity.toFixed(1)}x
-                        </span>
-                    </label>
-
-                    <input
-                        type="range"
-                        id="sensitivity-slider"
-                        min="0.1"
-                        max="3.0"
-                        step="0.1"
-                        value={sensitivity}
-                        onChange={(e) => setSensitivity(parseFloat(e.target.value))}
-                        className="range range-primary range-sm w-full"
-                    />
-
-                    <div className="mt-2 flex w-full justify-between px-2 text-xs opacity-50">
-                        <span>Slow</span>
-                        <span>Default</span>
-                        <span>Fast</span>
-                    </div>
-                </div>
-
-                <div className="form-control w-full">
-                    <label className="label cursor-pointer">
-                        <span className="label-text font-medium">Invert Scroll</span>
-                        <input
-                            type="checkbox"
-                            className="toggle toggle-primary"
-                            checked={invertScroll}
-                            onChange={(e) => setInvertScroll(e.target.checked)}
-                        />
-                    </label>
-                    <br />
-                    <label className="label">
-                        <span className="label-text-alt opacity-50">
-                            {invertScroll ? 'Traditional scrolling enabled' : 'Natural scrolling'}
-                        </span>
-                    </label>
-                </div>
-
                 <div className="form-control w-full">
                     <label className="label">
                         <span className="label-text">Port</span>
@@ -217,6 +189,68 @@ function SettingsPage() {
                 >
                     Save Config
                 </button>
+
+                <div className="divider"></div>
+
+                <h2 className="text-xl font-semibold">Client Settings</h2>
+
+                <div className="form-control w-full max-w-2xl mx-auto">
+                    <label className="label" htmlFor="sensitivity-slider">
+                        <span className="label-text">Mouse Sensitivity</span>
+                        <span className="label-text-alt font-mono">
+                            {sensitivity.toFixed(1)}x
+                        </span>
+                    </label>
+
+                    <input
+                        type="range"
+                        id="sensitivity-slider"
+                        min="0.1"
+                        max="3.0"
+                        step="0.1"
+                        value={sensitivity}
+                        onChange={(e) => setSensitivity(parseFloat(e.target.value))}
+                        className="range range-primary range-sm w-full"
+                    />
+
+                    <div className="mt-2 flex w-full justify-between px-2 text-xs opacity-50">
+                        <span>Slow</span>
+                        <span>Default</span>
+                        <span>Fast</span>
+                    </div>
+                </div>
+
+                <div className="form-control w-full">
+                    <label className="label cursor-pointer">
+                        <span className="label-text font-medium">Invert Scroll</span>
+                        <input
+                            type="checkbox"
+                            className="toggle toggle-primary"
+                            checked={invertScroll}
+                            onChange={(e) => setInvertScroll(e.target.checked)}
+                        />
+                    </label>
+                    <br />
+                    <label className="label">
+                        <span className="label-text-alt opacity-50">
+                            {invertScroll ? 'Traditional scrolling enabled' : 'Natural scrolling'}
+                        </span>
+                    </label>
+                </div>
+
+                <div className="form-control w-full">
+                    <label className="label">
+                        <span className="label-text">Theme</span>
+                    </label>
+                    <select
+                        className="select select-bordered w-full"
+                        value={theme}
+                        onChange={(e) => setTheme(e.target.value)}
+                    >
+                        <option value={THEMES.DARK}>Dark</option>
+                        <option value={THEMES.LIGHT}>Light</option>
+                    </select>
+                </div>
 
                 <div className="card bg-base-200 shadow-xl">
                     <div className="card-body items-center text-center">
