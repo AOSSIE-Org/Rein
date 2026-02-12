@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRemoteConnection } from '../hooks/useRemoteConnection';
 import { useTrackpadGesture } from '../hooks/useTrackpadGesture';
 import { ControlBar } from '../components/Trackpad/ControlBar';
@@ -19,7 +19,9 @@ function TrackpadPage() {
     const bufferText = buffer.join(" + ");
     const hiddenInputRef = useRef<HTMLInputElement>(null);
     const isComposingRef = useRef(false);
-    
+    const sentinelRef = useRef<any>(null);
+    const mountedRef = useRef(false);
+
     // Load Client Settings
     const [sensitivity] = useState(() => {
         if (typeof window === 'undefined') return 1.0;
@@ -32,7 +34,31 @@ function TrackpadPage() {
         const s = localStorage.getItem('rein_invert');
         return s ? JSON.parse(s) : false;
     });
-
+    useEffect(() => {
+        mountedRef.current = true;
+        const requestWakeLock = async () => {
+            try {
+                if ('wakeLock' in navigator) {
+                    const result = await (navigator as any).wakeLock.request('screen');
+                    if (mountedRef.current) {
+                        sentinelRef.current = result;
+                    } else {
+                        await result.release();
+                    }
+                }
+            } catch (err) {
+                console.warn('Wake lock request failed:', err);
+            }
+        };
+        requestWakeLock();
+        const handleVisibilityChange = () => document.visibilityState === 'visible' && requestWakeLock();
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            mountedRef.current = false;
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            sentinelRef.current?.release();
+        };
+    }, []);
     const { status, send, sendCombo } = useRemoteConnection();
     // Pass sensitivity and invertScroll to the gesture hook
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
