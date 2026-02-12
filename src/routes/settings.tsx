@@ -31,12 +31,10 @@ function SettingsPage() {
 
     const [qrData, setQrData] = useState('');
 
-    // Load initial state
+    // Load initial state (IP is not stored in localStorage; only sensitivity, invert, theme are client settings)
     useEffect(() => {
-        const storedIp = localStorage.getItem('rein_ip');
         const defaultIp = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-
-        setIp(storedIp || defaultIp);
+        setIp(defaultIp);
         setFrontendPort(String(CONFIG.FRONTEND_PORT));
     }, []);
 
@@ -49,20 +47,15 @@ function SettingsPage() {
         localStorage.setItem('rein_invert', JSON.stringify(invertScroll));
     }, [invertScroll]);
 
-    // Effect: Update LocalStorage and Generate QR
+    // Generate QR when IP changes (IP is not persisted to localStorage)
     useEffect(() => {
-        if (!ip) return;
-        localStorage.setItem('rein_ip', ip);
-
-        if (typeof window !== 'undefined') {
-            const appPort = String(CONFIG.FRONTEND_PORT);
-            const protocol = window.location.protocol;
-            const shareUrl = `${protocol}//${ip}:${appPort}/trackpad`;
-
-            QRCode.toDataURL(shareUrl)
-                .then(setQrData)
-                .catch((e) => console.error('QR Error:', e));
-        }
+        if (!ip || typeof window === 'undefined') return;
+        const appPort = String(CONFIG.FRONTEND_PORT);
+        const protocol = window.location.protocol;
+        const shareUrl = `${protocol}//${ip}:${appPort}/trackpad`;
+        QRCode.toDataURL(shareUrl)
+            .then(setQrData)
+            .catch((e) => console.error('QR Error:', e));
     }, [ip]);
 
     // Effect: Auto-detect LAN IP from Server (only if on localhost)
