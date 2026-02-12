@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRemoteConnection } from '../hooks/useRemoteConnection';
 import { useTrackpadGesture } from '../hooks/useTrackpadGesture';
 import { ControlBar } from '../components/Trackpad/ControlBar';
@@ -32,7 +32,21 @@ function TrackpadPage() {
         const s = localStorage.getItem('rein_invert');
         return s ? JSON.parse(s) : false;
     });
-
+    useEffect(() => {
+        let wl: any;
+        const req = async () => {
+            try {
+                if ('wakeLock' in navigator) wl = await (navigator as any).wakeLock.request('screen');
+            } catch (err) {}
+        };
+        req();
+        const vc = () => document.visibilityState === 'visible' && req();
+        document.addEventListener('visibilitychange', vc);
+        return () => {
+            document.removeEventListener('visibilitychange', vc);
+            wl?.release();
+        };
+    }, []);
     const { status, send, sendCombo } = useRemoteConnection();
     // Pass sensitivity and invertScroll to the gesture hook
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
