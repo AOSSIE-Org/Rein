@@ -5,26 +5,32 @@ import fs from 'fs';
 import { Server, IncomingMessage } from 'http';
 import { Socket } from 'net';
 
-// Helper to find LAN IP
-function getLocalIp() {
+// Helper to find LAN IPs
+function getLocalIps() {
     const nets = os.networkInterfaces();
+    const results: string[] = [];
     for (const name of Object.keys(nets)) {
         for (const net of nets[name]!) {
             if (net.family === 'IPv4' && !net.internal) {
-                return net.address;
+                results.push(net.address);
             }
         }
     }
-    return 'localhost';
+    return results.length > 0 ? results : ['localhost'];
 }
 
 export function createWsServer(server: Server) {
     const wss = new WebSocketServer({ noServer: true });
     const inputHandler = new InputHandler();
-    const LAN_IP = getLocalIp();
+    const LAN_IPS = getLocalIps();
+    // Heuristic: Prefer 192.168.x.x, then 10.x.x.x, then first available
+    const BEST_IP = LAN_IPS.find(ip => ip.startsWith('192.168.'))
+        || LAN_IPS.find(ip => ip.startsWith('10.'))
+        || LAN_IPS[0];
 
     console.log(`WebSocket Server initialized (Upgrade mode)`);
-    console.log(`WS LAN IP: ${LAN_IP}`);
+    console.log(`WS LAN IPS: ${LAN_IPS.join(', ')}`);
+    console.log(`Selected Best IP: ${BEST_IP}`);
 
     server.on('upgrade', (request: IncomingMessage, socket: Socket, head: Buffer) => {
         const pathname = request.url;
@@ -39,7 +45,7 @@ export function createWsServer(server: Server) {
     wss.on('connection', (ws: WebSocket) => {
         console.log('Client connected to /ws');
 
-        ws.send(JSON.stringify({ type: 'connected', serverIp: LAN_IP }));
+        ws.send(JSON.stringify({ type: 'connected', serverIp: BEST_IP, ips: LAN_IPS }));
 
         ws.on('message', async (data: string) => {
             try {
@@ -47,7 +53,7 @@ export function createWsServer(server: Server) {
                 const msg = JSON.parse(raw);
 
                 if (msg.type === 'get-ip') {
-                    ws.send(JSON.stringify({ type: 'server-ip', ip: LAN_IP }));
+                    ws.send(JSON.stringify({ type: 'server-ip', ip: BEST_IP, ips: LAN_IPS }));
                     return;
                 }
 

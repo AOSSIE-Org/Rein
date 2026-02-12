@@ -9,6 +9,7 @@ export const Route = createFileRoute('/settings')({
 
 function SettingsPage() {
     const [ip, setIp] = useState('');
+    const [availableIps, setAvailableIps] = useState<string[]>([]);
     const [frontendPort, setFrontendPort] = useState(String(CONFIG.FRONTEND_PORT));
     
     // Client Side Settings (LocalStorage)
@@ -85,7 +86,16 @@ function SettingsPage() {
                 const data = JSON.parse(event.data);
                 if (data.type === 'server-ip' && data.ip) {
                     console.log('Auto-detected IP:', data.ip);
-                    setIp(data.ip);
+                    
+                    // Only override if user hasn't set one, or if it's default
+                    const stored = localStorage.getItem('rein_ip');
+                    if (!stored || stored === 'localhost' || stored === '127.0.0.1' || stored === window.location.hostname) {
+                         setIp(data.ip);
+                    }
+                    
+                    if (data.ips && Array.isArray(data.ips)) {
+                        setAvailableIps(data.ips);
+                    }
                     socket.close();
                 }
             } catch (e) {
@@ -118,6 +128,22 @@ function SettingsPage() {
                         value={ip}
                         onChange={(e) => setIp(e.target.value)}
                     />
+                    {availableIps.length > 0 && (
+                        <div className="pt-2">
+                           <span className="text-xs opacity-50 block mb-1">Detected LAN IPs:</span>
+                           <div className="flex flex-wrap gap-2">
+                               {availableIps.map(addr => (
+                                   <button 
+                                       key={addr} 
+                                       className="btn btn-xs btn-outline"
+                                       onClick={() => setIp(addr)}
+                                   >
+                                       {addr}
+                                   </button>
+                               ))}
+                           </div>
+                        </div>
+                    )}
                     <label className="label">
                         <span className="label-text-alt opacity-50">This Computer's LAN IP</span>
                     </label>
