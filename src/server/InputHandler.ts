@@ -27,6 +27,7 @@ export class InputHandler {
 
     // Utility clamp (ADDED)
     private clamp(value: number, min: number, max: number): number {
+        if (!Number.isFinite(value)) return 0;
         return Math.max(min, Math.min(max, value));
     }
 
