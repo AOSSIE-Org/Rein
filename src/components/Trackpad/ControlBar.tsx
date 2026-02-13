@@ -80,13 +80,15 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 				</button>
 				<button
 					type="button"
-					className="btn btn-sm btn-outline"
+					className="btn btn-sm btn-outline btn-disabled"
+					disabled
 				>
 					Copy
 				</button>
 				<button
 					type="button"
-					className="btn btn-sm btn-outline"
+					className="btn btn-sm btn-outline btn-disabled"
+					disabled
 				>
 					Paste
 				</button>

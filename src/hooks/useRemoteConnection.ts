@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 export const useRemoteConnection = () => {
     const wsRef = useRef<WebSocket | null>(null);
-    const [ws, setWs] = useState<WebSocket | null>(null);
     const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
     const [latency, setLatency] = useState<number | null>(null);
 
@@ -50,7 +49,6 @@ export const useRemoteConnection = () => {
                 console.error("WS Error", e);
                 socket.close();
             };
-            setWs(socket);
         };
 
         connect();
