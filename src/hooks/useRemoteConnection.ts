@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 export const useRemoteConnection = () => {
     const [ws, setWs] = useState<WebSocket | null>(null);
     const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
+    const [latency, setLatency] = useState<number | null>(null);
 
     useEffect(() => {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -10,15 +11,36 @@ export const useRemoteConnection = () => {
         const wsUrl = `${protocol}//${host}/ws`;
 
         let reconnectTimer: NodeJS.Timeout;
+        let heartbeatTimer: NodeJS.Timeout;
 
         const connect = () => {
             console.log(`Connecting to ${wsUrl}`);
             setStatus('connecting');
             const socket = new WebSocket(wsUrl);
 
-            socket.onopen = () => setStatus('connected');
+            socket.onopen = () => {
+                setStatus('connected');
+                heartbeatTimer = setInterval(() => {
+                    if (socket.readyState === WebSocket.OPEN) {
+                        socket.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
+                    }
+                }, 3000);
+            };
+            socket.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    if (msg.type === 'pong') {
+                        const rtt = Date.now() - msg.timestamp;
+                        setLatency(rtt);
+                    }
+                } catch (e) {
+                    console.error("Error parsing WS message", e);
+                }
+            };
             socket.onclose = () => {
                 setStatus('disconnected');
+                setLatency(null);
+                clearInterval(heartbeatTimer);
                 reconnectTimer = setTimeout(connect, 3000);
             };
             socket.onerror = (e) => {
@@ -32,6 +54,7 @@ export const useRemoteConnection = () => {
 
         return () => {
             clearTimeout(reconnectTimer);
+            clearInterval(heartbeatTimer);
             ws?.close();
         };
     }, []);
@@ -54,5 +77,5 @@ export const useRemoteConnection = () => {
         }
     ,[ws])
 
-    return { status, send ,sendCombo};
+    return { status, latency, send, sendCombo };
 };

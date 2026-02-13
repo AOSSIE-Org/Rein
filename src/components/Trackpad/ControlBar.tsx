@@ -5,6 +5,7 @@ interface ControlBarProps {
 	scrollMode: boolean;
 	modifier: ModifierState;
 	buffer: string;
+	latency: number | null;
 	onToggleScroll: () => void;
 	onLeftClick: () => void;
 	onRightClick: () => void;
@@ -16,6 +17,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 	scrollMode,
 	modifier,
 	buffer,
+	latency,
 	onToggleScroll,
 	onLeftClick,
 	onRightClick,
@@ -52,50 +54,66 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 		}
 	};
 
+	const getLatencyColor = (ms: number) => {
+		if (ms < 50) return "text-success";
+		if (ms < 150) return "text-warning";
+		return "text-error";
+	};
 	return (
-		<div className="bg-base-200 p-2 grid grid-cols-5 gap-2 shrink-0">
-			<button
-				className={`btn btn-sm ${scrollMode ? "btn-primary" : "btn-outline"}`}
-				onPointerDown={(e) => handleInteraction(e, onToggleScroll)}
-			>
-				{scrollMode ? "Scroll" : "Cursor"}
-			</button>
-			<button
-				className="btn btn-sm btn-outline"
-			>
-				Copy
-			</button>
-			<button
-				className="btn btn-sm btn-outline"
-			>
-				Paste
-			</button>
-			{/* 
-			<button
-				className="btn btn-sm btn-outline"
-				onPointerDown={(e) => handleInteraction(e, onLeftClick)}
-			>
-				L-Click
-			</button>
-			*/}
-			<button
-				className="btn btn-sm btn-outline"
-				onPointerDown={(e) => handleInteraction(e, onRightClick)}
-			>
-				R-Click
-			</button>
-			<button
-				className={`btn btn-sm ${getModifierButtonClass()}`}
-				onPointerDown={(e) => handleInteraction(e, onModifierToggle)}
-			>
-				{getModifierLabel()}
-			</button>
-			<button
-				className="btn btn-sm btn-secondary"
-				onPointerDown={(e) => handleInteraction(e, onKeyboardToggle)}
-			>
-				Keyboard
-			</button>
+		<div className="bg-base-200 p-2 shrink-0">
+			<div className="flex justify-between items-center mb-2 px-1">
+				<span className="text-xs font-mono opacity-70">
+					{latency !== null ? (
+						<span className={getLatencyColor(latency)}>Ping: {latency}ms</span>
+					) : (
+						"Ping: ---"
+					)}
+				</span>
+			</div>
+			<div className="grid grid-cols-5 gap-2">
+				<button
+					className={`btn btn-sm ${scrollMode ? "btn-primary" : "btn-outline"}`}
+					onPointerDown={(e) => handleInteraction(e, onToggleScroll)}
+				>
+					{scrollMode ? "Scroll" : "Cursor"}
+				</button>
+				<button
+					className="btn btn-sm btn-outline"
+				>
+					Copy
+				</button>
+				<button
+					className="btn btn-sm btn-outline"
+				>
+					Paste
+				</button>
+				{/* 
+				<button
+					className="btn btn-sm btn-outline"
+					onPointerDown={(e) => handleInteraction(e, onLeftClick)}
+				>
+					L-Click
+				</button>
+				*/}
+				<button
+					className="btn btn-sm btn-outline"
+					onPointerDown={(e) => handleInteraction(e, onRightClick)}
+				>
+					R-Click
+				</button>
+				<button
+					className={`btn btn-sm ${getModifierButtonClass()}`}
+					onPointerDown={(e) => handleInteraction(e, onModifierToggle)}
+				>
+					{getModifierLabel()}
+				</button>
+				<button
+					className="btn btn-sm btn-secondary"
+					onPointerDown={(e) => handleInteraction(e, onKeyboardToggle)}
+				>
+					Keyboard
+				</button>
+			</div>
 		</div>
 	);
 };
