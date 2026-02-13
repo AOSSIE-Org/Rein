@@ -70,25 +70,29 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 					)}
 				</span>
 			</div>
-			<div className="grid grid-cols-5 gap-2">
+			<div className="grid grid-cols-6 gap-2">
 				<button
+					type="button"
 					className={`btn btn-sm ${scrollMode ? "btn-primary" : "btn-outline"}`}
 					onPointerDown={(e) => handleInteraction(e, onToggleScroll)}
 				>
 					{scrollMode ? "Scroll" : "Cursor"}
 				</button>
 				<button
+					type="button"
 					className="btn btn-sm btn-outline"
 				>
 					Copy
 				</button>
 				<button
+					type="button"
 					className="btn btn-sm btn-outline"
 				>
 					Paste
 				</button>
 				{/* 
 				<button
+					type="button"
 					className="btn btn-sm btn-outline"
 					onPointerDown={(e) => handleInteraction(e, onLeftClick)}
 				>
@@ -96,18 +100,21 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 				</button>
 				*/}
 				<button
+					type="button"
 					className="btn btn-sm btn-outline"
 					onPointerDown={(e) => handleInteraction(e, onRightClick)}
 				>
 					R-Click
 				</button>
 				<button
+					type="button"
 					className={`btn btn-sm ${getModifierButtonClass()}`}
 					onPointerDown={(e) => handleInteraction(e, onModifierToggle)}
 				>
 					{getModifierLabel()}
 				</button>
 				<button
+					type="button"
 					className="btn btn-sm btn-secondary"
 					onPointerDown={(e) => handleInteraction(e, onKeyboardToggle)}
 				>

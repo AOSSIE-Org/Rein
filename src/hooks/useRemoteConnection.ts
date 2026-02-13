@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export const useRemoteConnection = () => {
+    const wsRef = useRef<WebSocket | null>(null);
     const [ws, setWs] = useState<WebSocket | null>(null);
     const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
     const [latency, setLatency] = useState<number | null>(null);
@@ -17,6 +18,7 @@ export const useRemoteConnection = () => {
             console.log(`Connecting to ${wsUrl}`);
             setStatus('connecting');
             const socket = new WebSocket(wsUrl);
+            wsRef.current = socket;
 
             socket.onopen = () => {
                 setStatus('connected');
@@ -40,6 +42,7 @@ export const useRemoteConnection = () => {
             socket.onclose = () => {
                 setStatus('disconnected');
                 setLatency(null);
+                wsRef.current = null;
                 clearInterval(heartbeatTimer);
                 reconnectTimer = setTimeout(connect, 3000);
             };
@@ -55,27 +58,26 @@ export const useRemoteConnection = () => {
         return () => {
             clearTimeout(reconnectTimer);
             clearInterval(heartbeatTimer);
-            ws?.close();
+            wsRef.current?.close();
         };
     }, []);
 
     const send = useCallback((msg: any) => {
-        if (ws?.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify(msg));
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify(msg));
         }
-    }, [ws]);
+    }, []);
 
     const sendCombo = useCallback(
         (msg:string[]) =>{
-            if (ws?.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+                wsRef.current.send(JSON.stringify({
                     type:"combo",
                     keys: msg,
                 }));
-                
             }
         }
-    ,[ws])
+    ,[])
 
     return { status, latency, send, sendCombo };
 };
