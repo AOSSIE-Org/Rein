@@ -1,5 +1,6 @@
 import { mouse, Point, Button, keyboard, Key } from '@nut-tree-fork/nut-js';
 import { KEY_MAP } from './KeyMap';
+import { CONFIG } from '../config';
 
 export interface InputMessage {
     type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo';
@@ -23,10 +24,12 @@ export class InputHandler {
             case 'move':
                 if (msg.dx !== undefined && msg.dy !== undefined) {
                     const currentPos = await mouse.getPosition();
-                    
+                    // Apply sensitivity multiplier (server-side only)
+                    const sensitivity = CONFIG.MOUSE_SENSITIVITY ?? 1.0;
+
                     await mouse.setPosition(new Point(
-                        currentPos.x + msg.dx, 
-                        currentPos.y + msg.dy
+                        currentPos.x + (msg.dx * sensitivity),
+                        currentPos.y + (msg.dy * sensitivity)
                     ));
                 }
                 break;
@@ -42,50 +45,33 @@ export class InputHandler {
                 }
                 break;
 
-            case 'scroll':
-                const promises: Promise<void>[] = [];
-
-                // Vertical scroll
-                if (typeof msg.dy === 'number' && msg.dy !== 0) {
-                    if (msg.dy > 0) {
-                        promises.push(mouse.scrollDown(msg.dy));
-                    } else {
-                        promises.push(mouse.scrollUp(-msg.dy));
-                    }
-                }
-
-                // Horizontal scroll
-                if (typeof msg.dx === 'number' && msg.dx !== 0) {
-                    if (msg.dx > 0) {
-                        promises.push(mouse.scrollRight(msg.dx));
-                    } else {
-                        promises.push(mouse.scrollLeft(-msg.dx));
-                    }
-                }
-
-                if (promises.length) {
-                    await Promise.all(promises);
-                }
+            case 'scroll': {
+                const invertMultiplier = (CONFIG.MOUSE_INVERT ?? false) ? -1 : 1;
+                const scrollSensitivity = CONFIG.MOUSE_SENSITIVITY ?? 1.0;
+                if (msg.dy !== undefined && msg.dy !== 0) await mouse.scrollDown(Math.round(msg.dy * invertMultiplier * scrollSensitivity));
+                if (msg.dx !== undefined && msg.dx !== 0) await mouse.scrollRight(Math.round(msg.dx * -1 * invertMultiplier * scrollSensitivity));
                 break;
+            }
 
-            case 'zoom':
+            case 'zoom': {
                 if (msg.delta !== undefined && msg.delta !== 0) {
-                    const sensitivityFactor = 0.5; 
+                    const invertMultiplier = (CONFIG.MOUSE_INVERT ?? false) ? -1 : 1;
+                    const zoomSensitivity = CONFIG.MOUSE_SENSITIVITY ?? 1.0;
+                    const sensitivityFactor = 0.5; // Adjust scaling
                     const MAX_ZOOM_STEP = 5;
+                    const scaledDelta = Math.sign(msg.delta) * Math.min(Math.abs(msg.delta) * sensitivityFactor * zoomSensitivity, MAX_ZOOM_STEP);
+                    const amount = Math.round(-scaledDelta * invertMultiplier);
+                    if (amount !== 0) {
 
-                    const scaledDelta =
-                        Math.sign(msg.delta) *
-                        Math.min(Math.abs(msg.delta) * sensitivityFactor, MAX_ZOOM_STEP);
-
-                    const amount = -scaledDelta;
-                    
-                    await keyboard.pressKey(Key.LeftControl);
-                    try {
-                        await mouse.scrollDown(amount);
-                    } finally {
-                        await keyboard.releaseKey(Key.LeftControl);
+                        await keyboard.pressKey(Key.LeftControl);
+                        try {
+                            await mouse.scrollDown(amount);
+                        } finally {
+                            await keyboard.releaseKey(Key.LeftControl);
+                        }
                     }
                 }
+            }
                 break;
 
             case 'key':
