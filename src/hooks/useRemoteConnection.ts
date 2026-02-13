@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export const useRemoteConnection = () => {
-    const [ws, setWs] = useState<WebSocket | null>(null);
+    const wsRef = useRef<WebSocket | null>(null);
     const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
 
     useEffect(() => {
+        let isMounted = true;
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.host;
         const wsUrl = `${protocol}//${host}/ws`;
@@ -12,47 +13,71 @@ export const useRemoteConnection = () => {
         let reconnectTimer: NodeJS.Timeout;
 
         const connect = () => {
+            if (!isMounted) return;
+
+            // Close any existing socket before creating a new one
+            if (wsRef.current) {
+                wsRef.current.onopen = null;
+                wsRef.current.onclose = null;
+                wsRef.current.onerror = null;
+                wsRef.current.close();
+                wsRef.current = null;
+            }
+
             console.log(`Connecting to ${wsUrl}`);
             setStatus('connecting');
             const socket = new WebSocket(wsUrl);
 
-            socket.onopen = () => setStatus('connected');
+            socket.onopen = () => {
+                if (isMounted) setStatus('connected');
+            };
             socket.onclose = () => {
-                setStatus('disconnected');
-                reconnectTimer = setTimeout(connect, 3000);
+                if (isMounted) {
+                    setStatus('disconnected');
+                    reconnectTimer = setTimeout(connect, 3000);
+                }
             };
             socket.onerror = (e) => {
                 console.error("WS Error", e);
                 socket.close();
             };
-            setWs(socket);
+
+            wsRef.current = socket;
         };
 
-        connect();
+        // Defer to next tick so React Strict Mode's immediate unmount
+        // sets isMounted=false before any socket is created
+        const initialTimer = setTimeout(connect, 0);
 
         return () => {
+            isMounted = false;
+            clearTimeout(initialTimer);
             clearTimeout(reconnectTimer);
-            ws?.close();
+            if (wsRef.current) {
+                // Nullify handlers to prevent cascading error/close events
+                wsRef.current.onopen = null;
+                wsRef.current.onclose = null;
+                wsRef.current.onerror = null;
+                wsRef.current.close();
+                wsRef.current = null;
+            }
         };
     }, []);
 
     const send = useCallback((msg: any) => {
-        if (ws?.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify(msg));
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify(msg));
         }
-    }, [ws]);
+    }, []);
 
-    const sendCombo = useCallback(
-        (msg:string[]) =>{
-            if (ws?.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
-                    type:"combo",
-                    keys: msg,
-                }));
-                
-            }
+    const sendCombo = useCallback((msg: string[]) => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
+                type: "combo",
+                keys: msg,
+            }));
         }
-    ,[ws])
+    }, []);
 
-    return { status, send ,sendCombo};
+    return { status, send, sendCombo };
 };
