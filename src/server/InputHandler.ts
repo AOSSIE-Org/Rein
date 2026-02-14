@@ -28,8 +28,12 @@ export class InputHandler {
 
         // Validation: Sane bounds for coordinates
         const MAX_COORD = 2000;
-        if (msg.dx !== undefined) msg.dx = Math.max(-MAX_COORD, Math.min(MAX_COORD, msg.dx));
-        if (msg.dy !== undefined) msg.dy = Math.max(-MAX_COORD, Math.min(MAX_COORD, msg.dy));
+        if (typeof msg.dx === 'number' && Number.isFinite(msg.dx)) {
+            msg.dx = Math.max(-MAX_COORD, Math.min(MAX_COORD, msg.dx));
+        }
+        if (typeof msg.dy === 'number' && Number.isFinite(msg.dy)) {
+            msg.dy = Math.max(-MAX_COORD, Math.min(MAX_COORD, msg.dy));
+        }
 
         // Throttling: Limit high-frequency events to ~60fps (16ms)
         if (msg.type === 'move' || msg.type === 'scroll') {
