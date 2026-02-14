@@ -31,8 +31,11 @@ export const useRemoteConnection = () => {
                 try {
                     const msg = JSON.parse(event.data);
                     if (msg.type === 'pong') {
-                        const rtt = Date.now() - msg.timestamp;
-                        setLatency(rtt);
+                        const ts = Number(msg.timestamp);
+                        const rtt = Date.now() - ts;
+                        if (Number.isFinite(ts) && Number.isFinite(rtt) && rtt >= 0 && rtt < 60000) {
+                            setLatency(rtt);
+                        }
                     }
                 } catch (e) {
                     console.error("Error parsing WS message", e);
