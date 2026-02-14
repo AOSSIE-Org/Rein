@@ -2,7 +2,7 @@ import { mouse, Point, Button, keyboard, Key } from '@nut-tree-fork/nut-js';
 import { KEY_MAP } from './KeyMap';
 
 export interface InputMessage {
-    type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo' | 'paste'; // ← Added 'paste'
+    type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo' | 'paste' | 'copy';
     dx?: number;
     dy?: number;
     button?: 'left' | 'right' | 'middle';
@@ -19,11 +19,12 @@ export class InputHandler {
     }
 
     async handleMessage(msg: InputMessage) {
+        console.log('[InputHandler] Processing:', msg.type);
+
         switch (msg.type) {
             case 'move':
                 if (msg.dx !== undefined && msg.dy !== undefined) {
                     const currentPos = await mouse.getPosition();
-                    
                     await mouse.setPosition(new Point(
                         currentPos.x + msg.dx, 
                         currentPos.y + msg.dy
@@ -43,10 +44,6 @@ export class InputHandler {
                 break;
 
             case 'scroll':
-                // Fix TypeScript error: Don't push Promise<MouseClass> to Promise<void>[]
-                // Execute scrolls sequentially instead of Promise.all
-
-                // Vertical scroll
                 if (typeof msg.dy === 'number' && msg.dy !== 0) {
                     if (msg.dy > 0) {
                         await mouse.scrollDown(msg.dy);
@@ -55,7 +52,6 @@ export class InputHandler {
                     }
                 }
 
-                // Horizontal scroll
                 if (typeof msg.dx === 'number' && msg.dx !== 0) {
                     if (msg.dx > 0) {
                         await mouse.scrollRight(msg.dx);
@@ -149,11 +145,9 @@ export class InputHandler {
                 }
                 break;
 
-            // ========== PASTE SUPPORT (NEW) ==========
             case 'paste':
                 console.log('[InputHandler] Executing paste (Ctrl+V)');
                 try {
-                    // Detect OS and use appropriate modifier
                     const isWin = process.platform === 'win32' || process.platform === 'linux';
                     const modifier = isWin ? Key.LeftControl : Key.LeftCmd;
                     
@@ -167,7 +161,38 @@ export class InputHandler {
                     console.error('[InputHandler] Paste failed:', error);
                 }
                 break;
-            // =========================================
+
+            case 'copy':
+                console.log('[InputHandler] ========== COPY STARTING ==========');
+                try {
+                    const isWin = process.platform === 'win32' || process.platform === 'linux';
+                    const modifier = isWin ? Key.LeftControl : Key.LeftCmd;
+                    
+                    console.log('[InputHandler] Platform:', process.platform);
+                    console.log('[InputHandler] Using modifier:', isWin ? 'Ctrl' : 'Cmd');
+                    
+                    await keyboard.pressKey(modifier);
+                    console.log('[InputHandler] Modifier pressed');
+                    
+                    await keyboard.pressKey(Key.C);
+                    console.log('[InputHandler] C pressed');
+                    
+                    await keyboard.releaseKey(Key.C);
+                    console.log('[InputHandler] C released');
+                    
+                    await keyboard.releaseKey(modifier);
+                    console.log('[InputHandler] Modifier released');
+                    
+                    console.log('[InputHandler] ========== COPY COMPLETED ==========');
+                } catch (error) {
+                    console.error('[InputHandler] ========== COPY FAILED ==========');
+                    console.error('[InputHandler] Error:', error);
+                }
+                break;
+
+            default:
+                console.warn('[InputHandler] Unknown message type:', msg.type);
+                break;
         }
     }
 }

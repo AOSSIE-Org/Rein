@@ -6,7 +6,6 @@ import fs from 'fs';
 import { Server, IncomingMessage } from 'http';
 import { Socket } from 'net';
 
-// Helper to find LAN IP
 function getLocalIp() {
     const nets = os.networkInterfaces();
     for (const name of Object.keys(nets)) {
@@ -39,12 +38,9 @@ export function createWsServer(server: Server) {
 
     wss.on('connection', (ws: WebSocket) => {
         console.log('Client connected to /ws');
-
         ws.send(JSON.stringify({ type: 'connected', serverIp: LAN_IP }));
 
-        // ========== CLIPBOARD SYNC: INVISIBLE MODE ==========
         const clipboardMonitor = new ClipboardMonitor((clipboardData) => {
-            // Computer clipboard changed → Send to phone
             ws.send(JSON.stringify({
                 type: 'clipboard-sync',
                 data: clipboardData
@@ -53,21 +49,14 @@ export function createWsServer(server: Server) {
 
         clipboardMonitor.start();
 
-        // Send current clipboard to phone on connect
-        const currentClipboard = clipboardMonitor.getCurrent();
-        if (currentClipboard) {
-            ws.send(JSON.stringify({
-                type: 'clipboard-sync',
-                data: currentClipboard
-            }));
-        }
-        // ====================================================
-
         ws.on('message', async (data: string) => {
             try {
                 const raw = data.toString();
                 const msg = JSON.parse(raw);
+                
+                console.log('[WS] Received message type:', msg.type);
 
+                // Handle special server messages
                 if (msg.type === 'get-ip') {
                     ws.send(JSON.stringify({ type: 'server-ip', ip: LAN_IP }));
                     return;
@@ -79,7 +68,6 @@ export function createWsServer(server: Server) {
                         const configPath = './src/server-config.json';
                         const current = fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, 'utf-8')) : {};
                         const newConfig = { ...current, ...msg.config };
-
                         fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2));
                         ws.send(JSON.stringify({ type: 'config-updated', success: true }));
                         console.log('Config updated. Vite should auto-restart.');
@@ -90,16 +78,10 @@ export function createWsServer(server: Server) {
                     return;
                 }
 
-                // ========== CLIPBOARD SYNC: PHONE → COMPUTER ==========
                 if (msg.type === 'clipboard-sync') {
                     const clipboardData = msg.data;
-                    
-                    console.log('[Clipboard] Phone copied:', clipboardData.text.substring(0, 50));
-                    
-                    // Update computer clipboard
+                    console.log('[WS] Phone clipboard received:', clipboardData.text.substring(0, 50));
                     await clipboardMonitor.setClipboard(clipboardData.text, 'phone');
-                    
-                    // Acknowledge
                     ws.send(JSON.stringify({ 
                         type: 'clipboard-sync-ack',
                         success: true,
@@ -107,11 +89,15 @@ export function createWsServer(server: Server) {
                     }));
                     return;
                 }
-                // =====================================================
 
+                // ========== ALL OTHER MESSAGES GO TO INPUT HANDLER ==========
+                // This includes: move, click, scroll, key, text, combo, paste, AND COPY
+                console.log('[WS] Passing to InputHandler:', msg.type);
                 await inputHandler.handleMessage(msg as InputMessage);
+                // ===========================================================
+
             } catch (err) {
-                console.error('Error processing message:', err);
+                console.error('[WS] Error processing message:', err);
             }
         });
 

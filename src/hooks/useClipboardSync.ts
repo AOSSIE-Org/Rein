@@ -6,7 +6,7 @@ interface ClipboardData {
   source: 'computer' | 'phone';
 }
 
-export function useClipboardSync(ws: WebSocket | null) {
+export function useClipboardSync(ws: WebSocket | null, enabled: boolean) { // ← ADDED enabled parameter
   const [lastSync, setLastSync] = useState<ClipboardData | null>(null);
   const lastPhoneClipboard = useRef<string>('');
   const isSettingClipboard = useRef(false);
@@ -23,7 +23,7 @@ export function useClipboardSync(ws: WebSocket | null) {
 
   // Listen for computer clipboard changes
   useEffect(() => {
-    if (!ws) return;
+    if (!ws || !enabled) return; // ← ADDED enabled check
 
     const handleMessage = (event: MessageEvent) => {
       try {
@@ -51,10 +51,12 @@ export function useClipboardSync(ws: WebSocket | null) {
 
     ws.addEventListener('message', handleMessage);
     return () => ws.removeEventListener('message', handleMessage);
-  }, [ws]);
+  }, [ws, enabled]); // ← ADDED enabled dependency
 
   // Handle app visibility changes (when user switches apps)
   useEffect(() => {
+    if (!enabled) return; // ← ADDED enabled check
+
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
         // User returned to the app
@@ -69,10 +71,12 @@ export function useClipboardSync(ws: WebSocket | null) {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [ws]);
+  }, [ws, enabled]); // ← ADDED enabled dependency
 
   // Check clipboard and sync if changed
   const checkAndSyncClipboard = async () => {
+    if (!enabled) return; // ← ADDED enabled check
+
     try {
       if (isSettingClipboard.current) return;
 
@@ -107,6 +111,8 @@ export function useClipboardSync(ws: WebSocket | null) {
 
   // Monitor phone clipboard for changes (more aggressive checking)
   useEffect(() => {
+    if (!enabled) return; // ← ADDED enabled check
+
     const checkPhoneClipboard = setInterval(async () => {
       // Only check if app is visible and connected
       if (document.visibilityState !== 'visible') return;
@@ -116,7 +122,7 @@ export function useClipboardSync(ws: WebSocket | null) {
     }, 300); // Check every 300ms when visible
 
     return () => clearInterval(checkPhoneClipboard);
-  }, [ws]);
+  }, [ws, enabled]); // ← ADDED enabled dependency
 
   // Update phone clipboard without triggering change detection
   const updatePhoneClipboard = async (text: string) => {
