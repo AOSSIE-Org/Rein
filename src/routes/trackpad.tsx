@@ -32,8 +32,7 @@ function TrackpadPage() {
         const s = localStorage.getItem('rein_invert');
         return s ? JSON.parse(s) : false;
     });
-
-    const { status, send, sendCombo } = useRemoteConnection();
+    const { status, latency, send, sendCombo } = useRemoteConnection();
     // Pass sensitivity and invertScroll to the gesture hook
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
 
@@ -172,6 +171,7 @@ function TrackpadPage() {
                 scrollMode={scrollMode}
                 modifier={modifier}
                 buffer={buffer.join(" + ")}
+                latency={latency}
                 onToggleScroll={() => setScrollMode(!scrollMode)}
                 onLeftClick={() => handleClick('left')}
                 onRightClick={() => handleClick('right')}

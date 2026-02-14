@@ -50,7 +50,10 @@ export function createWsServer(server: Server) {
                     ws.send(JSON.stringify({ type: 'server-ip', ip: LAN_IP }));
                     return;
                 }
-
+                if (msg.type === 'ping') {
+                    ws.send(JSON.stringify({ type: 'pong', timestamp: msg.timestamp }));
+                    return;
+                }
                 if (msg.type === 'update-config') {
                     console.log('Updating config:', msg.config);
                     try {
