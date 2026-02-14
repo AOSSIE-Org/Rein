@@ -10,6 +10,7 @@ interface ControlBarProps {
 	onRightClick: () => void;
 	onKeyboardToggle: () => void;
 	onModifierToggle: () => void;
+	onPaste: () => void; // ← ADDED
 }
 
 export const ControlBar: React.FC<ControlBarProps> = ({
@@ -21,6 +22,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 	onRightClick,
 	onKeyboardToggle,
 	onModifierToggle,
+	onPaste, // ← ADDED
 }) => {
 	const handleInteraction = (e: React.PointerEvent, action: () => void) => {
 		e.preventDefault();
@@ -66,9 +68,10 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 				Copy
 			</button>
 			<button
-				className="btn btn-sm btn-outline"
+				className="btn btn-sm btn-primary"
+				onPointerDown={(e) => handleInteraction(e, onPaste)} // ← ADDED
 			>
-				Paste
+				📋 Paste
 			</button>
 			{/* 
 			<button

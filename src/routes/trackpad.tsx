@@ -1,7 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRemoteConnection } from '../hooks/useRemoteConnection';
 import { useTrackpadGesture } from '../hooks/useTrackpadGesture';
+import { useClipboardSync } from '../hooks/useClipboardSync';
 import { ControlBar } from '../components/Trackpad/ControlBar';
 import { ExtraKeys } from '../components/Trackpad/ExtraKeys';
 import { TouchArea } from '../components/Trackpad/TouchArea';
@@ -33,7 +34,21 @@ function TrackpadPage() {
         return s ? JSON.parse(s) : false;
     });
 
-    const { status, send, sendCombo } = useRemoteConnection();
+    const { status, send, sendCombo, ws } = useRemoteConnection();
+    
+    // ========== CLIPBOARD SYNC: INVISIBLE MODE ==========
+    const { lastSync } = useClipboardSync(ws);
+    const [showSyncIndicator, setShowSyncIndicator] = useState(false);
+
+    // Show subtle sync indicator when clipboard syncs
+    useEffect(() => {
+        if (lastSync) {
+            setShowSyncIndicator(true);
+            setTimeout(() => setShowSyncIndicator(false), 2000);
+        }
+    }, [lastSync]);
+    // ===================================================
+
     // Pass sensitivity and invertScroll to the gesture hook
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
 
@@ -46,6 +61,13 @@ function TrackpadPage() {
         // Release after short delay to simulate click
         setTimeout(() => send({ type: 'click', button, press: false }), 50);
     };
+
+    // ========== PASTE HANDLER (ADDED) ==========
+    const handlePaste = () => {
+        console.log('[Trackpad] Paste button clicked');
+        send({ type: 'paste' });
+    };
+    // ==========================================
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         const key = e.key.toLowerCase();
@@ -158,6 +180,19 @@ function TrackpadPage() {
             className="flex flex-col h-full overflow-hidden"
             onClick={handleContainerClick}
         >
+            {/* ========== CLIPBOARD SYNC INDICATOR ========== */}
+            {showSyncIndicator && lastSync && (
+                <div className="fixed top-2 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+                    <div className="alert alert-sm shadow-lg bg-base-300 border border-base-content/20">
+                        <span className="text-xs">
+                            {lastSync.source === 'computer' ? '💻 → 📱' : '📱 → 💻'} 
+                            {' '}Clipboard synced
+                        </span>
+                    </div>
+                </div>
+            )}
+            {/* ============================================== */}
+
             {/* Touch Surface */}
             <TouchArea
                 isTracking={isTracking}
@@ -177,6 +212,7 @@ function TrackpadPage() {
                 onRightClick={() => handleClick('right')}
                 onKeyboardToggle={focusInput}
                 onModifierToggle={handleModifierState}
+                onPaste={handlePaste} // ← ADDED THIS LINE
             />
 
             {/* Extra Keys */}
@@ -202,7 +238,7 @@ function TrackpadPage() {
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
-                autoFocus // Attempt autofocus on mount
+                autoFocus
             />
         </div>
     )

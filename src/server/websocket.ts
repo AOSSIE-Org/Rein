@@ -1,5 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { InputHandler, InputMessage } from './InputHandler';
+import { ClipboardMonitor } from './ClipboardMonitor';
 import os from 'os';
 import fs from 'fs';
 import { Server, IncomingMessage } from 'http';
@@ -41,6 +42,27 @@ export function createWsServer(server: Server) {
 
         ws.send(JSON.stringify({ type: 'connected', serverIp: LAN_IP }));
 
+        // ========== CLIPBOARD SYNC: INVISIBLE MODE ==========
+        const clipboardMonitor = new ClipboardMonitor((clipboardData) => {
+            // Computer clipboard changed → Send to phone
+            ws.send(JSON.stringify({
+                type: 'clipboard-sync',
+                data: clipboardData
+            }));
+        });
+
+        clipboardMonitor.start();
+
+        // Send current clipboard to phone on connect
+        const currentClipboard = clipboardMonitor.getCurrent();
+        if (currentClipboard) {
+            ws.send(JSON.stringify({
+                type: 'clipboard-sync',
+                data: currentClipboard
+            }));
+        }
+        // ====================================================
+
         ws.on('message', async (data: string) => {
             try {
                 const raw = data.toString();
@@ -55,7 +77,6 @@ export function createWsServer(server: Server) {
                     console.log('Updating config:', msg.config);
                     try {
                         const configPath = './src/server-config.json';
-                        // eslint-disable-next-line @typescript-eslint/no-require-imports
                         const current = fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, 'utf-8')) : {};
                         const newConfig = { ...current, ...msg.config };
 
@@ -69,6 +90,25 @@ export function createWsServer(server: Server) {
                     return;
                 }
 
+                // ========== CLIPBOARD SYNC: PHONE → COMPUTER ==========
+                if (msg.type === 'clipboard-sync') {
+                    const clipboardData = msg.data;
+                    
+                    console.log('[Clipboard] Phone copied:', clipboardData.text.substring(0, 50));
+                    
+                    // Update computer clipboard
+                    await clipboardMonitor.setClipboard(clipboardData.text, 'phone');
+                    
+                    // Acknowledge
+                    ws.send(JSON.stringify({ 
+                        type: 'clipboard-sync-ack',
+                        success: true,
+                        timestamp: clipboardData.timestamp
+                    }));
+                    return;
+                }
+                // =====================================================
+
                 await inputHandler.handleMessage(msg as InputMessage);
             } catch (err) {
                 console.error('Error processing message:', err);
@@ -76,6 +116,8 @@ export function createWsServer(server: Server) {
         });
 
         ws.on('close', () => {
+            clipboardMonitor.stop();
+            console.log('[Clipboard] Monitoring stopped for disconnected client');
             console.log('Client disconnected');
         });
 

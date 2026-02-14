@@ -2,7 +2,7 @@ import { mouse, Point, Button, keyboard, Key } from '@nut-tree-fork/nut-js';
 import { KEY_MAP } from './KeyMap';
 
 export interface InputMessage {
-    type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo';
+    type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo' | 'paste'; // ← Added 'paste'
     dx?: number;
     dy?: number;
     button?: 'left' | 'right' | 'middle';
@@ -43,28 +43,25 @@ export class InputHandler {
                 break;
 
             case 'scroll':
-                const promises: Promise<void>[] = [];
+                // Fix TypeScript error: Don't push Promise<MouseClass> to Promise<void>[]
+                // Execute scrolls sequentially instead of Promise.all
 
                 // Vertical scroll
                 if (typeof msg.dy === 'number' && msg.dy !== 0) {
                     if (msg.dy > 0) {
-                        promises.push(mouse.scrollDown(msg.dy));
+                        await mouse.scrollDown(msg.dy);
                     } else {
-                        promises.push(mouse.scrollUp(-msg.dy));
+                        await mouse.scrollUp(-msg.dy);
                     }
                 }
 
                 // Horizontal scroll
                 if (typeof msg.dx === 'number' && msg.dx !== 0) {
                     if (msg.dx > 0) {
-                        promises.push(mouse.scrollRight(msg.dx));
+                        await mouse.scrollRight(msg.dx);
                     } else {
-                        promises.push(mouse.scrollLeft(-msg.dx));
+                        await mouse.scrollLeft(-msg.dx);
                     }
-                }
-
-                if (promises.length) {
-                    await Promise.all(promises);
                 }
                 break;
 
@@ -151,6 +148,26 @@ export class InputHandler {
                     await keyboard.type(msg.text);
                 }
                 break;
+
+            // ========== PASTE SUPPORT (NEW) ==========
+            case 'paste':
+                console.log('[InputHandler] Executing paste (Ctrl+V)');
+                try {
+                    // Detect OS and use appropriate modifier
+                    const isWin = process.platform === 'win32' || process.platform === 'linux';
+                    const modifier = isWin ? Key.LeftControl : Key.LeftCmd;
+                    
+                    await keyboard.pressKey(modifier);
+                    await keyboard.pressKey(Key.V);
+                    await keyboard.releaseKey(Key.V);
+                    await keyboard.releaseKey(modifier);
+                    
+                    console.log('[InputHandler] Paste executed successfully');
+                } catch (error) {
+                    console.error('[InputHandler] Paste failed:', error);
+                }
+                break;
+            // =========================================
         }
     }
 }
