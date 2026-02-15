@@ -40,8 +40,9 @@ export function createWsServer(server: Server) {
         ws.send(JSON.stringify({ type: 'connected', serverIp: LAN_IP }));
 
         ws.on('message', async (data: string) => {
+            let raw = '';
             try {
-                const raw = data.toString();
+                raw = data.toString();
                 const msg = JSON.parse(raw);
 
                 if (msg.type === 'get-ip') {
@@ -65,7 +66,17 @@ export function createWsServer(server: Server) {
                 await inputHandler.handleMessage(msg as InputMessage);
 
             } catch (err) {
-                // Silent - don't log errors during normal operation
+                // Distinguish JSON parse errors from runtime errors
+                if (err instanceof SyntaxError) {
+                    // Silent for parsing issues to avoid spamming move logs
+                    return;
+                }
+                
+                // Log actual execution errors (e.g., nut-js or inputHandler issues)
+                console.error(`[Server] Error processing message:`, {
+                    error: err instanceof Error ? err.message : String(err),
+                    context: raw.substring(0, 100)
+                });
             }
         });
 
@@ -73,8 +84,8 @@ export function createWsServer(server: Server) {
             console.log('📱 Client disconnected');
         });
 
-        ws.onerror = () => {
-            // Silent
+        ws.onerror = (err) => {
+            console.error('[Server] WebSocket error:', err);
         };
     });
 }

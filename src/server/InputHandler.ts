@@ -141,9 +141,12 @@ export class InputHandler {
                     const modifier = isWin ? Key.LeftControl : Key.LeftCmd;
                     
                     await keyboard.pressKey(modifier);
-                    await keyboard.pressKey(Key.V);
-                    await keyboard.releaseKey(Key.V);
-                    await keyboard.releaseKey(modifier);
+                    try {
+                        await keyboard.pressKey(Key.V);
+                        await keyboard.releaseKey(Key.V);
+                    } finally {
+                        await keyboard.releaseKey(modifier);
+                    }
                 } catch (error) {
                     // Silent
                 }
@@ -155,9 +158,12 @@ export class InputHandler {
                     const modifier = isWin ? Key.LeftControl : Key.LeftCmd;
                     
                     await keyboard.pressKey(modifier);
-                    await keyboard.pressKey(Key.C);
-                    await keyboard.releaseKey(Key.C);
-                    await keyboard.releaseKey(modifier);
+                    try {
+                        await keyboard.pressKey(Key.C);
+                        await keyboard.releaseKey(Key.C);
+                    } finally {
+                        await keyboard.releaseKey(modifier);
+                    }
                 } catch (error) {
                     // Silent
                 }
