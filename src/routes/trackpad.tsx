@@ -34,6 +34,7 @@ function TrackpadPage() {
     });
 
     const { status, send, sendCombo } = useRemoteConnection();
+
     // Pass sensitivity and invertScroll to the gesture hook
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
 
@@ -45,6 +46,16 @@ function TrackpadPage() {
         send({ type: 'click', button, press: true });
         // Release after short delay to simulate click
         setTimeout(() => send({ type: 'click', button, press: false }), 50);
+    };
+
+    const handleCopy = () => {
+        console.log('[Trackpad] Copy button clicked');
+        send({ type: 'copy' });
+    };
+
+    const handlePaste = () => {
+        console.log('[Trackpad] Paste button clicked');
+        send({ type: 'paste' });
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -177,6 +188,8 @@ function TrackpadPage() {
                 onRightClick={() => handleClick('right')}
                 onKeyboardToggle={focusInput}
                 onModifierToggle={handleModifierState}
+                onPaste={handlePaste}
+                onCopy={handleCopy}
             />
 
             {/* Extra Keys */}
@@ -202,7 +215,7 @@ function TrackpadPage() {
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
-                autoFocus // Attempt autofocus on mount
+                autoFocus
             />
         </div>
     )

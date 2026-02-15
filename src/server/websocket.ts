@@ -5,7 +5,6 @@ import fs from 'fs';
 import { Server, IncomingMessage } from 'http';
 import { Socket } from 'net';
 
-// Helper to find LAN IP
 function getLocalIp() {
     const nets = os.networkInterfaces();
     for (const name of Object.keys(nets)) {
@@ -23,8 +22,8 @@ export function createWsServer(server: Server) {
     const inputHandler = new InputHandler();
     const LAN_IP = getLocalIp();
 
-    console.log(`WebSocket Server initialized (Upgrade mode)`);
-    console.log(`WS LAN IP: ${LAN_IP}`);
+    console.log(`WebSocket Server initialized`);
+    console.log(`LAN IP: ${LAN_IP}`);
 
     server.on('upgrade', (request: IncomingMessage, socket: Socket, head: Buffer) => {
         const pathname = request.url;
@@ -37,13 +36,13 @@ export function createWsServer(server: Server) {
     });
 
     wss.on('connection', (ws: WebSocket) => {
-        console.log('Client connected to /ws');
-
+        console.log('📱 Client connected');
         ws.send(JSON.stringify({ type: 'connected', serverIp: LAN_IP }));
 
         ws.on('message', async (data: string) => {
+            let raw = '';
             try {
-                const raw = data.toString();
+                raw = data.toString();
                 const msg = JSON.parse(raw);
 
                 if (msg.type === 'get-ip') {
@@ -52,35 +51,41 @@ export function createWsServer(server: Server) {
                 }
 
                 if (msg.type === 'update-config') {
-                    console.log('Updating config:', msg.config);
                     try {
                         const configPath = './src/server-config.json';
-                        // eslint-disable-next-line @typescript-eslint/no-require-imports
                         const current = fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, 'utf-8')) : {};
                         const newConfig = { ...current, ...msg.config };
-
                         fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2));
                         ws.send(JSON.stringify({ type: 'config-updated', success: true }));
-                        console.log('Config updated. Vite should auto-restart.');
                     } catch (e) {
-                        console.error('Failed to update config:', e);
                         ws.send(JSON.stringify({ type: 'config-updated', success: false, error: String(e) }));
                     }
                     return;
                 }
 
                 await inputHandler.handleMessage(msg as InputMessage);
+
             } catch (err) {
-                console.error('Error processing message:', err);
+                // Distinguish JSON parse errors from runtime errors
+                if (err instanceof SyntaxError) {
+                    // Silent for parsing issues to avoid spamming move logs
+                    return;
+                }
+                
+                // Log actual execution errors (e.g., nut-js or inputHandler issues)
+                console.error(`[Server] Error processing message:`, {
+                    error: err instanceof Error ? err.message : String(err),
+                    context: raw.substring(0, 100)
+                });
             }
         });
 
         ws.on('close', () => {
-            console.log('Client disconnected');
+            console.log('📱 Client disconnected');
         });
 
-        ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
+        ws.onerror = (err) => {
+            console.error('[Server] WebSocket error:', err);
         };
     });
 }

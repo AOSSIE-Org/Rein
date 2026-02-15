@@ -10,6 +10,8 @@ interface ControlBarProps {
 	onRightClick: () => void;
 	onKeyboardToggle: () => void;
 	onModifierToggle: () => void;
+	onPaste: () => void;
+	onCopy: () => void;
 }
 
 export const ControlBar: React.FC<ControlBarProps> = ({
@@ -21,6 +23,8 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 	onRightClick,
 	onKeyboardToggle,
 	onModifierToggle,
+	onPaste,
+	onCopy,
 }) => {
 	const handleInteraction = (e: React.PointerEvent, action: () => void) => {
 		e.preventDefault();
@@ -53,49 +57,45 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 	};
 
 	return (
-		<div className="bg-base-200 p-2 grid grid-cols-5 gap-2 shrink-0">
-			<button
-				className={`btn btn-sm ${scrollMode ? "btn-primary" : "btn-outline"}`}
-				onPointerDown={(e) => handleInteraction(e, onToggleScroll)}
-			>
-				{scrollMode ? "Scroll" : "Cursor"}
-			</button>
-			<button
-				className="btn btn-sm btn-outline"
-			>
-				Copy
-			</button>
-			<button
-				className="btn btn-sm btn-outline"
-			>
-				Paste
-			</button>
-			{/* 
-			<button
-				className="btn btn-sm btn-outline"
-				onPointerDown={(e) => handleInteraction(e, onLeftClick)}
-			>
-				L-Click
-			</button>
-			*/}
-			<button
-				className="btn btn-sm btn-outline"
-				onPointerDown={(e) => handleInteraction(e, onRightClick)}
-			>
-				R-Click
-			</button>
-			<button
-				className={`btn btn-sm ${getModifierButtonClass()}`}
-				onPointerDown={(e) => handleInteraction(e, onModifierToggle)}
-			>
-				{getModifierLabel()}
-			</button>
-			<button
-				className="btn btn-sm btn-secondary"
-				onPointerDown={(e) => handleInteraction(e, onKeyboardToggle)}
-			>
-				Keyboard
-			</button>
-		</div>
+		<>
+			<div className="bg-base-200 p-2 grid grid-cols-5 gap-2 shrink-0">
+				<button
+					className={`btn btn-sm ${scrollMode ? "btn-primary" : "btn-outline"}`}
+					onPointerDown={(e) => handleInteraction(e, onToggleScroll)}
+				>
+					{scrollMode ? "Scroll" : "Cursor"}
+				</button>
+				<button
+					className="btn btn-sm btn-accent"
+					onPointerDown={(e) => handleInteraction(e, onCopy)}
+				>
+					✂️ Copy
+				</button>
+				<button
+					className="btn btn-sm btn-primary"
+					onPointerDown={(e) => handleInteraction(e, onPaste)}
+				>
+					📋 Paste
+				</button>
+				<button
+					className="btn btn-sm btn-outline"
+					onPointerDown={(e) => handleInteraction(e, onRightClick)}
+				>
+					R-Click
+				</button>
+				<button
+					className={`btn btn-sm ${getModifierButtonClass()}`}
+					onPointerDown={(e) => handleInteraction(e, onModifierToggle)}
+				>
+					{getModifierLabel()}
+				</button>
+				<button
+					className="btn btn-sm btn-secondary"
+					onPointerDown={(e) => handleInteraction(e, onKeyboardToggle)}
+				>
+					Keyboard
+				</button>
+			</div>
+		</>
 	);
 };
