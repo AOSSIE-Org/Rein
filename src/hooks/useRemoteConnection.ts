@@ -13,8 +13,11 @@ export const useRemoteConnection = () => {
         const wsUrl = `${protocol}//${host}/ws`;
 
         let reconnectTimer: NodeJS.Timeout;
+        let disposed = false; // Flag to prevent logic from running after unmount
 
         const connect = () => {
+            if (disposed) return;
+            
             console.log(`Connecting to ${wsUrl}`);
             setStatus('connecting');
             const socket = new WebSocket(wsUrl);
@@ -22,11 +25,17 @@ export const useRemoteConnection = () => {
             currentWsRef.current = socket;
 
             socket.onopen = () => {
+                if (disposed) {
+                    socket.close();
+                    return;
+                }
                 console.log('[WS] Connected');
                 setStatus('connected');
             };
             
             socket.onclose = () => {
+                if (disposed) return;
+                
                 console.log('[WS] Disconnected, reconnecting in 1s...');
                 setStatus('disconnected');
                 reconnectTimer = setTimeout(connect, 1000);
@@ -41,7 +50,7 @@ export const useRemoteConnection = () => {
         };
 
         const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
+            if (document.visibilityState === 'visible' && !disposed) {
                 console.log('[WS] App resumed');
                 // Only reconnect if the socket is explicitly CLOSED to avoid racing with CONNECTING
                 if (!currentWsRef.current || currentWsRef.current.readyState === WebSocket.CLOSED) {
@@ -55,20 +64,21 @@ export const useRemoteConnection = () => {
         connect();
 
         return () => {
+            disposed = true; // Mark as disposed first to block onclose from triggering connect()
             clearTimeout(reconnectTimer);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             currentWsRef.current?.close();
+            currentWsRef.current = null;
         };
     }, []);
 
     const send = useCallback((msg: any) => {
-        // Use the ref to ensure we aren't using a stale socket from a previous render cycle
         if (currentWsRef.current?.readyState === WebSocket.OPEN) {
             currentWsRef.current.send(JSON.stringify(msg));
         } else {
             console.warn('[WS] Cannot send, not connected');
         }
-    }, []); // Removed ws dependency
+    }, []); 
 
     const sendCombo = useCallback((msg: string[]) => {
         if (currentWsRef.current?.readyState === WebSocket.OPEN) {
@@ -79,7 +89,7 @@ export const useRemoteConnection = () => {
         } else {
             console.warn('[WS] Cannot send combo, not connected');
         }
-    }, []); // Removed ws dependency
+    }, []); 
 
     return { status, send, sendCombo, ws };
 };
