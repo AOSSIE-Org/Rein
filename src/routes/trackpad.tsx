@@ -1,8 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useRemoteConnection } from '../hooks/useRemoteConnection';
 import { useTrackpadGesture } from '../hooks/useTrackpadGesture';
-import { useClipboardSync } from '../hooks/useClipboardSync';
 import { ControlBar } from '../components/Trackpad/ControlBar';
 import { ExtraKeys } from '../components/Trackpad/ExtraKeys';
 import { TouchArea } from '../components/Trackpad/TouchArea';
@@ -21,21 +20,6 @@ function TrackpadPage() {
     const hiddenInputRef = useRef<HTMLInputElement>(null);
     const isComposingRef = useRef(false);
     
-    // ========== CLIPBOARD SYNC TOGGLE STATE (NEW) ==========
-    const [clipboardSyncEnabled, setClipboardSyncEnabled] = useState(() => {
-        if (typeof window === 'undefined') return false;
-        const saved = localStorage.getItem('rein_clipboard_sync');
-        return saved ? JSON.parse(saved) : false;
-    });
-
-    const toggleClipboardSync = () => {
-        const newValue = !clipboardSyncEnabled;
-        setClipboardSyncEnabled(newValue);
-        localStorage.setItem('rein_clipboard_sync', JSON.stringify(newValue));
-        console.log('[Trackpad] Clipboard sync:', newValue ? 'ENABLED' : 'DISABLED');
-    };
-    // =======================================================
-    
     // Load Client Settings
     const [sensitivity] = useState(() => {
         if (typeof window === 'undefined') return 1.0;
@@ -49,20 +33,7 @@ function TrackpadPage() {
         return s ? JSON.parse(s) : false;
     });
 
-    const { status, send, sendCombo, ws } = useRemoteConnection();
-    
-    // ========== CLIPBOARD SYNC: CONDITIONAL ==========
-    const { lastSync } = useClipboardSync(ws, clipboardSyncEnabled); // ← ADDED enabled parameter
-    const [showSyncIndicator, setShowSyncIndicator] = useState(false);
-
-    // Show subtle sync indicator when clipboard syncs
-    useEffect(() => {
-        if (lastSync && clipboardSyncEnabled) { // ← ADDED enabled check
-            setShowSyncIndicator(true);
-            setTimeout(() => setShowSyncIndicator(false), 2000);
-        }
-    }, [lastSync, clipboardSyncEnabled]);
-    // =================================================
+    const { status, send, sendCombo } = useRemoteConnection();
 
     // Pass sensitivity and invertScroll to the gesture hook
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
@@ -198,19 +169,6 @@ function TrackpadPage() {
             className="flex flex-col h-full overflow-hidden"
             onClick={handleContainerClick}
         >
-            {/* ========== CLIPBOARD SYNC INDICATOR ========== */}
-            {showSyncIndicator && lastSync && clipboardSyncEnabled && (
-                <div className="fixed top-2 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
-                    <div className="alert alert-sm shadow-lg bg-base-300 border border-base-content/20">
-                        <span className="text-xs">
-                            {lastSync.source === 'computer' ? '💻 → 📱' : '📱 → 💻'} 
-                            {' '}Clipboard synced
-                        </span>
-                    </div>
-                </div>
-            )}
-            {/* ============================================== */}
-
             {/* Touch Surface */}
             <TouchArea
                 isTracking={isTracking}
@@ -225,7 +183,6 @@ function TrackpadPage() {
                 scrollMode={scrollMode}
                 modifier={modifier}
                 buffer={buffer.join(" + ")}
-                clipboardSyncEnabled={clipboardSyncEnabled} // ← ADDED
                 onToggleScroll={() => setScrollMode(!scrollMode)}
                 onLeftClick={() => handleClick('left')}
                 onRightClick={() => handleClick('right')}
@@ -233,7 +190,6 @@ function TrackpadPage() {
                 onModifierToggle={handleModifierState}
                 onPaste={handlePaste}
                 onCopy={handleCopy}
-                onToggleClipboardSync={toggleClipboardSync} // ← ADDED
             />
 
             {/* Extra Keys */}

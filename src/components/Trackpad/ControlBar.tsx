@@ -5,7 +5,6 @@ interface ControlBarProps {
 	scrollMode: boolean;
 	modifier: ModifierState;
 	buffer: string;
-	clipboardSyncEnabled: boolean; // ← ADDED
 	onToggleScroll: () => void;
 	onLeftClick: () => void;
 	onRightClick: () => void;
@@ -13,14 +12,12 @@ interface ControlBarProps {
 	onModifierToggle: () => void;
 	onPaste: () => void;
 	onCopy: () => void;
-	onToggleClipboardSync: () => void; // ← ADDED
 }
 
 export const ControlBar: React.FC<ControlBarProps> = ({
 	scrollMode,
 	modifier,
 	buffer,
-	clipboardSyncEnabled, // ← ADDED
 	onToggleScroll,
 	onLeftClick,
 	onRightClick,
@@ -28,7 +25,6 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 	onModifierToggle,
 	onPaste,
 	onCopy,
-	onToggleClipboardSync, // ← ADDED
 }) => {
 	const handleInteraction = (e: React.PointerEvent, action: () => void) => {
 		e.preventDefault();
@@ -62,21 +58,6 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 
 	return (
 		<>
-			{/* ========== CLIPBOARD SYNC TOGGLE (NEW) ========== */}
-			<div className="bg-base-300 px-3 py-2 flex items-center justify-between border-t border-base-content/10">
-				<span className="text-xs opacity-70">📋 Clipboard Sync</span>
-				<label className="swap swap-flip">
-					<input 
-						type="checkbox" 
-						checked={clipboardSyncEnabled}
-						onChange={() => onToggleClipboardSync()}
-					/>
-					<div className="swap-on text-xs font-bold text-success">ON</div>
-					<div className="swap-off text-xs font-bold text-error">OFF</div>
-				</label>
-			</div>
-			{/* ================================================== */}
-
 			<div className="bg-base-200 p-2 grid grid-cols-5 gap-2 shrink-0">
 				<button
 					className={`btn btn-sm ${scrollMode ? "btn-primary" : "btn-outline"}`}

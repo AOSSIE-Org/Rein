@@ -16,19 +16,20 @@ export interface InputMessage {
 export class InputHandler {
     constructor() {
         mouse.config.mouseSpeed = 1000;
+        mouse.config.autoDelayMs = 0;
+        keyboard.config.autoDelayMs = 0;
     }
 
     async handleMessage(msg: InputMessage) {
-        console.log('[InputHandler] Processing:', msg.type);
-
         switch (msg.type) {
             case 'move':
                 if (msg.dx !== undefined && msg.dy !== undefined) {
+                    // ========== OPTIMIZED: Use relative move ==========
                     const currentPos = await mouse.getPosition();
-                    await mouse.setPosition(new Point(
-                        currentPos.x + msg.dx, 
-                        currentPos.y + msg.dy
-                    ));
+                    await mouse.move([
+                        new Point(currentPos.x + msg.dx, currentPos.y + msg.dy)
+                    ]);
+                    // ==================================================
                 }
                 break;
 
@@ -83,14 +84,11 @@ export class InputHandler {
 
             case 'key':
                 if (msg.key) {
-                    console.log(`Processing key: ${msg.key}`);
                     const nutKey = KEY_MAP[msg.key.toLowerCase()];
                     if (nutKey !== undefined) {
                         await keyboard.type(nutKey);
                     } else if (msg.key.length === 1) {
                         await keyboard.type(msg.key);
-                    } else {
-                        console.log(`Unmapped key: ${msg.key}`);
                     }
                 }
                 break;
@@ -105,17 +103,11 @@ export class InputHandler {
                             nutKeys.push(nutKey);
                         } else if (lowerKey.length === 1) {
                             nutKeys.push(lowerKey);
-                        } else {
-                            console.warn(`Unknown key in combo: ${k}`);
                         }
                     }
 
-                    if (nutKeys.length === 0) {
-                        console.error('No valid keys in combo');
-                        return;
-                    }
+                    if (nutKeys.length === 0) return;
 
-                    console.log(`Pressing keys:`, nutKeys);
                     const pressedKeys: Key[] = [];
 
                     try {
@@ -134,8 +126,6 @@ export class InputHandler {
                             await keyboard.releaseKey(k);
                         }
                     }
-
-                    console.log(`Combo complete: ${msg.keys.join('+')}`);
                 }
                 break;
 
@@ -146,7 +136,6 @@ export class InputHandler {
                 break;
 
             case 'paste':
-                console.log('[InputHandler] Executing paste (Ctrl+V)');
                 try {
                     const isWin = process.platform === 'win32' || process.platform === 'linux';
                     const modifier = isWin ? Key.LeftControl : Key.LeftCmd;
@@ -155,43 +144,23 @@ export class InputHandler {
                     await keyboard.pressKey(Key.V);
                     await keyboard.releaseKey(Key.V);
                     await keyboard.releaseKey(modifier);
-                    
-                    console.log('[InputHandler] Paste executed successfully');
                 } catch (error) {
-                    console.error('[InputHandler] Paste failed:', error);
+                    // Silent
                 }
                 break;
 
             case 'copy':
-                console.log('[InputHandler] ========== COPY STARTING ==========');
                 try {
                     const isWin = process.platform === 'win32' || process.platform === 'linux';
                     const modifier = isWin ? Key.LeftControl : Key.LeftCmd;
                     
-                    console.log('[InputHandler] Platform:', process.platform);
-                    console.log('[InputHandler] Using modifier:', isWin ? 'Ctrl' : 'Cmd');
-                    
                     await keyboard.pressKey(modifier);
-                    console.log('[InputHandler] Modifier pressed');
-                    
                     await keyboard.pressKey(Key.C);
-                    console.log('[InputHandler] C pressed');
-                    
                     await keyboard.releaseKey(Key.C);
-                    console.log('[InputHandler] C released');
-                    
                     await keyboard.releaseKey(modifier);
-                    console.log('[InputHandler] Modifier released');
-                    
-                    console.log('[InputHandler] ========== COPY COMPLETED ==========');
                 } catch (error) {
-                    console.error('[InputHandler] ========== COPY FAILED ==========');
-                    console.error('[InputHandler] Error:', error);
+                    // Silent
                 }
-                break;
-
-            default:
-                console.warn('[InputHandler] Unknown message type:', msg.type);
                 break;
         }
     }
