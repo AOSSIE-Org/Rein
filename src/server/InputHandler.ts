@@ -93,19 +93,25 @@ export class InputHandler {
                 }
                 break;
 
-            case 'key':
-                if (msg.key) {
-                    console.log(`Processing key: ${msg.key}`);
-                    const nutKey = KEY_MAP[msg.key.toLowerCase()];
-                    if (nutKey !== undefined) {
-                        await keyboard.type(nutKey);
-                    } else if (msg.key.length === 1) {
-                        await keyboard.type(msg.key);
-                    } else {
-                        console.log(`Unmapped key: ${msg.key}`);
-                    }
-                }
-                break;
+    case 'key':
+    if (msg.key) {
+        console.log(`Processing key: ${msg.key}`);
+        const lowerKey = msg.key.toLowerCase();
+        const nutKey = KEY_MAP[lowerKey];
+
+        if (nutKey !== undefined) {
+            await keyboard.pressKey(nutKey);
+            await keyboard.releaseKey(nutKey);
+        } 
+        else if (msg.key.length === 1) {
+            await keyboard.type(msg.key);
+        } 
+        else {
+            console.log(`Unmapped key: ${msg.key}`);
+        }
+    }
+    break;
+
 
             case 'combo':
                 if (msg.keys && msg.keys.length > 0) {
@@ -151,11 +157,12 @@ export class InputHandler {
                 }
                 break;
 
-            case 'text':
-                if (msg.text) {
-                    await keyboard.type(msg.text);
-                }
-                break;
+           case 'text':
+    if (msg.text && msg.text.length === 1) {
+        await keyboard.type(msg.text);
+    }
+    break;
+
         }
     }
 }
