@@ -23,9 +23,22 @@ function TrackpadPage() {
     const hiddenInputRef = useRef<HTMLInputElement>(null);
     const isComposingRef = useRef(false);
 
+    // Load Client Settings from localStorage
+    const [sensitivity] = useState(() => {
+        if (typeof window === 'undefined') return 1.0;
+        const s = localStorage.getItem('rein_sensitivity');
+        return s ? parseFloat(s) : 1.0;
+    });
+
+    const [invertScroll] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        const s = localStorage.getItem('rein_invert');
+        return s ? s === 'true' : false;
+    });
+
     const { status, send, sendCombo } = useRemoteConnection();
-    // Sensitivity is handled server-side via CONFIG.MOUSE_SENSITIVITY
-    const { isTracking, handlers } = useTrackpadGesture(send, scrollMode);
+    // Pass sensitivity and invertScroll to the gesture hook
+    const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
 
     const focusInput = useCallback(() => {
         hiddenInputRef.current?.focus();
