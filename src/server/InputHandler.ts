@@ -1,6 +1,6 @@
 import { mouse, Point, Button, keyboard, Key } from '@nut-tree-fork/nut-js';
 import { KEY_MAP } from './KeyMap';
-import { CONFIG } from '../config';
+
 
 export interface InputMessage {
     type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo';
@@ -24,12 +24,10 @@ export class InputHandler {
             case 'move':
                 if (msg.dx !== undefined && msg.dy !== undefined) {
                     const currentPos = await mouse.getPosition();
-                    // Apply sensitivity multiplier (server-side only)
-                    const sensitivity = CONFIG.MOUSE_SENSITIVITY ?? 1.0;
 
                     await mouse.setPosition(new Point(
-                        currentPos.x + (msg.dx * sensitivity),
-                        currentPos.y + (msg.dy * sensitivity)
+                        currentPos.x + msg.dx,
+                        currentPos.y + msg.dy
                     ));
                 }
                 break;
@@ -46,21 +44,17 @@ export class InputHandler {
                 break;
 
             case 'scroll': {
-                const invertMultiplier = (CONFIG.MOUSE_INVERT ?? false) ? -1 : 1;
-                const scrollSensitivity = CONFIG.MOUSE_SENSITIVITY ?? 1.0;
-                if (msg.dy !== undefined && msg.dy !== 0) await mouse.scrollDown(Math.round(msg.dy * invertMultiplier * scrollSensitivity));
-                if (msg.dx !== undefined && msg.dx !== 0) await mouse.scrollRight(Math.round(msg.dx * -1 * invertMultiplier * scrollSensitivity));
+                if (msg.dy !== undefined && msg.dy !== 0) await mouse.scrollDown(Math.round(msg.dy));
+                if (msg.dx !== undefined && msg.dx !== 0) await mouse.scrollRight(Math.round(msg.dx));
                 break;
             }
 
             case 'zoom': {
                 if (msg.delta !== undefined && msg.delta !== 0) {
-                    const invertMultiplier = (CONFIG.MOUSE_INVERT ?? false) ? -1 : 1;
-                    const zoomSensitivity = CONFIG.MOUSE_SENSITIVITY ?? 1.0;
-                    const sensitivityFactor = 0.5; // Adjust scaling
+                    const sensitivityFactor = 0.5; // Adjust scaling for OS zoom behavior
                     const MAX_ZOOM_STEP = 5;
-                    const scaledDelta = Math.sign(msg.delta) * Math.min(Math.abs(msg.delta) * sensitivityFactor * zoomSensitivity, MAX_ZOOM_STEP);
-                    const amount = Math.round(-scaledDelta * invertMultiplier);
+                    const scaledDelta = Math.sign(msg.delta) * Math.min(Math.abs(msg.delta) * sensitivityFactor, MAX_ZOOM_STEP);
+                    const amount = Math.round(-scaledDelta);
                     if (amount !== 0) {
 
                         await keyboard.pressKey(Key.LeftControl);
