@@ -18,6 +18,8 @@ function getLocalIp() {
     return 'localhost';
 }
 
+let connectionCounter = 0;
+
 export function createWsServer(server: Server) {
     const wss = new WebSocketServer({ noServer: true });
     const inputHandler = new InputHandler();
@@ -40,8 +42,8 @@ export function createWsServer(server: Server) {
     });
 
     wss.on('connection', (ws: WebSocket, request: IncomingMessage) => {
-        const clientId = request.socket.remoteAddress || 'unknown';
-        console.log('Client connected to /ws');
+        const clientId = `client-${++connectionCounter}`;
+        console.log(`Client connected to /ws (${clientId})`);
 
         ws.send(JSON.stringify({ type: 'connected', serverIp: LAN_IP }));
 
@@ -83,21 +85,17 @@ export function createWsServer(server: Server) {
                     return;
                 }
 
-                // Layer 1: Rate limiting
                 if (!rateLimiter.shouldProcess(clientId, msg.type)) {
                     return;
                 }
 
-                // Layer 2: Validation
                 if (!validator.isValid(msg)) {
                     console.warn('[Security] Invalid input:', msg.type);
                     return;
                 }
 
-                // Layer 3: Sanitization
                 sanitizer.sanitize(msg);
 
-                // Process clean message
                 await inputHandler.handleMessage(msg as InputMessage);
 
             } catch (err) {
@@ -111,7 +109,7 @@ export function createWsServer(server: Server) {
 
         ws.on('close', () => {
             rateLimiter.cleanup(clientId);
-            console.log('Client disconnected');
+            console.log(`Client disconnected (${clientId})`);
         });
 
         ws.onerror = (error) => {

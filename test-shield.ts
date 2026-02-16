@@ -11,26 +11,19 @@ const sanitizer = new InputSanitizer();
 
 const clientId = 'test-client';
 
-/**
- * Helper to simulate the full server-side processing pipeline
- */
 async function processMessage(msg: any) {
-    // Layer 1: Rate limiting (Per-client/Per-type)
     if (!rateLimiter.shouldProcess(clientId, msg.type)) {
         console.log(`[Throttle] Dropped: ${msg.type}`);
         return false;
     }
 
-    // Layer 2: Schema and Type Validation
     if (!validator.isValid(msg)) {
         console.log(`[Validator] Rejected Invalid: ${msg.type}`);
         return false;
     }
 
-    // Layer 3: Bounds and Length Sanitization
     sanitizer.sanitize(msg);
 
-    // Final execution on the host machine
     await handler.handleMessage(msg);
     return true;
 }
@@ -59,17 +52,58 @@ console.log("Starting Shield Security and Performance Tests...\n");
 
     await sleep(1000);
 
-    // TEST 1.5: Scroll Throttling
-    console.log("TEST 1.5: Scroll Throttling");
+    // TEST 1.5: Scroll Throttling (Both Axes)
+    console.log("TEST 1.5: Scroll Throttling (Both Axes)");
     console.log("Status: Dispatching 50 scroll events...");
     let scrollsProcessed = 0;
     for (let i = 0; i < 50; i++) {
-        // Updated to include both axes to satisfy Validator schema
         const result = await processMessage({ type: 'scroll', dx: 0, dy: 1 });
         if (result) scrollsProcessed++;
     }
     console.log(`Summary: Processed ${scrollsProcessed}/50`);
     console.log(`Analysis: Expected approx 3 events to match move throttle`);
+    console.log("");
+
+    await sleep(1000);
+
+    // TEST 1.6: Scroll with Single Axis (Vertical Only)
+    console.log("TEST 1.6: Scroll Validation - Vertical Only");
+    const verticalScroll = { type: 'scroll', dy: 10 };
+    const isVerticalValid = validator.isValid(verticalScroll);
+    console.log(`Vertical-only scroll: ${isVerticalValid ? 'PASS' : 'FAIL'}`);
+    console.log(`Result: ${isVerticalValid ? 'SUCCESS' : 'FAILURE'}`);
+    console.log("");
+
+    await sleep(1000);
+
+    // TEST 1.7: Scroll with Single Axis (Horizontal Only)
+    console.log("TEST 1.7: Scroll Validation - Horizontal Only");
+    const horizontalScroll = { type: 'scroll', dx: 10 };
+    const isHorizontalValid = validator.isValid(horizontalScroll);
+    console.log(`Horizontal-only scroll: ${isHorizontalValid ? 'PASS' : 'FAIL'}`);
+    console.log(`Result: ${isHorizontalValid ? 'SUCCESS' : 'FAILURE'}`);
+    console.log("");
+
+    await sleep(1000);
+
+    // TEST 1.8: Scroll with No Axes (Should Fail)
+    console.log("TEST 1.8: Scroll Validation - No Axes");
+    const noAxisScroll = { type: 'scroll' };
+    const isNoAxisValid = validator.isValid(noAxisScroll);
+    console.log(`No-axis scroll: ${isNoAxisValid ? 'FAIL (should reject)' : 'PASS (correctly rejected)'}`);
+    console.log(`Result: ${!isNoAxisValid ? 'SUCCESS' : 'FAILURE'}`);
+    console.log("");
+
+    await sleep(1000);
+
+    // TEST 1.9: Scroll Sanitization - Single Axis Preservation
+    console.log("TEST 1.9: Scroll Sanitization - Single Axis");
+    const singleAxisScroll: any = { type: 'scroll', dy: 999999 };
+    console.log(`Original: dy=${singleAxisScroll.dy}, dx=${singleAxisScroll.dx}`);
+    
+    sanitizer.sanitize(singleAxisScroll);
+    console.log(`After sanitization: dy=${singleAxisScroll.dy}, dx=${singleAxisScroll.dx}`);
+    console.log(`Result: ${singleAxisScroll.dy === 5000 && singleAxisScroll.dx === undefined ? 'SUCCESS' : 'FAILURE'}`);
     console.log("");
 
     await sleep(1000);
@@ -134,6 +168,8 @@ console.log("Starting Shield Security and Performance Tests...\n");
         { type: 'click', button: 'left', press: true },
         { type: 'text', text: 'Hello' },
         { type: 'scroll', dx: 5, dy: -5 },
+        { type: 'scroll', dy: 10 },
+        { type: 'scroll', dx: -5 },
         { type: 'combo', keys: ['ctrl', 'c'] },
     ];
 
@@ -207,7 +243,23 @@ console.log("Starting Shield Security and Performance Tests...\n");
     console.log(`Text: ${textResult ? 'PASS' : 'FAIL'}`);
     console.log(`Result: ${moveResult && clickResult && textResult ? 'SUCCESS' : 'FAILURE'}`);
     console.log("");
-    console.log("Integrated Security and Performance Tests Complete");
-   
 
+    await sleep(1000);
+
+    
+    // TEST 10: Multi-Client Rate Limiting Isolation
+    console.log("TEST 10: Multi-Client Rate Limiting");
+    const client1 = 'client-1';
+    const client2 = 'client-2';
+
+    
+    rateLimiter.shouldProcess(client1, 'move');
+    const client1Blocked = !rateLimiter.shouldProcess(client1, 'move');
+    const client2Allowed = rateLimiter.shouldProcess(client2, 'move');
+
+    console.log(`Client 1 throttled after move: ${client1Blocked ? 'PASS' : 'FAIL'}`);
+    console.log(`Client 2 independent: ${client2Allowed ? 'PASS' : 'FAIL'}`);
+    console.log(`Result: ${client1Blocked && client2Allowed ? 'SUCCESS' : 'FAILURE'}`);
+    console.log("");
+  
 })();

@@ -4,9 +4,17 @@ export class InputSanitizer {
   sanitize(msg: any): void {
     switch (msg.type) {
       case 'move':
-      case 'scroll':
         msg.dx = this.clamp(msg.dx, INPUT_LIMITS.MIN_COORDINATE, INPUT_LIMITS.MAX_COORDINATE);
         msg.dy = this.clamp(msg.dy, INPUT_LIMITS.MIN_COORDINATE, INPUT_LIMITS.MAX_COORDINATE);
+        break;
+
+      case 'scroll':
+        if (typeof msg.dx === 'number') {
+          msg.dx = this.clamp(msg.dx, INPUT_LIMITS.MIN_COORDINATE, INPUT_LIMITS.MAX_COORDINATE);
+        }
+        if (typeof msg.dy === 'number') {
+          msg.dy = this.clamp(msg.dy, INPUT_LIMITS.MIN_COORDINATE, INPUT_LIMITS.MAX_COORDINATE);
+        }
         break;
 
       case 'zoom':

@@ -12,11 +12,22 @@ export class InputValidator {
 
     switch (msg.type) {
       case 'move':
-      case 'scroll':
         if (typeof msg.dx !== 'number' || typeof msg.dy !== 'number') {
           return false;
         }
         if (!isFinite(msg.dx) || !isFinite(msg.dy)) {
+          return false;
+        }
+        break;
+
+      case 'scroll':
+        if (typeof msg.dx !== 'number' && typeof msg.dy !== 'number') {
+          return false;
+        }
+        if (typeof msg.dx === 'number' && !isFinite(msg.dx)) {
+          return false;
+        }
+        if (typeof msg.dy === 'number' && !isFinite(msg.dy)) {
           return false;
         }
         break;
