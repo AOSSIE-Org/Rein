@@ -1,11 +1,11 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { InputHandler, InputMessage } from './InputHandler';
+import { RateLimiter, InputValidator, InputSanitizer } from './middleware';
 import os from 'os';
 import fs from 'fs';
 import { Server, IncomingMessage } from 'http';
 import { Socket } from 'net';
 
-// Helper to find LAN IP
 function getLocalIp() {
     const nets = os.networkInterfaces();
     for (const name of Object.keys(nets)) {
@@ -21,6 +21,9 @@ function getLocalIp() {
 export function createWsServer(server: Server) {
     const wss = new WebSocketServer({ noServer: true });
     const inputHandler = new InputHandler();
+    const rateLimiter = new RateLimiter();
+    const validator = new InputValidator();
+    const sanitizer = new InputSanitizer();
     const LAN_IP = getLocalIp();
 
     console.log(`WebSocket Server initialized (Upgrade mode)`);
@@ -36,16 +39,28 @@ export function createWsServer(server: Server) {
         }
     });
 
-    wss.on('connection', (ws: WebSocket) => {
+    wss.on('connection', (ws: WebSocket, request: IncomingMessage) => {
+        const clientId = request.socket.remoteAddress || 'unknown';
         console.log('Client connected to /ws');
 
         ws.send(JSON.stringify({ type: 'connected', serverIp: LAN_IP }));
 
         ws.on('message', async (data: string) => {
+            let msg: any;
+            const raw = data.toString();
+            
             try {
-                const raw = data.toString();
-                const msg = JSON.parse(raw);
+                msg = JSON.parse(raw);
+            } catch (err) {
+                if (err instanceof SyntaxError) {
+                    return;
+                } else {
+                    console.error('[WS] Parse error:', err);
+                    return;
+                }
+            }
 
+            try {
                 if (msg.type === 'get-ip') {
                     ws.send(JSON.stringify({ type: 'server-ip', ip: LAN_IP }));
                     return;
@@ -55,7 +70,6 @@ export function createWsServer(server: Server) {
                     console.log('Updating config:', msg.config);
                     try {
                         const configPath = './src/server-config.json';
-                        // eslint-disable-next-line @typescript-eslint/no-require-imports
                         const current = fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, 'utf-8')) : {};
                         const newConfig = { ...current, ...msg.config };
 
@@ -69,13 +83,34 @@ export function createWsServer(server: Server) {
                     return;
                 }
 
+                // Layer 1: Rate limiting
+                if (!rateLimiter.shouldProcess(clientId, msg.type)) {
+                    return;
+                }
+
+                // Layer 2: Validation
+                if (!validator.isValid(msg)) {
+                    console.warn('[Security] Invalid input:', msg.type);
+                    return;
+                }
+
+                // Layer 3: Sanitization
+                sanitizer.sanitize(msg);
+
+                // Process clean message
                 await inputHandler.handleMessage(msg as InputMessage);
+
             } catch (err) {
-                console.error('Error processing message:', err);
+                console.error('[WS] Message handling error:', {
+                    error: err,
+                    messageType: msg?.type,
+                    rawMessage: raw.substring(0, 100)
+                });
             }
         });
 
         ws.on('close', () => {
+            rateLimiter.cleanup(clientId);
             console.log('Client disconnected');
         });
 

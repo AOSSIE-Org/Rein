@@ -16,6 +16,8 @@ export interface InputMessage {
 export class InputHandler {
     constructor() {
         mouse.config.mouseSpeed = 1000;
+        mouse.config.autoDelayMs = 0;
+        keyboard.config.autoDelayMs = 0;
     }
 
     async handleMessage(msg: InputMessage) {
@@ -23,7 +25,6 @@ export class InputHandler {
             case 'move':
                 if (msg.dx !== undefined && msg.dy !== undefined) {
                     const currentPos = await mouse.getPosition();
-                    
                     await mouse.setPosition(new Point(
                         currentPos.x + msg.dx, 
                         currentPos.y + msg.dy
@@ -45,7 +46,6 @@ export class InputHandler {
             case 'scroll':
                 const promises: Promise<void>[] = [];
 
-                // Vertical scroll
                 if (typeof msg.dy === 'number' && msg.dy !== 0) {
                     if (msg.dy > 0) {
                         promises.push(mouse.scrollDown(msg.dy));
@@ -54,7 +54,6 @@ export class InputHandler {
                     }
                 }
 
-                // Horizontal scroll
                 if (typeof msg.dx === 'number' && msg.dx !== 0) {
                     if (msg.dx > 0) {
                         promises.push(mouse.scrollRight(msg.dx));
@@ -90,14 +89,11 @@ export class InputHandler {
 
             case 'key':
                 if (msg.key) {
-                    console.log(`Processing key: ${msg.key}`);
                     const nutKey = KEY_MAP[msg.key.toLowerCase()];
                     if (nutKey !== undefined) {
                         await keyboard.type(nutKey);
                     } else if (msg.key.length === 1) {
                         await keyboard.type(msg.key);
-                    } else {
-                        console.log(`Unmapped key: ${msg.key}`);
                     }
                 }
                 break;
@@ -112,17 +108,13 @@ export class InputHandler {
                             nutKeys.push(nutKey);
                         } else if (lowerKey.length === 1) {
                             nutKeys.push(lowerKey);
-                        } else {
-                            console.warn(`Unknown key in combo: ${k}`);
                         }
                     }
 
                     if (nutKeys.length === 0) {
-                        console.error('No valid keys in combo');
                         return;
                     }
 
-                    console.log(`Pressing keys:`, nutKeys);
                     const pressedKeys: Key[] = [];
 
                     try {
@@ -141,8 +133,6 @@ export class InputHandler {
                             await keyboard.releaseKey(k);
                         }
                     }
-
-                    console.log(`Combo complete: ${msg.keys.join('+')}`);
                 }
                 break;
 
