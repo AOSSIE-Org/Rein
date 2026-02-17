@@ -18,21 +18,14 @@ function getLocalIp(): string {
     return 'localhost';
 }
 
-function maskIp(ip: string | undefined): string {
-    if (!ip) return 'unknown';
-    const v4 = ip.match(/^(\d+\.\d+\.\d+\.)\d+$/);
-    if (v4) return `${v4[1]}x`;
-    const v6 = ip.match(/^([0-9a-f]{0,4}:[0-9a-f]{0,4}:[0-9a-f]{0,4}:[0-9a-f]{0,4}):/i);
-    if (v6) return `${v6[1]}:x:x:x:x`;
-    return 'unknown';
-}
-
 export function createWsServer(server: Server) {
     const wss          = new WebSocketServer({ noServer: true });
     const inputHandler = new InputHandler();
     const LAN_IP       = getLocalIp();
 
-    logger.info(`WebSocket server initialised — LAN IP: ${LAN_IP}`);
+    console.log(`WebSocket Server initialized (Upgrade mode)`);
+    console.log(`WS LAN IP: ${LAN_IP}`);
+    logger.info(`WebSocket server initialized — LAN IP: ${LAN_IP}`);
 
     server.on('upgrade', (request: IncomingMessage, socket: Socket, head: Buffer) => {
         if (request.url === '/ws') {
@@ -43,7 +36,8 @@ export function createWsServer(server: Server) {
     });
 
     wss.on('connection', (ws: WebSocket, request: IncomingMessage) => {
-        const clientIp = maskIp(request.socket.remoteAddress);
+        const clientIp = request.socket.remoteAddress ?? 'unknown';
+        console.log(`Client connected to /ws — IP: ${clientIp}`);
         logger.info(`Client connected — IP: ${clientIp}`);
 
         ws.send(JSON.stringify({ type: 'connected', serverIp: LAN_IP }));
@@ -58,6 +52,7 @@ export function createWsServer(server: Server) {
                 }
 
                 if (msg.type === 'update-config') {
+                    console.log('Updating config:', msg.config);
                     logger.info('Updating config:', msg.config);
                     try {
                         const configPath = './src/server-config.json';
@@ -67,8 +62,10 @@ export function createWsServer(server: Server) {
                             : {};
                         fs.writeFileSync(configPath, JSON.stringify({ ...current, ...msg.config }, null, 2));
                         ws.send(JSON.stringify({ type: 'config-updated', success: true }));
+                        console.log('Config updated. Vite should auto-restart.');
                         logger.info('Config updated — server will auto-restart');
                     } catch (e) {
+                        console.error('Failed to update config:', e);
                         logger.error('Failed to update config:', e);
                         ws.send(JSON.stringify({ type: 'config-updated', success: false, error: String(e) }));
                     }
@@ -77,15 +74,18 @@ export function createWsServer(server: Server) {
 
                 await inputHandler.handleMessage(msg as InputMessage);
             } catch (err) {
+                console.error('Error processing message:', err);
                 logger.error('Error processing message:', err);
             }
         });
 
         ws.on('close', () => {
+            console.log(`Client disconnected`);
             logger.info(`Client disconnected — IP: ${clientIp}`);
         });
 
         ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
             logger.error('WebSocket error:', error);
         };
     });
