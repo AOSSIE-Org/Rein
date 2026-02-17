@@ -13,6 +13,14 @@ export interface InputMessage {
     delta?: number;
 }
 
+const isMac = process.platform === 'darwin';
+
+// On macOS, Ctrl in combos should become Cmd (Meta)
+const translateKey = (key: string): string => {
+    if (isMac && key.toLowerCase() === 'control') return 'meta';
+    return key;
+};
+
 export class InputHandler {
     constructor() {
         mouse.config.mouseSpeed = 1000;
@@ -23,9 +31,8 @@ export class InputHandler {
             case 'move':
                 if (msg.dx !== undefined && msg.dy !== undefined) {
                     const currentPos = await mouse.getPosition();
-                    
                     await mouse.setPosition(new Point(
-                        currentPos.x + msg.dx, 
+                        currentPos.x + msg.dx,
                         currentPos.y + msg.dy
                     ));
                 }
@@ -45,7 +52,6 @@ export class InputHandler {
             case 'scroll':
                 const promises: Promise<void>[] = [];
 
-                // Vertical scroll
                 if (typeof msg.dy === 'number' && msg.dy !== 0) {
                     if (msg.dy > 0) {
                         promises.push(mouse.scrollDown(msg.dy));
@@ -54,7 +60,6 @@ export class InputHandler {
                     }
                 }
 
-                // Horizontal scroll
                 if (typeof msg.dx === 'number' && msg.dx !== 0) {
                     if (msg.dx > 0) {
                         promises.push(mouse.scrollRight(msg.dx));
@@ -70,7 +75,7 @@ export class InputHandler {
 
             case 'zoom':
                 if (msg.delta !== undefined && msg.delta !== 0) {
-                    const sensitivityFactor = 0.5; 
+                    const sensitivityFactor = 0.5;
                     const MAX_ZOOM_STEP = 5;
 
                     const scaledDelta =
@@ -78,7 +83,7 @@ export class InputHandler {
                         Math.min(Math.abs(msg.delta) * sensitivityFactor, MAX_ZOOM_STEP);
 
                     const amount = -scaledDelta;
-                    
+
                     await keyboard.pressKey(Key.LeftControl);
                     try {
                         await mouse.scrollDown(amount);
@@ -104,8 +109,11 @@ export class InputHandler {
 
             case 'combo':
                 if (msg.keys && msg.keys.length > 0) {
+                    // Translate platform-specific modifiers before resolving KeyMap
+                    const translatedKeys = msg.keys.map(translateKey);
+
                     const nutKeys: (Key | string)[] = [];
-                    for (const k of msg.keys) {
+                    for (const k of translatedKeys) {
                         const lowerKey = k.toLowerCase();
                         const nutKey = KEY_MAP[lowerKey];
                         if (nutKey !== undefined) {
@@ -134,7 +142,6 @@ export class InputHandler {
                                 pressedKeys.push(k);
                             }
                         }
-
                         await new Promise(resolve => setTimeout(resolve, 10));
                     } finally {
                         for (const k of pressedKeys.reverse()) {
