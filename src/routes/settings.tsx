@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
 import QRCode from 'qrcode';
-import { CONFIG } from '../config';
+import { CONFIG, APP_CONFIG, THEMES } from '../config';
 
 export const Route = createFileRoute('/settings')({
     component: SettingsPage,
@@ -10,7 +10,7 @@ export const Route = createFileRoute('/settings')({
 function SettingsPage() {
     const [ip, setIp] = useState('');
     const [frontendPort, setFrontendPort] = useState(String(CONFIG.FRONTEND_PORT));
-    
+
     // Client Side Settings (LocalStorage)
     const [invertScroll, setInvertScroll] = useState(() => {
         if (typeof window === 'undefined') return false;
@@ -21,12 +21,22 @@ function SettingsPage() {
             return false;
         }
     });
-    
+
     const [sensitivity, setSensitivity] = useState(() => {
         if (typeof window === 'undefined') return 1.0;
         const saved = localStorage.getItem('rein_sensitivity');
         const parsed = saved ? parseFloat(saved) : NaN;
         return Number.isFinite(parsed) ? parsed : 1.0;
+    });
+
+    const [theme, setTheme] = useState(() => {
+        if (typeof window === 'undefined') return THEMES.DEFAULT;
+        try {
+            const saved = localStorage.getItem(APP_CONFIG.THEME_STORAGE_KEY);
+            return saved === THEMES.LIGHT || saved === THEMES.DARK ? saved : THEMES.DEFAULT;
+        } catch {
+            return THEMES.DEFAULT;
+        }
     });
 
     const [qrData, setQrData] = useState('');
@@ -46,6 +56,12 @@ function SettingsPage() {
     useEffect(() => {
         localStorage.setItem('rein_invert', JSON.stringify(invertScroll));
     }, [invertScroll]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        localStorage.setItem(APP_CONFIG.THEME_STORAGE_KEY, theme);
+        document.documentElement.setAttribute('data-theme', theme);
+    }, [theme]);
 
     // Generate QR when IP changes (IP is not persisted to localStorage)
     useEffect(() => {
@@ -88,7 +104,7 @@ function SettingsPage() {
 
         return () => {
             if (socket.readyState === WebSocket.OPEN) socket.close();
-        }
+        };
     }, []);
 
     const displayUrl = typeof window !== 'undefined'
@@ -118,6 +134,9 @@ function SettingsPage() {
                                 <span className="label-text-alt opacity-50">This Computer's LAN IP</span>
                             </label>
                         </div>
+
+                        <div className="divider" />
+                        <h2 className="text-xl font-semibold">Client Settings</h2>
 
                         <div className="form-control w-full">
                             <label className="label" htmlFor="sensitivity-slider">
@@ -160,6 +179,20 @@ function SettingsPage() {
                                     {invertScroll ? 'Traditional scrolling enabled' : 'Natural scrolling'}
                                 </span>
                             </label>
+                        </div>
+
+                        <div className="form-control w-full">
+                            <label className="label">
+                                <span className="label-text">Theme</span>
+                            </label>
+                            <select
+                                className="select select-bordered w-full"
+                                value={theme}
+                                onChange={(e) => setTheme(e.target.value)}
+                            >
+                                <option value={THEMES.DARK}>Dark</option>
+                                <option value={THEMES.LIGHT}>Light</option>
+                            </select>
                         </div>
 
                         <div className="form-control w-full">
