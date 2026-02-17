@@ -23,9 +23,9 @@ export class InputHandler {
             case 'move':
                 if (msg.dx !== undefined && msg.dy !== undefined) {
                     const currentPos = await mouse.getPosition();
-                    
+
                     await mouse.setPosition(new Point(
-                        currentPos.x + msg.dx, 
+                        currentPos.x + msg.dx,
                         currentPos.y + msg.dy
                     ));
                 }
@@ -35,8 +35,10 @@ export class InputHandler {
                 if (msg.button) {
                     const btn = msg.button === 'left' ? Button.LEFT : msg.button === 'right' ? Button.RIGHT : Button.MIDDLE;
                     if (msg.press) {
+                        console.log(`Mouse press: ${msg.button}`);
                         await mouse.pressButton(btn);
                     } else {
+                        console.log(`Mouse release: ${msg.button}`);
                         await mouse.releaseButton(btn);
                     }
                 }
@@ -70,7 +72,7 @@ export class InputHandler {
 
             case 'zoom':
                 if (msg.delta !== undefined && msg.delta !== 0) {
-                    const sensitivityFactor = 0.5; 
+                    const sensitivityFactor = 0.5;
                     const MAX_ZOOM_STEP = 5;
 
                     const scaledDelta =
@@ -78,7 +80,9 @@ export class InputHandler {
                         Math.min(Math.abs(msg.delta) * sensitivityFactor, MAX_ZOOM_STEP);
 
                     const amount = -scaledDelta;
-                    
+
+                    console.log(`Zoom: delta=${msg.delta} scaled=${scaledDelta}`);
+
                     await keyboard.pressKey(Key.LeftControl);
                     try {
                         await mouse.scrollDown(amount);
@@ -97,7 +101,7 @@ export class InputHandler {
                     } else if (msg.key.length === 1) {
                         await keyboard.type(msg.key);
                     } else {
-                        console.log(`Unmapped key: ${msg.key}`);
+                        console.warn(`Unmapped key: ${msg.key}`);
                     }
                 }
                 break;
@@ -122,12 +126,12 @@ export class InputHandler {
                         return;
                     }
 
-                    console.log(`Pressing keys:`, nutKeys);
+                    console.log(`Pressing combo: ${msg.keys.join('+')}`);
                     const pressedKeys: Key[] = [];
 
                     try {
                         for (const k of nutKeys) {
-                            if (typeof k === "string") {
+                            if (typeof k === 'string') {
                                 await keyboard.type(k);
                             } else {
                                 await keyboard.pressKey(k);
@@ -148,6 +152,7 @@ export class InputHandler {
 
             case 'text':
                 if (msg.text) {
+                    console.log(`Typing text (${msg.text.length} chars)`);
                     await keyboard.type(msg.text);
                 }
                 break;

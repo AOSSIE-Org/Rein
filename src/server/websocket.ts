@@ -1,5 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { InputHandler, InputMessage } from './InputHandler';
+import { logger } from './logger';
 import os from 'os';
 import fs from 'fs';
 import { Server, IncomingMessage } from 'http';
@@ -19,6 +20,10 @@ function getLocalIp() {
 }
 
 export function createWsServer(server: Server) {
+    // Initialise logger first — all console calls below are now captured
+    logger.init();
+    console.log(`Log file: ${logger.getLogPath()}`);
+
     const wss = new WebSocketServer({ noServer: true });
     const inputHandler = new InputHandler();
     const LAN_IP = getLocalIp();
@@ -36,8 +41,9 @@ export function createWsServer(server: Server) {
         }
     });
 
-    wss.on('connection', (ws: WebSocket) => {
-        console.log('Client connected to /ws');
+    wss.on('connection', (ws: WebSocket, request: IncomingMessage) => {
+        const clientIp = request.socket.remoteAddress ?? 'unknown';
+        console.log(`Client connected to /ws — IP: ${clientIp}`);
 
         ws.send(JSON.stringify({ type: 'connected', serverIp: LAN_IP }));
 
@@ -76,7 +82,8 @@ export function createWsServer(server: Server) {
         });
 
         ws.on('close', () => {
-            console.log('Client disconnected');
+            const clientIp = request.socket.remoteAddress ?? 'unknown';
+            console.log(`Client disconnected — IP: ${clientIp}`);
         });
 
         ws.onerror = (error) => {
