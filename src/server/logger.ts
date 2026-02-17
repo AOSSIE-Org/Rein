@@ -2,7 +2,9 @@ import fs   from 'fs';
 import os   from 'os';
 import path from 'path';
 
-const APP_NAME = 'rein';
+const APP_NAME    = 'rein';
+const MAX_BYTES   = 10 * 1024 * 1024;
+const MAX_ROTATED = 5;
 
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
 
@@ -18,17 +20,40 @@ function resolveLogPath(): string {
         return path.resolve(process.env.LOG_FILE_PATH);
     }
     if (process.env.LOG_DIR) {
-        return path.join(path.resolve(process.env.LOG_DIR), 'log.txt');
+        return path.join(path.resolve(process.env.LOG_DIR), `${APP_NAME}.log`);
     }
 
     const home = os.homedir();
+
+    if (process.platform === 'win32') {
+        const appData = process.env.APPDATA ?? path.join(home, 'AppData', 'Roaming');
+        return path.join(appData, `.${APP_NAME}`, 'log.txt');
+    }
+
     return path.join(home, `.${APP_NAME}`, 'log.txt');
+}
+
+function maybeRotate(logPath: string): void {
+    try {
+        if (fs.statSync(logPath).size < MAX_BYTES) return;
+    } catch {
+        return;
+    }
+
+    for (let i = MAX_ROTATED - 1; i >= 1; i--) {
+        const src  = `${logPath}.${i}`;
+        const dest = `${logPath}.${i + 1}`;
+        try { if (fs.existsSync(src)) fs.renameSync(src, dest); } catch { /* */ }
+    }
+    try { fs.renameSync(logPath, `${logPath}.1`); } catch { /* */ }
 }
 
 class Logger {
     private logPath:    string;
     private stream:     fs.WriteStream | null = null;
     private initialized = false;
+    private fileLevel   = LEVELS.DEBUG;
+    private stdoutLevel = LEVELS.WARN;
 
     constructor() {
         this.logPath = resolveLogPath();
@@ -39,13 +64,16 @@ class Logger {
         this.initialized = true;
 
         fs.mkdirSync(path.dirname(this.logPath), { recursive: true });
+        maybeRotate(this.logPath);
+
         this.stream = fs.createWriteStream(this.logPath, { flags: 'a', encoding: 'utf-8' });
         this.stream.on('error', (err) => {
-            process.stderr.write(`[rein-logger] ${err.message}\n`);
+            process.stderr.write(`[rein-logger] stream error: ${err.message}\n`);
         });
 
         this.writeSessionHeader();
         this.hookProcessEvents();
+        this.info(`Log file: ${this.logPath}`);
     }
 
     getLogPath(): string { return this.logPath; }
@@ -56,21 +84,25 @@ class Logger {
     error(...args: unknown[]): void { this.write('ERROR', args); }
 
     private write(level: LogLevel, args: unknown[]): void {
-        if (!this.stream || this.stream.destroyed) return;
-
         const ts      = new Date().toISOString();
         const message = args.map(a =>
             typeof a === 'object' ? safeStringify(a) : String(a)
         ).join(' ');
+        const line = `[${ts}] [${level.padEnd(5)}] ${message}\n`;
 
-        this.stream.write(`[${ts}] [${level.padEnd(5)}] ${message}\n`);
+        if (this.stream && !this.stream.destroyed && LEVELS[level] >= this.fileLevel) {
+            this.stream.write(line);
+        }
+        if (LEVELS[level] >= this.stdoutLevel) {
+            process.stdout.write(line);
+        }
     }
 
     private writeSync(text: string): void {
         try {
             const fd = (this.stream as unknown as { fd: number }).fd;
             if (typeof fd === 'number' && fd >= 0) fs.writeSync(fd, text);
-        } catch { /**/ }
+        } catch { /* */ }
     }
 
     private writeSessionHeader(): void {
@@ -79,7 +111,6 @@ class Logger {
         this.stream?.write(`\n${sep}\n`);
         this.stream?.write(`SESSION STARTED  ${new Date().toISOString()}\n`);
         this.stream?.write(`${meta}\n`);
-        this.stream?.write(`Log file: ${this.logPath}\n`);
         this.stream?.write(`${sep}\n`);
     }
 
@@ -93,7 +124,7 @@ class Logger {
     close(): void {
         if (!this.stream) return;
         this.writeSessionFooterSync();
-        try { this.stream.destroy(); } catch { /**/ }
+        try { this.stream.destroy(); } catch { /* */ }
         this.stream      = null;
         this.initialized = false;
     }
@@ -113,7 +144,7 @@ class Logger {
         const shutdown = () => { this.close(); process.exit(0); };
         process.once('SIGINT',  shutdown);
         process.once('SIGTERM', shutdown);
-        process.once('exit', () => this.close());
+        process.once('exit',    () => this.close());
     }
 }
 
