@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
 import QRCode from 'qrcode';
-import { CONFIG } from '../config';
+import { CONFIG, APP_CONFIG, THEMES } from '../config';
 
 export const Route = createFileRoute('/settings')({
     component: SettingsPage,
@@ -16,6 +16,7 @@ export const Route = createFileRoute('/settings')({
 function SettingsPage() {
     const [ip, setIp] = useState('');
     const [frontendPort, setFrontendPort] = useState(String(CONFIG.FRONTEND_PORT));
+
     const [pingDelay, setPingDelay] = useState(CONFIG.NETWORK_POLLING_INTERVAL || 5000);
 
     // Client Side Settings (LocalStorage)
@@ -36,14 +37,22 @@ function SettingsPage() {
         return Number.isFinite(parsed) ? parsed : 1.0;
     });
 
+    const [theme, setTheme] = useState(() => {
+        if (typeof window === 'undefined') return THEMES.DEFAULT;
+        try {
+            const saved = localStorage.getItem(APP_CONFIG.THEME_STORAGE_KEY);
+            return saved === THEMES.LIGHT || saved === THEMES.DARK ? saved : THEMES.DEFAULT;
+        } catch {
+            return THEMES.DEFAULT;
+        }
+    });
+
     const [qrData, setQrData] = useState('');
 
-    // Load initial state
+    // Load initial state (IP is not stored in localStorage; only sensitivity, invert, theme are client settings)
     useEffect(() => {
-        const storedIp = localStorage.getItem('rein_ip');
         const defaultIp = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-
-        setIp(storedIp || defaultIp);
+        setIp(defaultIp);
         setFrontendPort(String(CONFIG.FRONTEND_PORT));
     }, []);
 
@@ -56,20 +65,21 @@ function SettingsPage() {
         localStorage.setItem('rein_invert', JSON.stringify(invertScroll));
     }, [invertScroll]);
 
-    // Effect: Update LocalStorage and Generate QR
     useEffect(() => {
-        if (!ip) return;
-        localStorage.setItem('rein_ip', ip);
+        if (typeof window === 'undefined') return;
+        localStorage.setItem(APP_CONFIG.THEME_STORAGE_KEY, theme);
+        document.documentElement.setAttribute('data-theme', theme);
+    }, [theme]);
 
-        if (typeof window !== 'undefined') {
-            const appPort = String(CONFIG.FRONTEND_PORT);
-            const protocol = window.location.protocol;
-            const shareUrl = `${protocol}//${ip}:${appPort}/trackpad`;
-
-            QRCode.toDataURL(shareUrl)
-                .then(setQrData)
-                .catch((e) => console.error('QR Error:', e));
-        }
+    // Generate QR when IP changes (IP is not persisted to localStorage)
+    useEffect(() => {
+        if (!ip || typeof window === 'undefined') return;
+        const appPort = String(CONFIG.FRONTEND_PORT);
+        const protocol = window.location.protocol;
+        const shareUrl = `${protocol}//${ip}:${appPort}/trackpad`;
+        QRCode.toDataURL(shareUrl)
+            .then(setQrData)
+            .catch((e) => console.error('QR Error:', e));
     }, [ip]);
 
     // Effect: Auto-detect LAN IP from Server (only if on localhost)
@@ -106,7 +116,7 @@ function SettingsPage() {
                 console.log('Closing IP detection socket');
                 socket.close();
             }
-        }
+        };
     }, []); // Run once on mount, stays open for updates
 
     const displayUrl = typeof window !== 'undefined'
@@ -115,169 +125,201 @@ function SettingsPage() {
 
     return (
         <div className="h-full overflow-y-auto w-full">
-            <div className="p-6 pb-safe max-w-md mx-auto space-y-8 min-h-full">
-                <h1 className="text-3xl font-bold pt-4">Settings</h1>
+            <div className="p-6 pb-safe max-w-5xl mx-auto min-h-full">
+                <h1 className="text-3xl font-bold pt-4 mb-8">Settings</h1>
 
-                <div className="form-control w-full">
-                    <label className="label">
-                        <span className="label-text">Server IP (for Remote)</span>
-                    </label>
-                    <input
-                        type="text"
-                        placeholder="192.168.1.X"
-                        className="input input-bordered w-full"
-                        value={ip}
-                        onChange={(e) => setIp(e.target.value)}
-                    />
-                    <label className="label">
-                        <span className="label-text-alt opacity-50">This Computer's LAN IP</span>
-                    </label>
-                </div>
+                <div className="flex flex-col md:flex-row gap-8 items-start">
+                    {/* Left Column: Settings Form */}
+                    <div className="w-full flex-1 space-y-8">
+                        <div className="form-control w-full">
+                            <label className="label">
+                                <span className="label-text">Server IP (for Remote)</span>
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="192.168.1.X"
+                                className="input input-bordered w-full"
+                                value={ip}
+                                onChange={(e) => setIp(e.target.value)}
+                            />
+                            <label className="label">
+                                <span className="label-text-alt opacity-50">This Computer's LAN IP</span>
+                            </label>
+                        </div>
 
-                {/* SENSITIVITY SLIDER SECTION */}
-                <div className="form-control w-full max-w-2xl mx-auto">
-                    <label className="label" htmlFor="sensitivity-slider">
-                        <span className="label-text">Mouse Sensitivity</span>
-                        <span className="label-text-alt font-mono">
-                            {sensitivity.toFixed(1)}x
-                        </span>
-                    </label>
+                        <div className="divider" />
+                        <h2 className="text-xl font-semibold">Client Settings</h2>
 
-                    <input
-                        type="range"
-                        id="sensitivity-slider"
-                        min="0.1"
-                        max="3.0"
-                        step="0.1"
-                        value={sensitivity}
-                        onChange={(e) => setSensitivity(parseFloat(e.target.value))}
-                        className="range range-primary range-sm w-full"
-                    />
+                        <div className="form-control w-full max-w-2xl mx-auto">
+                            <label className="label" htmlFor="sensitivity-slider">
+                                <span className="label-text">Mouse Sensitivity</span>
+                                <span className="label-text-alt font-mono">
+                                    {sensitivity.toFixed(1)}x
+                                </span>
+                            </label>
 
-                    <div className="mt-2 flex w-full justify-between px-2 text-xs opacity-50">
-                        <span>Slow</span>
-                        <span>Default</span>
-                        <span>Fast</span>
-                    </div>
-                </div>
+                            <input
+                                type="range"
+                                id="sensitivity-slider"
+                                min="0.1"
+                                max="3.0"
+                                step="0.1"
+                                value={sensitivity}
+                                onChange={(e) => setSensitivity(parseFloat(e.target.value))}
+                                className="range range-primary range-sm w-full"
+                            />
 
-                <div className="form-control w-full">
-                    <label className="label cursor-pointer">
-                        <span className="label-text font-medium">Invert Scroll</span>
-                        <input
-                            type="checkbox"
-                            className="toggle toggle-primary"
-                            checked={invertScroll}
-                            onChange={(e) => setInvertScroll(e.target.checked)}
-                        />
-                    </label>
-                    <br />
-                    <label className="label">
-                        <span className="label-text-alt opacity-50">
-                            {invertScroll ? 'Traditional scrolling enabled' : 'Natural scrolling'}
-                        </span>
-                    </label>
-                </div>
-
-                <div className="form-control w-full">
-                    <label className="label">
-                        <span className="label-text">Port</span>
-                    </label>
-                    <input
-                        type="text"
-                        placeholder={String(CONFIG.FRONTEND_PORT)}
-                        className="input input-bordered w-full"
-                        value={frontendPort}
-                        onChange={(e) => setFrontendPort(e.target.value)}
-                    />
-                </div>
-
-                <div className="form-control w-full">
-                    <label className="label">
-                        <span className="label-text">Ping Delay (ms)</span>
-                        <span className="label-text-alt font-mono">{pingDelay}ms</span>
-                    </label>
-                    <input
-                        type="range"
-                        min="1000"
-                        max="30000"
-                        step="500"
-                        className="range range-secondary range-sm w-full"
-                        value={pingDelay}
-                        onChange={(e) => setPingDelay(parseInt(e.target.value))}
-                    />
-                    <div className="flex justify-between px-2 text-xs opacity-50 mt-1">
-                        <span>1s (Fast)</span>
-                        <span>5s (Default)</span>
-                        <span>30s (Slow)</span>
-                    </div>
-                </div>
-
-                <div className="alert alert-warning text-xs shadow-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-4 w-4" fill="none" viewBox="0 0 24 24">
-                        <title>Warning</title>
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <span>Important: Ensure port {frontendPort} is allowed in your computer's firewall!</span>
-                </div>
-
-                <button
-                    className="btn btn-neutral w-full"
-                    onClick={() => {
-                        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                        const host = window.location.host;
-                        const wsUrl = `${protocol}//${host}/ws`;
-                        const socket = new WebSocket(wsUrl);
-
-                        socket.onopen = () => {
-                            socket.send(JSON.stringify({
-                                type: 'update-config',
-                                config: {
-                                    frontendPort: parseInt(frontendPort),
-                                    networkPollingInterval: pingDelay,
-                                    mouseInvert: invertScroll,
-                                    mouseSensitivity: sensitivity,
-                                }
-                            }));
-
-                            setTimeout(() => {
-                                socket.close();
-                                const newProtocol = window.location.protocol;
-                                const newHostname = window.location.hostname;
-                                const newUrl = `${newProtocol}//${newHostname}:${frontendPort}/settings`;
-                                window.location.href = newUrl;
-                            }, 1000);
-                        };
-                    }}
-                >
-                    Save Config
-                </button>
-
-                <div className="card bg-base-200 shadow-xl">
-                    <div className="card-body items-center text-center">
-                        <h2 className="card-title">Connect Mobile</h2>
-                        <p className="text-sm opacity-70">Scan to open remote</p>
-
-                        {qrData && (
-                            <div className="bg-white p-4 rounded-xl shadow-inner my-4">
-                                <img src={qrData} alt="Connection QR" className="w-48 h-48 mix-blend-multiply" />
+                            <div className="mt-2 flex w-full justify-between px-2 text-xs opacity-50">
+                                <span>Slow</span>
+                                <span>Default</span>
+                                <span>Fast</span>
                             </div>
-                        )}
+                        </div>
 
-                        <a
-                            className="link link-primary mt-2 break-all text-lg font-mono bg-base-100 px-4 py-2 rounded-lg inline-block max-w-full overflow-hidden text-ellipsis"
-                            href={displayUrl}
+                        <div className="form-control w-full">
+                            <label className="label cursor-pointer">
+                                <span className="label-text font-medium">Invert Scroll</span>
+                                <input
+                                    type="checkbox"
+                                    className="toggle toggle-primary"
+                                    checked={invertScroll}
+                                    onChange={(e) => setInvertScroll(e.target.checked)}
+                                />
+                            </label>
+                            <label className="label">
+                                <span className="label-text-alt opacity-50">
+                                    {invertScroll ? 'Traditional scrolling enabled' : 'Natural scrolling'}
+                                </span>
+                            </label>
+                        </div>
+
+                        <div className="form-control w-full">
+                            <label className="label">
+                                <span className="label-text">Theme</span>
+                            </label>
+                            <select
+                                className="select select-bordered w-full"
+                                value={theme}
+                                onChange={(e) => setTheme(e.target.value)}
+                            >
+                                <option value={THEMES.DARK}>Dark</option>
+                                <option value={THEMES.LIGHT}>Light</option>
+                            </select>
+                        </div>
+
+                        <div className="form-control w-full">
+                            <label className="label">
+                                <span className="label-text">Port</span>
+                            </label>
+                            <input
+                                type="text"
+                                placeholder={String(CONFIG.FRONTEND_PORT)}
+                                className="input input-bordered w-full"
+                                value={frontendPort}
+                                onChange={(e) => setFrontendPort(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="form-control w-full">
+                            <label className="label">
+                                <span className="label-text">Ping Delay (ms)</span>
+                                <span className="label-text-alt font-mono">{pingDelay}ms</span>
+                            </label>
+                            <input
+                                type="range"
+                                min="1000"
+                                max="30000"
+                                step="500"
+                                className="range range-secondary range-sm w-full"
+                                value={pingDelay}
+                                onChange={(e) => setPingDelay(parseInt(e.target.value))}
+                            />
+                            <div className="flex justify-between px-2 text-xs opacity-50 mt-1">
+                                <span>1s (Fast)</span>
+                                <span>5s (Default)</span>
+                                <span>30s (Slow)</span>
+                            </div>
+                        </div>
+
+                        <div className="alert alert-warning text-xs shadow-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                <title>Warning</title>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <span>Important: Ensure port {frontendPort} is allowed in your computer's firewall!</span>
+                        </div>
+
+                        <button
+                            type="button"
+                            className="btn btn-neutral w-full"
+                            onClick={() => {
+                                const port = parseInt(frontendPort, 10);
+                                if (!Number.isFinite(port) || port < 1 || port > 65535) {
+                                    alert('Please enter a valid port number (1–65535).');
+                                    return;
+                                }
+
+                                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                                const host = window.location.host;
+                                const wsUrl = `${protocol}//${host}/ws`;
+                                const socket = new WebSocket(wsUrl);
+
+                                socket.onerror = () => {
+                                    alert('Failed to connect to the server.');
+                                };
+
+                                socket.onopen = () => {
+                                    socket.send(JSON.stringify({
+                                        type: 'update-config',
+                                        config: {
+                                            frontendPort: port,
+                                            networkPollingInterval: pingDelay,
+                                        }
+                                    }));
+
+                                    setTimeout(() => {
+                                        socket.close();
+                                        const newProtocol = window.location.protocol;
+                                        const newHostname = window.location.hostname;
+                                        const newUrl = `${newProtocol}//${newHostname}:${frontendPort}/settings`;
+                                        window.location.href = newUrl;
+                                    }, 1000);
+                                };
+                            }}
                         >
-                            {ip}:{CONFIG.FRONTEND_PORT}/trackpad
-                        </a>
+                            Save Config
+                        </button>
+                    </div>
+
+                    {/* Right Column: QR Code & Connection Info */}
+                    <div className="w-full md:w-96 flex-shrink-0">
+                        <div className="card bg-base-200 shadow-xl sticky top-6">
+                            <div className="card-body items-center text-center">
+                                <h2 className="card-title">Connect Mobile</h2>
+                                <p className="text-sm opacity-70">Scan to open remote</p>
+
+                                {qrData && (
+                                    <div className="bg-white p-4 rounded-xl shadow-inner my-4">
+                                        <img src={qrData} alt="Connection QR" className="w-48 h-48 mix-blend-multiply" />
+                                    </div>
+                                )}
+
+                                <a
+                                    className="link link-primary mt-2 break-all text-lg font-mono bg-base-100 px-4 py-2 rounded-lg inline-block max-w-full overflow-hidden text-ellipsis"
+                                    href={displayUrl}
+                                >
+                                    {ip}:{CONFIG.FRONTEND_PORT}/trackpad
+                                </a>
+                            </div>
+                        </div>
+
+                        <div className="text-xs text-center opacity-50 pt-8 pb-8">
+                            Rein Remote v1.0.0
+                        </div>
                     </div>
                 </div>
-
-                <div className="text-xs text-center opacity-50 pt-8 pb-8">
-                    Rein Remote v1.0.0
-                </div>
-            </div>
-        </div>
+            </div >
+        </div >
     )
 }

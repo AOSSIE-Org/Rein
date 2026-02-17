@@ -21,7 +21,12 @@ export class InputHandler {
     async handleMessage(msg: InputMessage) {
         switch (msg.type) {
             case 'move':
-                if (msg.dx !== undefined && msg.dy !== undefined) {
+                if (
+                    typeof msg.dx === 'number' &&
+                    typeof msg.dy === 'number' &&
+                    Number.isFinite(msg.dx) &&
+                    Number.isFinite(msg.dy)
+                ) {
                     const currentPos = await mouse.getPosition();
                     
                     await mouse.setPosition(new Point(

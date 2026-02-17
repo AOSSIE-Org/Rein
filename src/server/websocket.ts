@@ -33,7 +33,9 @@ export function createWsServer(server: Server) {
     const wss = new WebSocketServer({ noServer: true });
     const inputHandler = new InputHandler();
 
+
     let currentIp = getLocalIp();
+    const MAX_PAYLOAD_SIZE = 10 * 1024; // 10KB limit
 
     console.log(`WebSocket Server initialized (Upgrade mode)`);
     console.log(`Initial WS LAN IP: ${currentIp}`);
@@ -99,6 +101,13 @@ export function createWsServer(server: Server) {
         ws.on('message', async (data: string) => {
             try {
                 const raw = data.toString();
+
+                // Prevent JSON DoS
+                if (raw.length > MAX_PAYLOAD_SIZE) {
+                    console.warn('Payload too large, rejecting message.');
+                    return;
+                }
+
                 const msg = JSON.parse(raw);
 
                 if (msg.type === 'get-ip') {
