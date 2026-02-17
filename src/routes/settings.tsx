@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import QRCode from 'qrcode';
 import { CONFIG, APP_CONFIG, THEMES } from '../config';
 
@@ -17,7 +17,7 @@ function SettingsPage() {
     const [ip, setIp] = useState('');
     const [frontendPort, setFrontendPort] = useState(String(CONFIG.FRONTEND_PORT));
 
-    const [pingDelay, setPingDelay] = useState(CONFIG.NETWORK_POLLING_INTERVAL || 5000);
+    const [pingDelay, setPingDelay] = useState(CONFIG.NETWORK_POLLING_INTERVAL ?? 5000);
 
     // Client Side Settings (LocalStorage)
     const [invertScroll, setInvertScroll] = useState(() => {
@@ -82,18 +82,30 @@ function SettingsPage() {
             .catch((e) => console.error('QR Error:', e));
     }, [ip]);
 
-    // Effect: Auto-detect LAN IP from Server (only if on localhost)
-    useEffect(() => {
+    // WebSocket Management for IP Auto-detection
+    const wsRef = useRef<WebSocket | null>(null);
+    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const retryCountRef = useRef(0);
+    const MAX_RETRIES = 5;
+
+    const connectWebSocket = useCallback(() => {
         if (typeof window === 'undefined') return;
         if (window.location.hostname !== 'localhost') return;
 
-        console.log('Starting IP auto-detection stream...');
+        // Clean up existing socket if any
+        if (wsRef.current) {
+            wsRef.current.close();
+        }
+
+        console.log(`Starting IP auto-detection stream... (Attempt ${retryCountRef.current + 1})`);
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws`;
         const socket = new WebSocket(wsUrl);
+        wsRef.current = socket;
 
         socket.onopen = () => {
             console.log('Connected to local server for live IP tracking');
+            retryCountRef.current = 0; // Reset retry count on success
             socket.send(JSON.stringify({ type: 'get-ip' }));
         };
 
@@ -101,23 +113,53 @@ function SettingsPage() {
             try {
                 const data = JSON.parse(event.data);
                 // Handle both initial response and subsequent broadcasts
-                if ((data.type === 'server-ip' || data.type === 'connected') && (data.ip || data.serverIp)) {
-                    const newIp = data.ip || data.serverIp;
-                    console.log('Received IP Update:', newIp);
-                    setIp(newIp);
+                if ((data.type === 'server-ip' || data.type === 'connected') && data.ip) {
+                    console.log('Received IP Update:', data.ip);
+                    setIp(data.ip);
                 }
             } catch (e) {
                 console.error('WS Message Error:', e);
             }
         };
 
-        return () => {
-            if (socket.readyState !== WebSocket.CLOSING && socket.readyState !== WebSocket.CLOSED) {
-                console.log('Closing IP detection socket');
-                socket.close();
+        socket.onclose = () => {
+            console.log('IP detection socket closed.');
+            wsRef.current = null;
+
+            // Reconnect logic with exponential backoff
+            if (retryCountRef.current < MAX_RETRIES) {
+                const timeout = Math.min(1000 * Math.pow(2, retryCountRef.current), 10000);
+                console.log(`Reconnecting in ${timeout}ms...`);
+                reconnectTimeoutRef.current = setTimeout(() => {
+                    retryCountRef.current++;
+                    connectWebSocket();
+                }, timeout);
+            } else {
+                console.log('Max WebSocket retries reached. Stopping auto-detection.');
             }
         };
-    }, []); // Run once on mount, stays open for updates
+
+        socket.onerror = (err) => {
+            console.error('WebSocket Error:', err);
+            // Verify if closing triggers onclose, usually it does.
+            socket.close();
+        };
+
+    }, []);
+
+    useEffect(() => {
+        connectWebSocket();
+
+        return () => {
+            if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+            if (wsRef.current) {
+                // Prevent auto-reconnection on unmount
+                wsRef.current.onclose = null;
+                wsRef.current.close();
+            }
+        };
+    }, [connectWebSocket]);
+
 
     const displayUrl = typeof window !== 'undefined'
         ? `${window.location.protocol}//${ip}:${CONFIG.FRONTEND_PORT}/trackpad`
@@ -221,12 +263,13 @@ function SettingsPage() {
                         </div>
 
                         <div className="form-control w-full">
-                            <label className="label">
+                            <label className="label" htmlFor="ping-delay-slider">
                                 <span className="label-text">Ping Delay (ms)</span>
                                 <span className="label-text-alt font-mono">{pingDelay}ms</span>
                             </label>
                             <input
                                 type="range"
+                                id="ping-delay-slider"
                                 min="1000"
                                 max="30000"
                                 step="500"
@@ -323,3 +366,4 @@ function SettingsPage() {
         </div >
     )
 }
+

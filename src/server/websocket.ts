@@ -4,6 +4,10 @@ import os from 'os';
 import fs from 'fs';
 import { Server, IncomingMessage } from 'http';
 import { Socket } from 'net';
+import path from 'path';
+
+// interactions with the file system should be absolute to avoid CWD fragility
+const CONFIG_PATH = path.resolve(__dirname, '../../src/server-config.json');
 
 /**
  * Retrieves the local IPv4 address of the host machine.
@@ -14,7 +18,9 @@ import { Socket } from 'net';
 function getLocalIp() {
     const nets = os.networkInterfaces();
     for (const name of Object.keys(nets)) {
-        for (const net of nets[name]!) {
+        const ifaceList = nets[name];
+        if (!ifaceList) continue;
+        for (const net of ifaceList) {
             if (net.family === 'IPv4' && !net.internal) {
                 return net.address;
             }
@@ -33,7 +39,6 @@ export function createWsServer(server: Server) {
     const wss = new WebSocketServer({ noServer: true });
     const inputHandler = new InputHandler();
 
-
     let currentIp = getLocalIp();
     const MAX_PAYLOAD_SIZE = 10 * 1024; // 10KB limit
 
@@ -43,20 +48,23 @@ export function createWsServer(server: Server) {
     // Frequency for network interface polling (ms)
     // Read directly from config file
     let pollingInterval = 5000;
-    try {
-        const configPath = './src/server-config.json';
-        if (fs.existsSync(configPath)) {
-            const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-            if (config.networkPollingInterval) {
-                pollingInterval = config.networkPollingInterval;
-            }
-        }
-    } catch (e) {
-        console.error('Failed to read initial polling interval:', e);
-    }
-    const POLLING_INTERVAL = pollingInterval;
 
-    const pollingIntervalId = setInterval(() => {
+    const startPolling = () => {
+        try {
+            if (fs.existsSync(CONFIG_PATH)) {
+                const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+                if (typeof config.networkPollingInterval === 'number' && Number.isFinite(config.networkPollingInterval)) {
+                    // Enforce minimum 100ms to prevent busy loops
+                    pollingInterval = Math.max(100, config.networkPollingInterval);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to read initial polling interval:', e);
+        }
+        return setInterval(pollIp, pollingInterval);
+    };
+
+    const pollIp = () => {
         const newIp = getLocalIp();
         if (newIp !== currentIp) {
             console.log(`Network Change Detected! IP: ${currentIp} -> ${newIp}`);
@@ -70,7 +78,10 @@ export function createWsServer(server: Server) {
                 }
             });
         }
-    }, POLLING_INTERVAL);
+    };
+
+    let pollingIntervalId = startPolling();
+
 
     // Cleanup interval when the WebSocket server closes
     wss.on('close', () => {
@@ -79,8 +90,13 @@ export function createWsServer(server: Server) {
     });
 
     // Also handle process exit to ensure cleanup
-    process.on('SIGTERM', () => clearInterval(pollingIntervalId));
-    process.on('SIGINT', () => clearInterval(pollingIntervalId));
+    const cleanup = () => {
+        clearInterval(pollingIntervalId);
+        process.exit(0);
+    };
+
+    process.once('SIGTERM', cleanup);
+    process.once('SIGINT', cleanup);
 
     server.on('upgrade', (request: IncomingMessage, socket: Socket, head: Buffer) => {
         const pathname = request.url;
@@ -114,19 +130,43 @@ export function createWsServer(server: Server) {
                     ws.send(JSON.stringify({ type: 'server-ip', ip: currentIp }));
                     return;
                 }
-                // ... existing update-config logic ...
 
                 if (msg.type === 'update-config') {
                     console.log('Updating config:', msg.config);
                     try {
-                        const configPath = './src/server-config.json';
-                        // eslint-disable-next-line @typescript-eslint/no-require-imports
-                        const current = fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, 'utf-8')) : {};
-                        const newConfig = { ...current, ...msg.config };
+                        const current = fs.existsSync(CONFIG_PATH) ? JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8')) : {};
 
-                        fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2));
+                        // Whitelist allowed keys to prevent arbitrary file writes
+                        const ALLOWED_KEYS = ['frontendPort', 'networkPollingInterval', 'mouseInvert', 'mouseSensitivity'];
+                        const cleanConfig: Record<string, any> = {};
+
+                        // Validate and copy only allowed keys
+                        for (const key of ALLOWED_KEYS) {
+                            if (Object.prototype.hasOwnProperty.call(msg.config, key)) {
+                                const val = msg.config[key];
+                                // Basic type validation
+                                if (key === 'frontendPort' && (typeof val !== 'number' || !Number.isFinite(val))) continue;
+                                if (key === 'networkPollingInterval' && (typeof val !== 'number' || !Number.isFinite(val))) continue;
+                                if (key === 'mouseInvert' && typeof val !== 'boolean') continue;
+                                if (key === 'mouseSensitivity' && (typeof val !== 'number' || !Number.isFinite(val))) continue;
+
+                                cleanConfig[key] = val;
+                            }
+                        }
+
+                        const newConfig = { ...current, ...cleanConfig };
+
+                        fs.writeFileSync(CONFIG_PATH, JSON.stringify(newConfig, null, 2));
+
+                        // Restart polling if interval changed
+                        if (cleanConfig.networkPollingInterval && cleanConfig.networkPollingInterval !== pollingInterval) {
+                            console.log(`Polling interval changed: ${pollingInterval} -> ${cleanConfig.networkPollingInterval}`);
+                            clearInterval(pollingIntervalId);
+                            pollingIntervalId = startPolling();
+                        }
+
                         ws.send(JSON.stringify({ type: 'config-updated', success: true }));
-                        console.log('Config updated. Vite should auto-restart.');
+                        console.log('Config updated.');
                     } catch (e) {
                         console.error('Failed to update config:', e);
                         ws.send(JSON.stringify({ type: 'config-updated', success: false, error: String(e) }));
@@ -149,3 +189,4 @@ export function createWsServer(server: Server) {
         };
     });
 }
+
