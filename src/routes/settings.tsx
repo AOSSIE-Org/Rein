@@ -16,6 +16,7 @@ export const Route = createFileRoute('/settings')({
 function SettingsPage() {
     const [ip, setIp] = useState('');
     const [frontendPort, setFrontendPort] = useState(String(CONFIG.FRONTEND_PORT));
+    const [pingDelay, setPingDelay] = useState(CONFIG.NETWORK_POLLING_INTERVAL || 5000);
 
     // Client Side Settings (LocalStorage)
     const [invertScroll, setInvertScroll] = useState(() => {
@@ -191,6 +192,27 @@ function SettingsPage() {
                     />
                 </div>
 
+                <div className="form-control w-full">
+                    <label className="label">
+                        <span className="label-text">Ping Delay (ms)</span>
+                        <span className="label-text-alt font-mono">{pingDelay}ms</span>
+                    </label>
+                    <input
+                        type="range"
+                        min="1000"
+                        max="30000"
+                        step="500"
+                        className="range range-secondary range-sm w-full"
+                        value={pingDelay}
+                        onChange={(e) => setPingDelay(parseInt(e.target.value))}
+                    />
+                    <div className="flex justify-between px-2 text-xs opacity-50 mt-1">
+                        <span>1s (Fast)</span>
+                        <span>5s (Default)</span>
+                        <span>30s (Slow)</span>
+                    </div>
+                </div>
+
                 <div className="alert alert-warning text-xs shadow-lg">
                     <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-4 w-4" fill="none" viewBox="0 0 24 24">
                         <title>Warning</title>
@@ -213,6 +235,9 @@ function SettingsPage() {
                                 type: 'update-config',
                                 config: {
                                     frontendPort: parseInt(frontendPort),
+                                    networkPollingInterval: pingDelay,
+                                    mouseInvert: invertScroll,
+                                    mouseSensitivity: sensitivity,
                                 }
                             }));
 

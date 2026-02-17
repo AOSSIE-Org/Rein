@@ -39,7 +39,20 @@ export function createWsServer(server: Server) {
     console.log(`Initial WS LAN IP: ${currentIp}`);
 
     // Frequency for network interface polling (ms)
-    const POLLING_INTERVAL = 5000;
+    // Read directly from config file
+    let pollingInterval = 5000;
+    try {
+        const configPath = './src/server-config.json';
+        if (fs.existsSync(configPath)) {
+            const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+            if (config.networkPollingInterval) {
+                pollingInterval = config.networkPollingInterval;
+            }
+        }
+    } catch (e) {
+        console.error('Failed to read initial polling interval:', e);
+    }
+    const POLLING_INTERVAL = pollingInterval;
 
     const pollingIntervalId = setInterval(() => {
         const newIp = getLocalIp();
