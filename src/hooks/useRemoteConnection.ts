@@ -42,5 +42,17 @@ export const useRemoteConnection = () => {
         }
     }, [ws]);
 
-    return { status, send };
+    const sendCombo = useCallback(
+        (msg:string[]) =>{
+            if (ws?.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type:"combo",
+                    keys: msg,
+                }));
+                
+            }
+        }
+    ,[ws])
+
+    return { status, send ,sendCombo};
 };

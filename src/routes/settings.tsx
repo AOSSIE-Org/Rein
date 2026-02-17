@@ -16,8 +16,25 @@ export const Route = createFileRoute('/settings')({
 function SettingsPage() {
     const [ip, setIp] = useState('');
     const [frontendPort, setFrontendPort] = useState(String(CONFIG.FRONTEND_PORT));
-    const [invertScroll, setInvertScroll] = useState(CONFIG.MOUSE_INVERT);
-    const [sensitivity, setSensitivity] = useState(CONFIG.MOUSE_SENSITIVITY);
+
+    // Client Side Settings (LocalStorage)
+    const [invertScroll, setInvertScroll] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        try {
+            const saved = localStorage.getItem('rein_invert');
+            return saved === 'true';
+        } catch {
+            return false;
+        }
+    });
+
+    const [sensitivity, setSensitivity] = useState(() => {
+        if (typeof window === 'undefined') return 1.0;
+        const saved = localStorage.getItem('rein_sensitivity');
+        const parsed = saved ? parseFloat(saved) : NaN;
+        return Number.isFinite(parsed) ? parsed : 1.0;
+    });
+
     const [qrData, setQrData] = useState('');
 
     // Load initial state
@@ -26,9 +43,17 @@ function SettingsPage() {
         const defaultIp = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 
         setIp(storedIp || defaultIp);
-        // We don't store frontend port in local storage for now, just load from config default
         setFrontendPort(String(CONFIG.FRONTEND_PORT));
     }, []);
+
+    // Effect: Update LocalStorage when settings change
+    useEffect(() => {
+        localStorage.setItem('rein_sensitivity', String(sensitivity));
+    }, [sensitivity]);
+
+    useEffect(() => {
+        localStorage.setItem('rein_invert', JSON.stringify(invertScroll));
+    }, [invertScroll]);
 
     // Effect: Update LocalStorage and Generate QR
     useEffect(() => {
@@ -36,7 +61,6 @@ function SettingsPage() {
         localStorage.setItem('rein_ip', ip);
 
         if (typeof window !== 'undefined') {
-            // Point to Frontend
             const appPort = String(CONFIG.FRONTEND_PORT);
             const protocol = window.location.protocol;
             const shareUrl = `${protocol}//${ip}:${appPort}/trackpad`;
@@ -84,7 +108,6 @@ function SettingsPage() {
         }
     }, []); // Run once on mount, stays open for updates
 
-    // Helper for display URL
     const displayUrl = typeof window !== 'undefined'
         ? `${window.location.protocol}//${ip}:${CONFIG.FRONTEND_PORT}/trackpad`
         : `http://${ip}:${CONFIG.FRONTEND_PORT}/trackpad`;
@@ -136,7 +159,6 @@ function SettingsPage() {
                         <span>Fast</span>
                     </div>
                 </div>
-
 
                 <div className="form-control w-full">
                     <label className="label cursor-pointer">
@@ -191,12 +213,9 @@ function SettingsPage() {
                                 type: 'update-config',
                                 config: {
                                     frontendPort: parseInt(frontendPort),
-                                    mouseInvert: invertScroll,
-                                    mouseSensitivity: sensitivity,
                                 }
                             }));
 
-                            // Give server time to write config and restart
                             setTimeout(() => {
                                 socket.close();
                                 const newProtocol = window.location.protocol;
