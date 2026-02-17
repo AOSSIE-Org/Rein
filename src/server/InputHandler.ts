@@ -40,7 +40,7 @@ export class InputHandler {
 
                         try {
                             const content = await clipboard.getContent();
-                            console.log(`[Clipboard] Grabbed from screen: "${content.substring(0, 30)}..."`);
+                            console.log(`[Clipboard] Copied content length: ${content.length}`);
                         } catch (logErr) {
                             console.log('[Clipboard] Log Warning: Could not read content for debug log.');
                         }

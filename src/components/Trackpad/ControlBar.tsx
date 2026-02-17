@@ -59,7 +59,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
     };
 
     return (
-        <div className="bg-base-200 p-2 grid grid-cols-5 gap-2 shrink-0">
+        <div className="bg-base-200 p-2 grid grid-cols-6 gap-2 shrink-0">
             <button
                 className={`btn btn-sm ${scrollMode ? "btn-primary" : "btn-outline"}`}
                 onPointerDown={(e) => handleInteraction(e, onToggleScroll, "ToggleScroll")}
