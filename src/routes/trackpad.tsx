@@ -34,7 +34,6 @@ function TrackpadPage() {
     });
 
     const { status, send, sendCombo } = useRemoteConnection();
-    // Pass sensitivity and invertScroll to the gesture hook
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
 
     const focusInput = () => {
@@ -43,9 +42,12 @@ function TrackpadPage() {
 
     const handleClick = (button: 'left' | 'right') => {
         send({ type: 'click', button, press: true });
-        // Release after short delay to simulate click
         setTimeout(() => send({ type: 'click', button, press: false }), 50);
     };
+
+    // Clipboard handlers — routed through existing WebSocket combo pipeline
+    const handleCopy = () => sendCombo(['control', 'c']);
+    const handlePaste = () => sendCombo(['control', 'v']);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         const key = e.key.toLowerCase();
@@ -136,10 +138,9 @@ function TrackpadPage() {
         isComposingRef.current = false;
         const val = (e.target as HTMLInputElement).value;
         if (val) {
-            // Don't send text during modifier mode
             if (modifier !== "Release") {
                 handleModifier(val);
-            }else{
+            } else {
                 sendText(val);
             }
             (e.target as HTMLInputElement).value = '';
@@ -158,7 +159,6 @@ function TrackpadPage() {
             className="flex flex-col h-full overflow-hidden"
             onClick={handleContainerClick}
         >
-            {/* Touch Surface */}
             <TouchArea
                 isTracking={isTracking}
                 scrollMode={scrollMode}
@@ -167,7 +167,6 @@ function TrackpadPage() {
             />
             {bufferText !== "" && <BufferBar bufferText={bufferText} />}
 
-            {/* Controls */}
             <ControlBar
                 scrollMode={scrollMode}
                 modifier={modifier}
@@ -177,9 +176,10 @@ function TrackpadPage() {
                 onRightClick={() => handleClick('right')}
                 onKeyboardToggle={focusInput}
                 onModifierToggle={handleModifierState}
+                onCopy={handleCopy}
+                onPaste={handlePaste}
             />
 
-            {/* Extra Keys */}
             <ExtraKeys
                 sendKey={(k) => {
                     if (modifier !== "Release") handleModifier(k);
@@ -188,7 +188,6 @@ function TrackpadPage() {
                 onInputFocus={focusInput}
             />
 
-            {/* Hidden Input for Mobile Keyboard */}
             <input
                 ref={hiddenInputRef}
                 className="opacity-0 absolute bottom-0 pointer-events-none h-0 w-0"
@@ -202,7 +201,7 @@ function TrackpadPage() {
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
-                autoFocus // Attempt autofocus on mount
+                autoFocus
             />
         </div>
     )
