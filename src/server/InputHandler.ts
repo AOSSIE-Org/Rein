@@ -16,7 +16,6 @@ export interface InputMessage {
 
 const isMac = process.platform === 'darwin';
 
-// On macOS, Ctrl in combos should become Cmd (Meta)
 const translateKey = (key: string): string => {
     if (isMac && key.toLowerCase() === 'control') return 'meta';
     return key;
@@ -31,20 +30,26 @@ export class InputHandler {
         switch (msg.type) {
             case 'clipboard':
                 try {
+                    const modKey = isMac ? Key.LeftSuper : Key.LeftControl;
+
                     if (msg.clipboardAction === 'copy') {
-                        console.log('[Clipboard] Action: Copy triggered');
+                        console.log(`[Clipboard] Action: Copy triggered (${isMac ? 'macOS' : 'Windows/Linux'})`);
                         
-                        await keyboard.pressKey(Key.LeftControl, Key.C); 
-                        await keyboard.releaseKey(Key.LeftControl, Key.C);
-                        
-                    
-                        const content = await clipboard.getContent();
-                        console.log(`[Clipboard] Grabbed from screen: "${content.substring(0, 30)}..."`);
+                        await keyboard.pressKey(modKey, Key.C);
+                        await keyboard.releaseKey(modKey, Key.C);
+
+                        try {
+                            const content = await clipboard.getContent();
+                            console.log(`[Clipboard] Grabbed from screen: "${content.substring(0, 30)}..."`);
+                        } catch (logErr) {
+                            console.log('[Clipboard] Log Warning: Could not read content for debug log.');
+                        }
                     } else if (msg.clipboardAction === 'paste') {
-                        console.log('[Clipboard] Action: Paste triggered');
-                    
-                        await keyboard.pressKey(Key.LeftControl, Key.V);
-                        await keyboard.releaseKey(Key.LeftControl, Key.V);
+                        console.log(`[Clipboard] Action: Paste triggered (${isMac ? 'macOS' : 'Windows/Linux'})`);
+                        
+                        await keyboard.pressKey(modKey, Key.V);
+                        await keyboard.releaseKey(modKey, Key.V);
+                        
                         console.log('[Clipboard] Native Paste command sent.');
                     }
                 } catch (err) {
@@ -74,7 +79,6 @@ export class InputHandler {
                 break;
 
             case 'scroll':
-                // Fixed type from Promise<void>[] to Promise<any>[] to handle nut-js return types
                 const promises: Promise<any>[] = [];
 
                 if (typeof msg.dy === 'number' && msg.dy !== 0) {
@@ -135,8 +139,8 @@ export class InputHandler {
             case 'combo':
                 if (msg.keys && msg.keys.length > 0) {
                     const translatedKeys = msg.keys.map(translateKey);
+
                     const nutKeys: (Key | string)[] = [];
-                    
                     for (const k of translatedKeys) {
                         const lowerKey = k.toLowerCase();
                         const nutKey = KEY_MAP[lowerKey];
