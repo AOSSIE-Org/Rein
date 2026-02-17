@@ -68,9 +68,16 @@ function TrackpadPage() {
             }
             return;
         }
-        if (key === 'backspace') send({ type: 'key', key: 'backspace' });
-        else if (key === 'enter') send({ type: 'key', key: 'enter' });
-        else if (key !== 'unidentified' && key.length > 1) {
+
+        if (key === 'backspace') {
+            e.preventDefault();
+            if (hiddenInputRef.current) hiddenInputRef.current.value = '';
+            send({ type: 'key', key: 'backspace' });
+        } else if (key === 'enter') {
+            e.preventDefault();
+            if (hiddenInputRef.current) hiddenInputRef.current.value = '';
+            send({ type: 'key', key: 'enter' });
+        } else if (key !== 'unidentified' && key.length > 1) {
             send({ type: 'key', key });
         }
     };
