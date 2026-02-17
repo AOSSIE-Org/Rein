@@ -49,6 +49,9 @@ sudo ufw allow 3000/tcp
 - **Scroll**: Toggle "Scroll Mode" or use two fingers.
 - **Keyboard**: Tap the "Keyboard" button to use your phone's native keyboard.
 
+Visit the [Discord Channel](https://discord.com/invite/C8wHmwtczs) for interacting with the community!
+(Go to Project-> Rein)
+
 ---
 
 > Contributions are welcome! Please leave a star ⭐ to show your support.

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 export const useRemoteConnection = (onMessage?: (data: any) => void) => {
-    const [ws, setWs] = useState<WebSocket | null>(null);
+    const wsRef = useRef<WebSocket | null>(null);
     const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'stale'>('disconnected');
     const [latency, setLatency] = useState<number | null>(null);
 
@@ -10,6 +10,7 @@ export const useRemoteConnection = (onMessage?: (data: any) => void) => {
     useEffect(() => { onMessageRef.current = onMessage; }, [onMessage]);
 
     useEffect(() => {
+        let isMounted = true;
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.host;
         const wsUrl = `${protocol}//${host}/ws`;
@@ -19,39 +20,50 @@ export const useRemoteConnection = (onMessage?: (data: any) => void) => {
         let lastPongTime = Date.now();
         let lastPingStart = 0;
         let missedPongs = 0;
-        let activeSocket: WebSocket | null = null;
 
         const connect = () => {
+            if (!isMounted) return;
+
+            // Close any existing socket before creating a new one
+            if (wsRef.current) {
+                wsRef.current.onopen = null;
+                wsRef.current.onclose = null;
+                wsRef.current.onerror = null;
+                wsRef.current.close();
+                wsRef.current = null;
+            }
+
             console.log(`Connecting to ${wsUrl}`);
             setStatus('connecting');
             const socket = new WebSocket(wsUrl);
-            activeSocket = socket;
 
             socket.onopen = () => {
-                setStatus('connected');
-                lastPongTime = Date.now();
-                missedPongs = 0;
-                
-                heartbeatInterval = setInterval(() => {
-                    if (socket.readyState === WebSocket.OPEN) {
-                        lastPingStart = Date.now();
-                        socket.send(JSON.stringify({ type: 'ping' }));
+                if (isMounted) {
+                    setStatus('connected');
+                    lastPongTime = Date.now();
+                    missedPongs = 0;
+                    
+                    heartbeatInterval = setInterval(() => {
+                        if (socket.readyState === WebSocket.OPEN) {
+                            lastPingStart = Date.now();
+                            socket.send(JSON.stringify({ type: 'ping' }));
 
-                        // Increment missedPongs only if a pong timeout is confirmed (> 4s)
-                        if (Date.now() - lastPongTime > 4000) {
-                            missedPongs++;
+                            // Increment missedPongs only if a pong timeout is confirmed (> 4s)
+                            if (Date.now() - lastPongTime > 4000) {
+                                missedPongs++;
 
-                            // Recovery strategy: if missed too many pongs, force closed to trigger reconnect
-                            if (missedPongs >= 3) {
-                                console.warn('Connection stale. Forcing reconnect...');
-                                socket.close();
-                            } else if (missedPongs >= 2) {
-                                setStatus('stale');
-                                setLatency(null);
+                                // Recovery strategy: if missed too many pongs, force closed to trigger reconnect
+                                if (missedPongs >= 3) {
+                                    console.warn('Connection stale. Forcing reconnect...');
+                                    socket.close();
+                                } else if (missedPongs >= 2) {
+                                    setStatus('stale');
+                                    setLatency(null);
+                                }
                             }
                         }
-                    }
-                }, 2000);
+                    }, 2000);
+                }
             };
 
             socket.onmessage = (event) => {
@@ -74,11 +86,12 @@ export const useRemoteConnection = (onMessage?: (data: any) => void) => {
             };
 
             socket.onclose = () => {
-                setStatus('disconnected');
-                setLatency(null);
-                clearInterval(heartbeatInterval);
-                activeSocket = null;
-                reconnectTimer = setTimeout(connect, 3000);
+                if (isMounted) {
+                    setStatus('disconnected');
+                    setLatency(null);
+                    clearInterval(heartbeatInterval);
+                    reconnectTimer = setTimeout(connect, 3000);
+                }
             };
 
             socket.onerror = (e) => {
@@ -86,23 +99,43 @@ export const useRemoteConnection = (onMessage?: (data: any) => void) => {
                 socket.close();
             };
 
-            setWs(socket);
+            wsRef.current = socket;
         };
 
-        connect();
+        // Defer to next tick so React Strict Mode's immediate unmount
+        // sets isMounted=false before any socket is created
+        const initialTimer = setTimeout(connect, 0);
 
         return () => {
+            isMounted = false;
+            clearTimeout(initialTimer);
             clearTimeout(reconnectTimer);
             clearInterval(heartbeatInterval);
-            activeSocket?.close();
+            if (wsRef.current) {
+                // Nullify handlers to prevent cascading error/close events
+                wsRef.current.onopen = null;
+                wsRef.current.onclose = null;
+                wsRef.current.onerror = null;
+                wsRef.current.close();
+                wsRef.current = null;
+            }
         };
     }, []);
 
     const send = useCallback((msg: any) => {
-        if (ws?.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify(msg));
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify(msg));
         }
-    }, [ws]);
+    }, []);
 
-    return { status, send, latency };
+    const sendCombo = useCallback((msg: string[]) => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
+                type: "combo",
+                keys: msg,
+            }));
+        }
+    }, []);
+
+    return { status, send, latency, sendCombo };
 };

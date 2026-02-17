@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { TOUCH_MOVE_THRESHOLD, TOUCH_TIMEOUT, calculateAccelerationMult } from '../utils/math';
+import { TOUCH_MOVE_THRESHOLD, TOUCH_TIMEOUT, PINCH_THRESHOLD, calculateAccelerationMult } from '../utils/math';
 
 interface TrackedTouch {
     identifier: number;
@@ -10,33 +10,91 @@ interface TrackedTouch {
     timeStamp: number;
 }
 
+const getTouchDistance = (a: TrackedTouch, b: TrackedTouch): number => {
+    const dx = a.pageX - b.pageX;
+    const dy = a.pageY - b.pageY;
+    return Math.sqrt(dx * dx + dy * dy);
+};
+
 export const useTrackpadGesture = (
     send: (msg: any) => void,
     scrollMode: boolean,
-    sensitivity: number = 1.5
+    sensitivity: number = 1.5,
+    invertScroll: boolean = false,
+    axisThreshold: number = 2.5 
 ) => {
     const [isTracking, setIsTracking] = useState(false);
-
+    
     // Refs for tracking state (avoids re-renders during rapid movement)
     const ongoingTouches = useRef<TrackedTouch[]>([]);
     const moved = useRef(false);
     const startTimeStamp = useRef(0);
-    const lastEndTimeStamp = useRef(0);
     const releasedCount = useRef(0);
     const dragging = useRef(false);
     const draggingTimeout = useRef<NodeJS.Timeout | null>(null);
+    const lastPinchDist = useRef<number | null>(null);
+    const pinching = useRef(false);
 
     // Helpers
     const findTouchIndex = (id: number) => ongoingTouches.current.findIndex(t => t.identifier === id);
+
+    const processMovement = (sumX: number, sumY: number) => {
+        if (dragging.current) {
+            send({ 
+                type: 'move', 
+                dx: Math.round(sumX * sensitivity * 10) / 10, 
+                dy: Math.round(sumY * sensitivity * 10) / 10 
+            });
+            return;
+        }
+        const invertMult = invertScroll ? -1 : 1;
+        if (!scrollMode && ongoingTouches.current.length === 2) {
+            const dist = getTouchDistance(ongoingTouches.current[0], ongoingTouches.current[1]);
+            const delta = lastPinchDist.current !== null ? dist - lastPinchDist.current : 0;
+            if (pinching.current || Math.abs(delta) > PINCH_THRESHOLD) {
+                pinching.current = true;
+                lastPinchDist.current = dist;
+                send({ type: 'zoom', delta: delta * sensitivity * invertMult });
+            } else {
+                lastPinchDist.current = dist;
+                send({ 
+                    type: 'scroll', 
+                    dx: -sumX * sensitivity * invertMult, 
+                    dy: -sumY * sensitivity * invertMult 
+                });
+            }
+        } else if (scrollMode || ongoingTouches.current.length === 2) {
+            let scrollDx = sumX;
+            let scrollDy = sumY;
+            if (scrollMode) {
+                const absDx = Math.abs(scrollDx);
+                const absDy = Math.abs(scrollDy);
+                if (absDx > absDy * axisThreshold) {
+                    scrollDy = 0;
+                } else if (absDy > absDx * axisThreshold) {
+                    scrollDx = 0;
+                }
+            }
+            send({ 
+                type: 'scroll', 
+                dx: Math.round(-scrollDx * sensitivity * 10 * invertMult) / 10, 
+                dy: Math.round(-scrollDy * sensitivity * 10 * invertMult) / 10 
+            });
+        } else if (ongoingTouches.current.length === 1) {
+            send({ 
+                type: 'move', 
+                dx: Math.round(sumX * sensitivity * 10) / 10, 
+                dy: Math.round(sumY * sensitivity * 10) / 10 
+            });
+        }
+    };
 
     const handleDraggingTimeout = () => {
         draggingTimeout.current = null;
         send({ type: 'click', button: 'left', press: false });
     };
 
-    // Handlers
     const handleTouchStart = (e: React.TouchEvent) => {
-
         if (ongoingTouches.current.length === 0) {
             startTimeStamp.current = e.timeStamp;
             moved.current = false;
@@ -53,7 +111,6 @@ export const useTrackpadGesture = (
                 pageYStart: touch.pageY,
                 timeStamp: e.timeStamp,
             };
-
             const idx = findTouchIndex(touch.identifier);
             if (idx < 0) {
                 ongoingTouches.current.push(tracked);
@@ -62,8 +119,12 @@ export const useTrackpadGesture = (
             }
         }
 
+        if (ongoingTouches.current.length === 2) {
+            lastPinchDist.current = getTouchDistance(ongoingTouches.current[0], ongoingTouches.current[1]);
+            pinching.current = false;
+        }
+
         setIsTracking(true);
-        lastEndTimeStamp.current = 0;
 
         // If we're in dragging timeout, convert to actual drag
         if (draggingTimeout.current) {
@@ -119,15 +180,9 @@ export const useTrackpadGesture = (
             tracked.timeStamp = e.timeStamp;
         }
 
-        // Send movement if we've moved and not in timeout period
-        if (moved.current && e.timeStamp - lastEndTimeStamp.current >= TOUCH_TIMEOUT) {
-            if (scrollMode || ongoingTouches.current.length === 2) {
-                // Scroll mode: single finger scrolls, or two-finger scroll in cursor mode
-                send({ type: 'scroll', dx: -sumX * sensitivity, dy: -sumY * sensitivity });
-            } else if (ongoingTouches.current.length === 1 || dragging.current) {
-                // Cursor movement (only in cursor mode with 1 finger, or when dragging)
-                send({ type: 'move', dx: sumX * sensitivity, dy: sumY * sensitivity });
-            }
+        // Send movement if we've moved
+        if (moved.current) {
+            processMovement(sumX, sumY);
         }
     };
 
@@ -143,7 +198,10 @@ export const useTrackpadGesture = (
             }
         }
 
-        lastEndTimeStamp.current = e.timeStamp;
+        if (ongoingTouches.current.length < 2) {
+            lastPinchDist.current = null;
+            pinching.current = false;
+        }
 
         // Mark as moved if too many fingers
         if (releasedCount.current > TOUCH_MOVE_THRESHOLD.length) {
