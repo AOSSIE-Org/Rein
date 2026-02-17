@@ -2,6 +2,7 @@ import { mouse, Point, Button, keyboard, Key } from '@nut-tree-fork/nut-js';
 import { KEY_MAP } from './KeyMap';
 import { logger } from './logger';
 
+// Interface for input messages received from the client.
 export interface InputMessage {
     type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo';
     dx?: number;
@@ -14,11 +15,13 @@ export interface InputMessage {
     delta?: number;
 }
 
+// Handler class for processing OS-level input events.
 export class InputHandler {
     constructor() {
         mouse.config.mouseSpeed = 1000;
     }
 
+    // Processes a message and executes the corresponding input action.
     async handleMessage(msg: InputMessage) {
         try {
             switch (msg.type) {
@@ -47,7 +50,7 @@ export class InputHandler {
                     break;
 
                 case 'scroll':
-                    const promises: Promise<void>[] = [];
+                    const promises: Promise<any>[] = [];
 
                     if (typeof msg.dy === 'number' && msg.dy !== 0) {
                         if (msg.dy > 0) {
