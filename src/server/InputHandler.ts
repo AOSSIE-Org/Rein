@@ -1,8 +1,8 @@
-import { mouse, Point, Button, keyboard, Key } from '@nut-tree-fork/nut-js';
+import { mouse, Point, Button, keyboard, Key, clipboard } from '@nut-tree-fork/nut-js';
 import { KEY_MAP } from './KeyMap';
 
 export interface InputMessage {
-    type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo';
+    type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo' | 'clipboard';
     dx?: number;
     dy?: number;
     button?: 'left' | 'right' | 'middle';
@@ -11,6 +11,7 @@ export interface InputMessage {
     keys?: string[];
     text?: string;
     delta?: number;
+    clipboardAction?: 'copy' | 'paste';
 }
 
 const isMac = process.platform === 'darwin';
@@ -28,6 +29,29 @@ export class InputHandler {
 
     async handleMessage(msg: InputMessage) {
         switch (msg.type) {
+            case 'clipboard':
+                try {
+                    if (msg.clipboardAction === 'copy') {
+                        console.log('[Clipboard] Action: Copy triggered');
+                        
+                        await keyboard.pressKey(Key.LeftControl, Key.C); 
+                        await keyboard.releaseKey(Key.LeftControl, Key.C);
+                        
+                    
+                        const content = await clipboard.getContent();
+                        console.log(`[Clipboard] Grabbed from screen: "${content.substring(0, 30)}..."`);
+                    } else if (msg.clipboardAction === 'paste') {
+                        console.log('[Clipboard] Action: Paste triggered');
+                    
+                        await keyboard.pressKey(Key.LeftControl, Key.V);
+                        await keyboard.releaseKey(Key.LeftControl, Key.V);
+                        console.log('[Clipboard] Native Paste command sent.');
+                    }
+                } catch (err) {
+                    console.error('[Clipboard] Error:', err);
+                }
+                break;
+
             case 'move':
                 if (msg.dx !== undefined && msg.dy !== undefined) {
                     const currentPos = await mouse.getPosition();
@@ -50,7 +74,8 @@ export class InputHandler {
                 break;
 
             case 'scroll':
-                const promises: Promise<void>[] = [];
+                // Fixed type from Promise<void>[] to Promise<any>[] to handle nut-js return types
+                const promises: Promise<any>[] = [];
 
                 if (typeof msg.dy === 'number' && msg.dy !== 0) {
                     if (msg.dy > 0) {
@@ -109,10 +134,9 @@ export class InputHandler {
 
             case 'combo':
                 if (msg.keys && msg.keys.length > 0) {
-                    // Translate platform-specific modifiers before resolving KeyMap
                     const translatedKeys = msg.keys.map(translateKey);
-
                     const nutKeys: (Key | string)[] = [];
+                    
                     for (const k of translatedKeys) {
                         const lowerKey = k.toLowerCase();
                         const nutKey = KEY_MAP[lowerKey];

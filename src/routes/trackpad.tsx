@@ -45,9 +45,16 @@ function TrackpadPage() {
         setTimeout(() => send({ type: 'click', button, press: false }), 50);
     };
 
-    // Clipboard handlers — routed through existing WebSocket combo pipeline
-    const handleCopy = () => sendCombo(['control', 'c']);
-    const handlePaste = () => sendCombo(['control', 'v']);
+    // Clipboard handlers — now using the native clipboard pipeline
+    const handleCopy = () => {
+        console.log('[Client] Requesting native Copy');
+        send({ type: 'clipboard', clipboardAction: 'copy' });
+    };
+
+    const handlePaste = () => {
+        console.log('[Client] Requesting native Paste');
+        send({ type: 'clipboard', clipboardAction: 'paste' });
+    };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         const key = e.key.toLowerCase();

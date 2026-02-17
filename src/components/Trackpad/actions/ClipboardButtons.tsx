@@ -11,17 +11,19 @@ export const ClipboardButtons: React.FC<ClipboardButtonsProps> = ({
 }) => {
     const firedRef = useRef(false);
 
-    const handlePointerDown = (e: React.PointerEvent, action: () => void) => {
+    const handlePointerDown = (e: React.PointerEvent, action: () => void, label: string) => {
         e.preventDefault();
         e.stopPropagation();
+        console.log(`[UI] ${label} Button - PointerDown triggered`);
         firedRef.current = true;
         action();
     };
 
-    const handlePointerUp = (e: React.PointerEvent, action: () => void) => {
+    const handlePointerUp = (e: React.PointerEvent, action: () => void, label: string) => {
         e.preventDefault();
         e.stopPropagation();
         if (!firedRef.current) {
+            console.log(`[UI] ${label} Button - PointerUp fallback triggered`);
             action();
         }
         firedRef.current = false;
@@ -31,15 +33,15 @@ export const ClipboardButtons: React.FC<ClipboardButtonsProps> = ({
         <>
             <button
                 className="btn btn-sm btn-outline"
-                onPointerDown={(e) => handlePointerDown(e, onCopy)}
-                onPointerUp={(e) => handlePointerUp(e, onCopy)}
+                onPointerDown={(e) => handlePointerDown(e, onCopy, "Copy")}
+                onPointerUp={(e) => handlePointerUp(e, onCopy, "Copy")}
             >
                 Copy
             </button>
             <button
                 className="btn btn-sm btn-outline"
-                onPointerDown={(e) => handlePointerDown(e, onPaste)}
-                onPointerUp={(e) => handlePointerUp(e, onPaste)}
+                onPointerDown={(e) => handlePointerDown(e, onPaste, "Paste")}
+                onPointerUp={(e) => handlePointerUp(e, onPaste, "Paste")}
             >
                 Paste
             </button>
