@@ -4,6 +4,13 @@ import { KEY_MAP } from './KeyMap';
 // Constant for OS detection
 const isMac = process.platform === 'darwin';
 
+// macOS translation fix: map both 'ctrl' and 'control' to 'meta'
+const translateKey = (key: string): string => {
+    const k = key.toLowerCase();
+    if (isMac && (k === 'control' || k === 'ctrl')) return 'meta';
+    return key;
+};
+
 export interface InputMessage {
     type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo' | 'paste' | 'clipboard'; // Added clipboard
     clipboardAction?: 'copy' | 'paste'; // Added action property
@@ -180,7 +187,9 @@ export class InputHandler {
             case 'key':
                 if (msg.key) {
                     console.log(`Processing key: ${msg.key}`);
-                    const nutKey = KEY_MAP[msg.key.toLowerCase()];
+                    // Applied translation fix
+                    const translatedKeyName = translateKey(msg.key);
+                    const nutKey = KEY_MAP[translatedKeyName.toLowerCase()];
 
                     if (nutKey !== undefined) {
                         await keyboard.type(nutKey);
@@ -197,13 +206,14 @@ export class InputHandler {
                     const nutKeys: (Key | string)[] = [];
 
                     for (const k of msg.keys) {
-                        const lowerKey = k.toLowerCase();
-                        const nutKey = KEY_MAP[lowerKey];
+                        // Applied translation fix
+                        const translated = translateKey(k).toLowerCase();
+                        const nutKey = KEY_MAP[translated];
 
                         if (nutKey !== undefined) {
                             nutKeys.push(nutKey);
-                        } else if (lowerKey.length === 1) {
-                            nutKeys.push(lowerKey);
+                        } else if (translated.length === 1) {
+                            nutKeys.push(translated);
                         } else {
                             console.warn(`Unknown key in combo: ${k}`);
                         }
