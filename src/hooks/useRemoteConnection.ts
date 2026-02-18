@@ -8,7 +8,22 @@ export const useRemoteConnection = () => {
         let isMounted = true;
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.host;
-        const wsUrl = `${protocol}//${host}/ws`;
+
+        // Get token from URL params (passed via QR code) or localStorage
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlToken = urlParams.get('token');
+        const storedToken = localStorage.getItem('rein_auth_token');
+        const token = urlToken || storedToken;
+
+        // Persist URL token to localStorage for future reconnections
+        if (urlToken && urlToken !== storedToken) {
+            localStorage.setItem('rein_auth_token', urlToken);
+        }
+
+        let wsUrl = `${protocol}//${host}/ws`;
+        if (token) {
+            wsUrl += `?token=${encodeURIComponent(token)}`;
+        }
 
         let reconnectTimer: NodeJS.Timeout;
 
@@ -24,7 +39,6 @@ export const useRemoteConnection = () => {
                 wsRef.current = null;
             }
 
-            console.log(`Connecting to ${wsUrl}`);
             setStatus('connecting');
             const socket = new WebSocket(wsUrl);
 
@@ -37,8 +51,7 @@ export const useRemoteConnection = () => {
                     reconnectTimer = setTimeout(connect, 3000);
                 }
             };
-            socket.onerror = (e) => {
-                console.error("WS Error", e);
+            socket.onerror = () => {
                 socket.close();
             };
 
