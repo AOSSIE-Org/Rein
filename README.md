@@ -1,3 +1,10 @@
+<div align="center">
+    <span>
+        <img src="public/app_icon/IconBg.png" width="128" height="128" alt="IconBg" />
+        <img src="https://github.com/user-attachments/assets/7f9e9c71-0714-4af7-9191-d3f7184b7193" width="128" height="128" alt="aossie_logo" />
+    </span>
+</div>
+
 # Rein
 
 A cross-platform, LAN-based remote control. It allows touchscreen devices to act as a trackpad and keyboard for a desktop system through a locally served web interface.
