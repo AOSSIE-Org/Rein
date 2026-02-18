@@ -2,7 +2,7 @@ import { mouse, Point, Button, keyboard, Key, clipboard } from '@nut-tree-fork/n
 import { KEY_MAP } from './KeyMap';
 
 export interface InputMessage {
-    type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo' | 'clipboard';
+    type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo' | 'clipboard' | 'paste' | 'copy';
     dx?: number;
     dy?: number;
     button?: 'left' | 'right' | 'middle';
@@ -24,6 +24,8 @@ const translateKey = (key: string): string => {
 export class InputHandler {
     constructor() {
         mouse.config.mouseSpeed = 1000;
+        mouse.config.autoDelayMs = 0;
+        keyboard.config.autoDelayMs = 0;
     }
 
     async handleMessage(msg: InputMessage) {
@@ -59,11 +61,12 @@ export class InputHandler {
 
             case 'move':
                 if (msg.dx !== undefined && msg.dy !== undefined) {
+                    // ========== OPTIMIZED: Use relative move ==========
                     const currentPos = await mouse.getPosition();
-                    await mouse.setPosition(new Point(
-                        currentPos.x + msg.dx,
-                        currentPos.y + msg.dy
-                    ));
+                    await mouse.move([
+                        new Point(currentPos.x + msg.dx, currentPos.y + msg.dy)
+                    ]);
+                    // ==================================================
                 }
                 break;
 
@@ -79,26 +82,20 @@ export class InputHandler {
                 break;
 
             case 'scroll':
-                const promises: Promise<any>[] = [];
-
                 if (typeof msg.dy === 'number' && msg.dy !== 0) {
                     if (msg.dy > 0) {
-                        promises.push(mouse.scrollDown(msg.dy));
+                        await mouse.scrollDown(msg.dy);
                     } else {
-                        promises.push(mouse.scrollUp(-msg.dy));
+                        await mouse.scrollUp(-msg.dy);
                     }
                 }
 
                 if (typeof msg.dx === 'number' && msg.dx !== 0) {
                     if (msg.dx > 0) {
-                        promises.push(mouse.scrollRight(msg.dx));
+                        await mouse.scrollRight(msg.dx);
                     } else {
-                        promises.push(mouse.scrollLeft(-msg.dx));
+                        await mouse.scrollLeft(-msg.dx);
                     }
-                }
-
-                if (promises.length) {
-                    await Promise.all(promises);
                 }
                 break;
 
@@ -124,14 +121,11 @@ export class InputHandler {
 
             case 'key':
                 if (msg.key) {
-                    console.log(`Processing key: ${msg.key}`);
                     const nutKey = KEY_MAP[msg.key.toLowerCase()];
                     if (nutKey !== undefined) {
                         await keyboard.type(nutKey);
                     } else if (msg.key.length === 1) {
                         await keyboard.type(msg.key);
-                    } else {
-                        console.log(`Unmapped key: ${msg.key}`);
                     }
                 }
                 break;
@@ -148,17 +142,11 @@ export class InputHandler {
                             nutKeys.push(nutKey);
                         } else if (lowerKey.length === 1) {
                             nutKeys.push(lowerKey);
-                        } else {
-                            console.warn(`Unknown key in combo: ${k}`);
                         }
                     }
 
-                    if (nutKeys.length === 0) {
-                        console.error('No valid keys in combo');
-                        return;
-                    }
+                    if (nutKeys.length === 0) return;
 
-                    console.log(`Pressing keys:`, nutKeys);
                     const pressedKeys: Key[] = [];
 
                     try {
@@ -176,14 +164,46 @@ export class InputHandler {
                             await keyboard.releaseKey(k);
                         }
                     }
-
-                    console.log(`Combo complete: ${msg.keys.join('+')}`);
                 }
                 break;
 
             case 'text':
                 if (msg.text) {
                     await keyboard.type(msg.text);
+                }
+                break;
+
+            case 'paste':
+                try {
+                    const isWin = process.platform === 'win32' || process.platform === 'linux';
+                    const modifier = isWin ? Key.LeftControl : Key.LeftCmd;
+                    
+                    await keyboard.pressKey(modifier);
+                    try {
+                        await keyboard.pressKey(Key.V);
+                        await keyboard.releaseKey(Key.V);
+                    } finally {
+                        await keyboard.releaseKey(modifier);
+                    }
+                } catch (error) {
+                    // Silent
+                }
+                break;
+
+            case 'copy':
+                try {
+                    const isWin = process.platform === 'win32' || process.platform === 'linux';
+                    const modifier = isWin ? Key.LeftControl : Key.LeftCmd;
+                    
+                    await keyboard.pressKey(modifier);
+                    try {
+                        await keyboard.pressKey(Key.C);
+                        await keyboard.releaseKey(Key.C);
+                    } finally {
+                        await keyboard.releaseKey(modifier);
+                    }
+                } catch (error) {
+                    // Silent
                 }
                 break;
         }

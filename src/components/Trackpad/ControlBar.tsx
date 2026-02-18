@@ -3,29 +3,29 @@ import React from "react";
 import { ClipboardButtons } from "./actions/ClipboardButtons";
 
 interface ControlBarProps {
-    scrollMode: boolean;
-    modifier: ModifierState;
-    buffer: string;
-    onToggleScroll: () => void;
-    onLeftClick: () => void;
-    onRightClick: () => void;
-    onKeyboardToggle: () => void;
-    onModifierToggle: () => void;
-    onCopy: () => void;
-    onPaste: () => void;
+	scrollMode: boolean;
+	modifier: ModifierState;
+	buffer: string;
+	onToggleScroll: () => void;
+	onLeftClick: () => void;
+	onRightClick: () => void;
+	onKeyboardToggle: () => void;
+	onModifierToggle: () => void;
+	onPaste: () => void;
+	onCopy: () => void;
 }
 
 export const ControlBar: React.FC<ControlBarProps> = ({
-    scrollMode,
-    modifier,
-    buffer,
-    onToggleScroll,
-    onLeftClick,
-    onRightClick,
-    onKeyboardToggle,
-    onModifierToggle,
-    onCopy,
-    onPaste,
+	scrollMode,
+	modifier,
+	buffer,
+	onToggleScroll,
+	onLeftClick,
+	onRightClick,
+	onKeyboardToggle,
+	onModifierToggle,
+	onPaste,
+	onCopy,
 }) => {
     const handleInteraction = (e: React.PointerEvent, action: () => void, label: string) => {
         e.preventDefault();

@@ -34,6 +34,8 @@ function TrackpadPage() {
     });
 
     const { status, send, sendCombo } = useRemoteConnection();
+
+    // Pass sensitivity and invertScroll to the gesture hook
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
 
     const focusInput = () => {
@@ -183,8 +185,8 @@ function TrackpadPage() {
                 onRightClick={() => handleClick('right')}
                 onKeyboardToggle={focusInput}
                 onModifierToggle={handleModifierState}
-                onCopy={handleCopy}
                 onPaste={handlePaste}
+                onCopy={handleCopy}
             />
 
             <ExtraKeys
@@ -208,6 +210,7 @@ function TrackpadPage() {
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
+                autoFocus
                 autoFocus
             />
         </div>
