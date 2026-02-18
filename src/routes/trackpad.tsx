@@ -19,21 +19,21 @@ function TrackpadPage() {
     const bufferText = buffer.join(" + ");
     const hiddenInputRef = useRef<HTMLInputElement>(null);
     const isComposingRef = useRef(false);
-    
+
     // Load Client Settings
     const [sensitivity] = useState(() => {
         if (typeof window === 'undefined') return 1.0;
         const s = localStorage.getItem('rein_sensitivity');
         return s ? parseFloat(s) : 1.0;
     });
-    
+
     const [invertScroll] = useState(() => {
         if (typeof window === 'undefined') return false;
         const s = localStorage.getItem('rein_invert');
         return s ? JSON.parse(s) : false;
     });
 
-    const { status, send, sendCombo } = useRemoteConnection();
+    const { status, send, sendCombo, clipboardText, sendClipboard } = useRemoteConnection();
     // Pass sensitivity and invertScroll to the gesture hook
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
 
@@ -49,7 +49,7 @@ function TrackpadPage() {
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         const key = e.key.toLowerCase();
-        
+
         if (modifier !== "Release") {
             if (key === 'backspace') {
                 e.preventDefault();
@@ -76,7 +76,7 @@ function TrackpadPage() {
     };
 
     const handleModifierState = () => {
-        switch(modifier){
+        switch (modifier) {
             case "Active":
                 if (buffer.length > 0) {
                     setModifier("Hold");
@@ -97,7 +97,7 @@ function TrackpadPage() {
 
     const handleModifier = (key: string) => {
         console.log(`handleModifier called with key: ${key}, current modifier: ${modifier}, buffer:`, buffer);
-        
+
         if (modifier === "Hold") {
             const comboKeys = [...buffer, key];
             console.log(`Sending combo:`, comboKeys);
@@ -139,7 +139,7 @@ function TrackpadPage() {
             // Don't send text during modifier mode
             if (modifier !== "Release") {
                 handleModifier(val);
-            }else{
+            } else {
                 sendText(val);
             }
             (e.target as HTMLInputElement).value = '';
@@ -177,6 +177,15 @@ function TrackpadPage() {
                 onRightClick={() => handleClick('right')}
                 onKeyboardToggle={focusInput}
                 onModifierToggle={handleModifierState}
+                onCopy={() => sendClipboard('copy')}
+                onPaste={async () => {
+                    let text = clipboardText;
+                    try {
+                        const deviceText = await navigator.clipboard.readText();
+                        if (deviceText) text = deviceText;
+                    } catch { /* fallback to server-origin cache */ }
+                    sendClipboard('paste', text);
+                }}
             />
 
             {/* Extra Keys */}

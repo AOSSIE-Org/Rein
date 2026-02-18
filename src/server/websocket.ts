@@ -7,6 +7,8 @@ import { IncomingMessage } from 'http';
 import { Socket } from 'net';
 import logger from '../utils/logger';
 
+const MAX_CLIPBOARD_LENGTH = 1_000_000;
+
 function getLocalIp(): string {
     const nets = os.networkInterfaces();
     for (const name of Object.keys(nets)) {
@@ -162,14 +164,21 @@ export function createWsServer(server: any) {
                     return;
                 }
 
-                await inputHandler.handleMessage(msg as InputMessage);
+                if (msg.type === 'clipboard') {
+                    if (msg.action !== 'copy' && msg.action !== 'paste') return;
+                    if (msg.action === 'paste' && typeof msg.text === 'string' && msg.text.length > MAX_CLIPBOARD_LENGTH) return;
+                }
 
+                const result = await inputHandler.handleMessage(msg as InputMessage);
+                if (typeof result === 'string') {
+                    ws.send(JSON.stringify({ type: 'clipboard-content', text: result }));
+                }
             } catch (err: any) {
                 logger.error(`Error processing message: ${err?.message || err}`);
             }
         });
 
-        ws.on('close', () => {  
+        ws.on('close', () => {
             logger.info('Client disconnected');
         });
 

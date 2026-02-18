@@ -10,6 +10,8 @@ interface ControlBarProps {
 	onRightClick: () => void;
 	onKeyboardToggle: () => void;
 	onModifierToggle: () => void;
+	onCopy: () => void;
+	onPaste: () => void | Promise<void>;
 }
 
 export const ControlBar: React.FC<ControlBarProps> = ({
@@ -21,6 +23,8 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 	onRightClick,
 	onKeyboardToggle,
 	onModifierToggle,
+	onCopy,
+	onPaste,
 }) => {
 	const handleInteraction = (e: React.PointerEvent, action: () => void) => {
 		e.preventDefault();
@@ -55,42 +59,42 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 	return (
 		<div className="bg-base-200 p-2 grid grid-cols-5 gap-2 shrink-0">
 			<button
+				type="button"
 				className={`btn btn-sm ${scrollMode ? "btn-primary" : "btn-outline"}`}
 				onPointerDown={(e) => handleInteraction(e, onToggleScroll)}
 			>
 				{scrollMode ? "Scroll" : "Cursor"}
 			</button>
 			<button
+				type="button"
 				className="btn btn-sm btn-outline"
+				onPointerDown={(e) => handleInteraction(e, onCopy)}
 			>
 				Copy
 			</button>
 			<button
+				type="button"
 				className="btn btn-sm btn-outline"
+				onPointerDown={(e) => handleInteraction(e, onPaste)}
 			>
 				Paste
 			</button>
-			{/* 
 			<button
-				className="btn btn-sm btn-outline"
-				onPointerDown={(e) => handleInteraction(e, onLeftClick)}
-			>
-				L-Click
-			</button>
-			*/}
-			<button
+				type="button"
 				className="btn btn-sm btn-outline"
 				onPointerDown={(e) => handleInteraction(e, onRightClick)}
 			>
 				R-Click
 			</button>
 			<button
+				type="button"
 				className={`btn btn-sm ${getModifierButtonClass()}`}
 				onPointerDown={(e) => handleInteraction(e, onModifierToggle)}
 			>
 				{getModifierLabel()}
 			</button>
 			<button
+				type="button"
 				className="btn btn-sm btn-secondary"
 				onPointerDown={(e) => handleInteraction(e, onKeyboardToggle)}
 			>

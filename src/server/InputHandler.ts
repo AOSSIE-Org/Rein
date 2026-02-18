@@ -1,8 +1,8 @@
-import { mouse, Point, Button, keyboard, Key } from '@nut-tree-fork/nut-js';
+import { mouse, Point, Button, keyboard, Key, clipboard } from '@nut-tree-fork/nut-js';
 import { KEY_MAP } from './KeyMap';
 
 export interface InputMessage {
-    type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo';
+    type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo' | 'clipboard';
     dx?: number;
     dy?: number;
     button?: 'left' | 'right' | 'middle';
@@ -11,6 +11,7 @@ export interface InputMessage {
     keys?: string[];
     text?: string;
     delta?: number;
+    action?: 'copy' | 'paste';
 }
 
 export class InputHandler {
@@ -25,7 +26,7 @@ export class InputHandler {
         mouse.config.mouseSpeed = 1000;
     }
 
-    async handleMessage(msg: InputMessage) {
+    async handleMessage(msg: InputMessage): Promise<string | void> {
         // Validation: Text length sanitation
         if (msg.text && msg.text.length > 500) {
             msg.text = msg.text.substring(0, 500);
@@ -52,8 +53,8 @@ export class InputHandler {
                             const pending = this.pendingMove;
                             this.pendingMove = null;
                             this.handleMessage(pending).catch((err) => {
-                                 console.error('Error processing pending move event:', err);
-                             });
+                                console.error('Error processing pending move event:', err);
+                            });
                         }
                     }, 8);
                 }
@@ -71,8 +72,8 @@ export class InputHandler {
                             const pending = this.pendingScroll;
                             this.pendingScroll = null;
                             this.handleMessage(pending).catch((err) => {
-                                 console.error('Error processing pending move event:', err);
-                             });
+                                console.error('Error processing pending move event:', err);
+                            });
                         }
                     }, 8);
                 }
@@ -104,8 +105,8 @@ export class InputHandler {
                         msg.button === 'left'
                             ? Button.LEFT
                             : msg.button === 'right'
-                            ? Button.RIGHT
-                            : Button.MIDDLE;
+                                ? Button.RIGHT
+                                : Button.MIDDLE;
 
                     if (msg.press) {
                         await mouse.pressButton(btn);
@@ -235,6 +236,35 @@ export class InputHandler {
                     console.log(`Combo complete: ${msg.keys.join('+')}`);
                 }
                 break;
+
+            case 'clipboard': {
+                const modifier = process.platform === 'darwin' ? Key.LeftSuper : Key.LeftControl;
+                if (msg.action === 'copy') {
+                    const before = await clipboard.getContent();
+                    try {
+                        await keyboard.pressKey(modifier, Key.C);
+                    } finally {
+                        await keyboard.releaseKey(modifier, Key.C);
+                    }
+                    // poll until clipboard changes or ~500ms elapses
+                    for (let i = 0; i < 10; i++) {
+                        await new Promise(r => setTimeout(r, 50));
+                        const content = await clipboard.getContent();
+                        if (content !== before) return content;
+                    }
+                    return before;
+                } else if (msg.action === 'paste') {
+                    if (msg.text) {
+                        await clipboard.setContent(msg.text);
+                    }
+                    try {
+                        await keyboard.pressKey(modifier, Key.V);
+                    } finally {
+                        await keyboard.releaseKey(modifier, Key.V);
+                    }
+                }
+                break;
+            }
 
             case 'text':
                 if (msg.text) {

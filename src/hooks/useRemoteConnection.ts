@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 export const useRemoteConnection = () => {
     const wsRef = useRef<WebSocket | null>(null);
     const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
+    const [clipboardText, setClipboardText] = useState('');
 
     useEffect(() => {
         let isMounted = true;
@@ -56,6 +57,15 @@ export const useRemoteConnection = () => {
             };
 
             wsRef.current = socket;
+
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (isMounted && data.type === 'clipboard-content' && typeof data.text === 'string') {
+                        setClipboardText(data.text);
+                    }
+                } catch { /* ignore non-JSON or irrelevant messages */ }
+            };
         };
 
         // Defer to next tick so React Strict Mode's immediate unmount
@@ -71,6 +81,7 @@ export const useRemoteConnection = () => {
                 wsRef.current.onopen = null;
                 wsRef.current.onclose = null;
                 wsRef.current.onerror = null;
+                wsRef.current.onmessage = null;
                 wsRef.current.close();
                 wsRef.current = null;
             }
@@ -83,7 +94,7 @@ export const useRemoteConnection = () => {
         }
     }, []);
 
-    const sendCombo = useCallback((msg: string[]) => {
+    const sendCombo = useCallback((msg: readonly string[]) => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify({
                 type: "combo",
@@ -92,5 +103,15 @@ export const useRemoteConnection = () => {
         }
     }, []);
 
-    return { status, send, sendCombo };
+    const sendClipboard = useCallback((action: 'copy' | 'paste', text?: string) => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
+                type: 'clipboard',
+                action,
+                ...(text !== undefined && { text }),
+            }));
+        }
+    }, []);
+
+    return { status, send, sendCombo, clipboardText, sendClipboard };
 };
