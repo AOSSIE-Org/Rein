@@ -219,7 +219,7 @@ function SettingsPage() {
 
                         <button
                             type="button"
-                            className="btn btn-neutral w-full"
+                            className="btn btn-primary w-full"
                             onClick={() => {
                                 const port = parseInt(frontendPort, 10);
                                 if (!Number.isFinite(port) || port < 1 || port > 65535) {
