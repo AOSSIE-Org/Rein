@@ -18,6 +18,7 @@
     "@tanstack/react-router-ssr-query": "^1.131.7",
     "@tanstack/react-start": "^1.132.0",
     "@tanstack/router-plugin": "^1.132.0",
+    "clipboardy": "^5.3.0",
     "lucide-react": "^0.561.0",
     "nitro": "npm:nitro-nightly@latest",
     "qrcode": "^1.5.4",

@@ -1,5 +1,24 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
+const fallbackWriteClipboard = (text: string): boolean => {
+    try {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.setAttribute('readonly', '');
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        textArea.style.pointerEvents = 'none';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const copied = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        return copied;
+    } catch {
+        return false;
+    }
+};
+
 export const useRemoteConnection = () => {
     const wsRef = useRef<WebSocket | null>(null);
     const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
@@ -63,6 +82,13 @@ export const useRemoteConnection = () => {
                     const data = JSON.parse(event.data);
                     if (isMounted && data.type === 'clipboard-content' && typeof data.text === 'string') {
                         setClipboardText(data.text);
+                        if (navigator.clipboard?.writeText) {
+                            navigator.clipboard.writeText(data.text).catch(() => {
+                                fallbackWriteClipboard(data.text);
+                            });
+                        } else {
+                            fallbackWriteClipboard(data.text);
+                        }
                     }
                 } catch { /* ignore non-JSON or irrelevant messages */ }
             };

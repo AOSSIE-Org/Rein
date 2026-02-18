@@ -1,4 +1,5 @@
-import { mouse, Point, Button, keyboard, Key, clipboard } from '@nut-tree-fork/nut-js';
+import clipboardy from 'clipboardy';
+import { mouse, Point, Button, keyboard, Key } from '@nut-tree-fork/nut-js';
 import { KEY_MAP } from './KeyMap';
 
 export interface InputMessage {
@@ -21,6 +22,32 @@ export class InputHandler {
     private pendingScroll: InputMessage | null = null;
     private moveTimer: ReturnType<typeof setTimeout> | null = null;
     private scrollTimer: ReturnType<typeof setTimeout> | null = null;
+
+    private async readClipboardText(): Promise<string> {
+        try {
+            return await clipboardy.read();
+        } catch (error) {
+            console.error('Unable to read clipboard text:', error);
+            return '';
+        }
+    }
+
+    private async writeClipboardText(text: string): Promise<void> {
+        try {
+            await clipboardy.write(text);
+        } catch (error) {
+            console.error('Unable to write clipboard text:', error);
+        }
+    }
+
+    private async triggerCopyShortcut(): Promise<void> {
+        const modifier = process.platform === 'darwin' ? Key.LeftSuper : Key.LeftControl;
+        try {
+            await keyboard.pressKey(modifier, Key.C);
+        } finally {
+            await keyboard.releaseKey(modifier, Key.C);
+        }
+    }
 
     constructor() {
         mouse.config.mouseSpeed = 1000;
@@ -239,14 +266,29 @@ export class InputHandler {
 
             case 'clipboard': {
                 if (msg.action === 'copy') {
-                    return clipboard.getContent();
+                    const before = await this.readClipboardText();
+                    try {
+                        await this.triggerCopyShortcut();
+                    } catch (error) {
+                        console.error('Unable to trigger system copy shortcut:', error);
+                    }
+
+                    for (let i = 0; i < 10; i++) {
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                        const current = await this.readClipboardText();
+                        if (current !== before) {
+                            return current;
+                        }
+                    }
+
+                    return before;
                 } else if (msg.action === 'paste') {
-                    const textToPaste = typeof msg.text === 'string' ? msg.text : await clipboard.getContent();
+                    const textToPaste = typeof msg.text === 'string' ? msg.text : await this.readClipboardText();
                     if (!textToPaste) {
                         return;
                     }
 
-                    await clipboard.setContent(textToPaste);
+                    await this.writeClipboardText(textToPaste);
                     await keyboard.type(textToPaste);
                 }
                 break;
