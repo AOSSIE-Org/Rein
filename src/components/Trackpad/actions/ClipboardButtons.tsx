@@ -9,6 +9,7 @@ export const ClipboardButtons: React.FC<ClipboardButtonsProps> = ({
     onCopy,
     onPaste,
 }) => {
+    // Guard to prevent double-firing on browsers that trigger both Down and Up
     const firedRef = useRef(false);
 
     const handlePointerDown = (e: React.PointerEvent, action: () => void, label: string) => {
@@ -16,12 +17,13 @@ export const ClipboardButtons: React.FC<ClipboardButtonsProps> = ({
         e.stopPropagation();
         console.log(`[UI] ${label} Button - PointerDown triggered`);
         firedRef.current = true;
-        action();
+        action(); // Primary trigger for immediate response
     };
 
     const handlePointerUp = (e: React.PointerEvent, action: () => void, label: string) => {
         e.preventDefault();
         e.stopPropagation();
+        // Fallback for iOS Safari where PointerDown might be swallowed
         if (!firedRef.current) {
             console.log(`[UI] ${label} Button - PointerUp fallback triggered`);
             action();

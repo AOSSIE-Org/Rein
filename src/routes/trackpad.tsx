@@ -33,8 +33,9 @@ function TrackpadPage() {
         return s ? JSON.parse(s) : false;
     });
 
-    const { status, send, sendCombo } = useRemoteConnection();
-
+    // Added requestCopy and requestPaste
+    const { status, send, sendCombo, requestCopy, requestPaste } = useRemoteConnection();
+    
     // Pass sensitivity and invertScroll to the gesture hook
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
 
@@ -44,18 +45,8 @@ function TrackpadPage() {
 
     const handleClick = (button: 'left' | 'right') => {
         send({ type: 'click', button, press: true });
+        // Release after short delay to simulate click
         setTimeout(() => send({ type: 'click', button, press: false }), 50);
-    };
-
-    // Clipboard handlers — now using the native clipboard pipeline
-    const handleCopy = () => {
-        console.log('[Client] Requesting native Copy');
-        send({ type: 'clipboard', clipboardAction: 'copy' });
-    };
-
-    const handlePaste = () => {
-        console.log('[Client] Requesting native Paste');
-        send({ type: 'clipboard', clipboardAction: 'paste' });
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -107,11 +98,8 @@ function TrackpadPage() {
     };
 
     const handleModifier = (key: string) => {
-        console.log(`handleModifier called with key: ${key}, current modifier: ${modifier}, buffer:`, buffer);
-        
         if (modifier === "Hold") {
             const comboKeys = [...buffer, key];
-            console.log(`Sending combo:`, comboKeys);
             sendCombo(comboKeys);
             return;
         } else if (modifier === "Active") {
@@ -147,9 +135,10 @@ function TrackpadPage() {
         isComposingRef.current = false;
         const val = (e.target as HTMLInputElement).value;
         if (val) {
+            // Don't send text during modifier mode
             if (modifier !== "Release") {
                 handleModifier(val);
-            } else {
+            }else{
                 sendText(val);
             }
             (e.target as HTMLInputElement).value = '';
@@ -168,6 +157,7 @@ function TrackpadPage() {
             className="flex flex-col h-full overflow-hidden"
             onClick={handleContainerClick}
         >
+            {/* Touch Surface */}
             <TouchArea
                 isTracking={isTracking}
                 scrollMode={scrollMode}
@@ -176,6 +166,7 @@ function TrackpadPage() {
             />
             {bufferText !== "" && <BufferBar bufferText={bufferText} />}
 
+            {/* Controls */}
             <ControlBar
                 scrollMode={scrollMode}
                 modifier={modifier}
@@ -185,10 +176,11 @@ function TrackpadPage() {
                 onRightClick={() => handleClick('right')}
                 onKeyboardToggle={focusInput}
                 onModifierToggle={handleModifierState}
-                onPaste={handlePaste}
-                onCopy={handleCopy}
+                onCopy={requestCopy} // Added
+                onPaste={requestPaste} // Added
             />
 
+            {/* Extra Keys */}
             <ExtraKeys
                 sendKey={(k) => {
                     if (modifier !== "Release") handleModifier(k);
@@ -197,6 +189,7 @@ function TrackpadPage() {
                 onInputFocus={focusInput}
             />
 
+            {/* Hidden Input for Mobile Keyboard */}
             <input
                 ref={hiddenInputRef}
                 className="opacity-0 absolute bottom-0 pointer-events-none h-0 w-0"
@@ -210,7 +203,7 @@ function TrackpadPage() {
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
-                autoFocus
+                autoFocus // Attempt autofocus on mount
             />
         </div>
     )
