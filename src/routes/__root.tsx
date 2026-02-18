@@ -43,6 +43,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, interactive-widget=resizes-content" />
         <title>Rein Remote</title>
+        <link rel="icon" type="image/svg+xml" href="/app_icon/Icon.svg" />
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="bg-base-200 text-base-content overflow-hidden overscroll-none">
@@ -63,7 +64,10 @@ function Navbar() {
   return (
     <div className="navbar bg-base-100 border-b border-base-300 min-h-12 h-12 z-50 px-4">
       <div className="flex-1">
-        <Link to="/trackpad" className="btn btn-ghost text-xl normal-case">Rein</Link>
+        <Link to="/trackpad" className="btn btn-ghost text-xl normal-case">
+          <img src="/app_icon/IconLine.png" height={32} width={32}/>
+          Rein
+        </Link>
       </div>
       <div className="flex-none flex gap-2">
         <Link
