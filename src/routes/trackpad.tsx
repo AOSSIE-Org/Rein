@@ -211,7 +211,6 @@ function TrackpadPage() {
                 autoCorrect="off"
                 autoCapitalize="off"
                 autoFocus
-                autoFocus
             />
         </div>
     )
