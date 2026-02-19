@@ -7,6 +7,8 @@ interface TouchAreaProps {
         onTouchStart: (e: React.TouchEvent) => void;
         onTouchMove: (e: React.TouchEvent) => void;
         onTouchEnd: (e: React.TouchEvent) => void;
+        onTouchCancel={handlers.onTouchCancel}
+
     };
     status: 'connecting' | 'connected' | 'disconnected';
 }

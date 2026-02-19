@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { TOUCH_MOVE_THRESHOLD, TOUCH_TIMEOUT, PINCH_THRESHOLD, calculateAccelerationMult } from '../utils/math';
 
 interface TrackedTouch {
@@ -31,12 +31,49 @@ export const useTrackpadGesture = (
     const startTimeStamp = useRef(0);
     const releasedCount = useRef(0);
     const dragging = useRef(false);
-    const draggingTimeout = useRef<NodeJS.Timeout | null>(null);
+    const draggingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastPinchDist = useRef<number | null>(null);
     const pinching = useRef(false);
 
     // Helpers
     const findTouchIndex = (id: number) => ongoingTouches.current.findIndex(t => t.identifier === id);
+
+    const resetGestureState = () => {
+        ongoingTouches.current = [];
+        moved.current = false;
+        releasedCount.current = 0;
+        startTimeStamp.current = 0;
+
+        lastPinchDist.current = null;
+        pinching.current = false;
+
+        if (draggingTimeout.current) {
+            clearTimeout(draggingTimeout.current);
+            draggingTimeout.current = null;
+        }
+
+        if (dragging.current) {
+            dragging.current = false;
+            send({ type: 'click', button: 'left', press: false });
+        }
+
+        setIsTracking(false);
+    };
+
+    useEffect(() => {
+        const onBlur = () => resetGestureState();
+        const onVisibility = () => {
+            if (document.visibilityState !== 'visible') resetGestureState();
+        };
+
+        window.addEventListener('blur', onBlur);
+        document.addEventListener('visibilitychange', onVisibility);
+
+        return () => {
+            window.removeEventListener('blur', onBlur);
+            document.removeEventListener('visibilitychange', onVisibility);
+        };
+    }, []);
 
     const processMovement = (sumX: number, sumY: number) => {
         if (dragging.current) {
@@ -246,12 +283,17 @@ export const useTrackpadGesture = (
         }
     };
 
+    const handleTouchCancel = (_e: React.TouchEvent) => {
+        resetGestureState();
+    };
+
     return {
         isTracking,
         handlers: {
             onTouchStart: handleTouchStart,
             onTouchMove: handleTouchMove,
-            onTouchEnd: handleTouchEnd
+            onTouchEnd: handleTouchEnd,
+            onTouchCancel: handleTouchCancel,
         }
     };
 };
