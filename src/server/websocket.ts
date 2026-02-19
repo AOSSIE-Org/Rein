@@ -7,6 +7,8 @@ import { IncomingMessage } from 'http';
 import { Socket } from 'net';
 import logger from '../utils/logger';
 
+const MAX_CLIPBOARD_LENGTH = 1_000_000;
+
 function getLocalIp(): string {
     const nets = os.networkInterfaces();
     for (const name of Object.keys(nets)) {
@@ -60,7 +62,6 @@ export function createWsServer(server: any) {
             return;
         }
 
-
         // Validate against known tokens
         if (!isKnownToken(token)) {
             logger.warn('Unauthorized connection attempt: Invalid token');
@@ -103,8 +104,6 @@ export function createWsServer(server: any) {
 
                 lastRaw = raw;
                 lastTime = now;
-
-                logger.info(`Received message (${raw.length} bytes)`);
 
                 if (raw.length > MAX_PAYLOAD_SIZE) {
                     logger.warn('Payload too large, rejecting message.');
@@ -162,7 +161,23 @@ export function createWsServer(server: any) {
                     return;
                 }
 
-                await inputHandler.handleMessage(msg as InputMessage);
+                // --- CLIPBOARD SECURITY & SYNC LOGIC ---
+                if (msg.type === 'clipboard') {
+                    if (msg.clipboardAction !== 'copy' && msg.clipboardAction !== 'paste') return;
+                    if (msg.clipboardAction === 'paste' && typeof msg.text === 'string' && msg.text.length > MAX_CLIPBOARD_LENGTH) {
+                        logger.warn('Paste payload exceeds maximum clipboard length.');
+                        return;
+                    }
+                }
+
+                // Execute the command exactly once
+                const result = await inputHandler.handleMessage(msg as InputMessage);
+
+                // If the command was a Copy, result will be a string. Sync it to the phone.
+                if (typeof result === 'string') {
+                    logger.info(`[Clipboard] Syncing captured text (Length: ${result.length})`);
+                    ws.send(JSON.stringify({ type: 'clipboard-content', text: result }));
+                }
 
             } catch (err: any) {
                 logger.error(`Error processing message: ${err?.message || err}`);
@@ -174,7 +189,6 @@ export function createWsServer(server: any) {
         });
 
         ws.on('error', (error: Error) => {
-            console.error('WebSocket error:', error);
             logger.error(`WebSocket error: ${error.message}`);
         });
     });

@@ -4,7 +4,7 @@ export const useRemoteConnection = () => {
     const wsRef = useRef<WebSocket | null>(null);
     const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
     
-    // Clipboard Memory Reference
+    // This holds the text synced from your PC
     const clipboardRef = useRef<string>('');
 
     useEffect(() => {
@@ -12,34 +12,29 @@ export const useRemoteConnection = () => {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.host;
 
-        // Get token from URL params (passed via QR code) or localStorage
         const urlParams = new URLSearchParams(window.location.search);
         const urlToken = urlParams.get('token');
         const storedToken = localStorage.getItem('rein_auth_token');
         const token = urlToken || storedToken;
 
-        // Persist URL token to localStorage for future reconnections
         if (urlToken && urlToken !== storedToken) {
             localStorage.setItem('rein_auth_token', urlToken);
         }
 
         let wsUrl = `${protocol}//${host}/ws`;
-        if (token) {
-            wsUrl += `?token=${encodeURIComponent(token)}`;
-        }
+        if (token) wsUrl += `?token=${encodeURIComponent(token)}`;
 
         let reconnectTimer: NodeJS.Timeout;
 
         const connect = () => {
             if (!isMounted) return;
 
-            // Close any existing socket before creating a new one
             if (wsRef.current) {
                 wsRef.current.onopen = null;
                 wsRef.current.onclose = null;
                 wsRef.current.onerror = null;
+                wsRef.current.onmessage = null;
                 wsRef.current.close();
-                wsRef.current = null;
             }
 
             setStatus('connecting');
@@ -48,15 +43,27 @@ export const useRemoteConnection = () => {
             socket.onopen = () => {
                 if (isMounted) setStatus('connected');
             };
+
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    // Sync PC clipboard to phone memory
+                    if (data.type === 'clipboard-content') {
+                        console.log('[Client] Clipboard synced from PC:', data.text);
+                        clipboardRef.current = data.text;
+                    }
+                } catch (e) {
+                    console.error('[Client] Error parsing WS message:', e);
+                }
+            };
+
             socket.onclose = () => {
                 if (isMounted) {
                     setStatus('disconnected');
                     reconnectTimer = setTimeout(connect, 3000);
                 }
             };
-            socket.onerror = () => {
-                socket.close();
-            };
+            socket.onerror = () => socket.close();
 
             wsRef.current = socket;
         };
@@ -71,8 +78,8 @@ export const useRemoteConnection = () => {
                 wsRef.current.onopen = null;
                 wsRef.current.onclose = null;
                 wsRef.current.onerror = null;
+                wsRef.current.onmessage = null;
                 wsRef.current.close();
-                wsRef.current = null;
             }
         };
     }, []);
@@ -84,15 +91,9 @@ export const useRemoteConnection = () => {
     }, []);
 
     const sendCombo = useCallback((msg: string[]) => {
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify({
-                type: "combo",
-                keys: msg,
-            }));
-        }
-    }, []);
+        send({ type: "combo", keys: msg });
+    }, [send]);
 
-    // RESTORED NATIVE ACTIONS
     const requestCopy = useCallback(() => {
         console.log('[Client] Requesting native Copy');
         send({ type: 'clipboard', clipboardAction: 'copy' });
@@ -100,7 +101,12 @@ export const useRemoteConnection = () => {
 
     const requestPaste = useCallback(() => {
         console.log('[Client] Requesting native Paste');
-        send({ type: 'clipboard', clipboardAction: 'paste' });
+        // Send actual text string for terminal-safe typing
+        send({ 
+            type: 'clipboard', 
+            clipboardAction: 'paste', 
+            text: clipboardRef.current 
+        });
     }, [send]);
 
     return { status, send, sendCombo, requestCopy, requestPaste };
