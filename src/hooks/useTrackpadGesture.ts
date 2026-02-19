@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { TOUCH_MOVE_THRESHOLD, TOUCH_TIMEOUT, PINCH_THRESHOLD, calculateAccelerationMult } from '../utils/math';
+import type { RemoteMessage } from '@/types';
 
 interface TrackedTouch {
     identifier: number;
@@ -17,7 +18,7 @@ const getTouchDistance = (a: TrackedTouch, b: TrackedTouch): number => {
 };
 
 export const useTrackpadGesture = (
-    send: (msg: any) => void,
+    send: (msg: RemoteMessage) => void,
     scrollMode: boolean,
     sensitivity: number = 1.5,
     invertScroll: boolean = false,

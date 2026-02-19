@@ -69,7 +69,7 @@ function Navbar() {
           Rein
         </Link>
       </div>
-      <div className="flex-none flex gap-2">
+      <div className="flex-none flex gap-2 items-center">
         <Link
           to="/trackpad"
           className="btn btn-ghost btn-sm"
@@ -84,6 +84,7 @@ function Navbar() {
         >
           Settings
         </Link>
+        <div id="ping-indicator" className="flex items-center" />
       </div>
     </div>
   );

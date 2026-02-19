@@ -114,12 +114,17 @@ export function createWsServer(server: any) {
                 const msg = JSON.parse(raw);
 
                 // PERFORMANCE: Only touch if it's an actual command (not ping/ip)
-                if (token && msg.type !== 'get-ip' && msg.type !== 'generate-token') {
+                if (token && msg.type !== 'get-ip' && msg.type !== 'ping' && msg.type !== 'generate-token') {
                     touchToken(token);
                 }
 
                 if (msg.type === 'get-ip') {
                     ws.send(JSON.stringify({ type: 'server-ip', ip: LAN_IP }));
+                    return;
+                }
+
+                if (msg.type === 'ping') {
+                    ws.send(JSON.stringify({ type: 'pong', timestamp: msg.timestamp }));
                     return;
                 }
 
@@ -169,7 +174,7 @@ export function createWsServer(server: any) {
             }
         });
 
-        ws.on('close', () => {  
+        ws.on('close', () => {
             logger.info('Client disconnected');
         });
 
