@@ -32,7 +32,9 @@ function TrackpadPage() {
         return s ? JSON.parse(s) : false;
     });
 
-    const { status, send, sendCombo } = useRemoteConnection();
+    // Integrated requestCopy and requestPaste
+    const { status, send, sendCombo, requestCopy, requestPaste } = useRemoteConnection();
+    
     // Pass sensitivity and invertScroll to the gesture hook
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
 
@@ -158,6 +160,8 @@ function TrackpadPage() {
                 onRightClick={() => handleClick('right')}
                 onKeyboardToggle={focusInput}
                 onModifierToggle={handleModifierState}
+                onCopy={requestCopy} // Correctly linked logic
+                onPaste={requestPaste} // Correctly linked logic
             />
 
             {/* Extra Keys */}
