@@ -6,8 +6,9 @@ interface ControlBarProps {
 	modifier: ModifierState;
 	buffer: string;
 	onToggleScroll: () => void;
-	onLeftClick: () => void;
 	onRightClick: () => void;
+	isMirroring: boolean;
+	onToggleMirror: () => void;
 	onKeyboardToggle: () => void;
 	onModifierToggle: () => void;
 }
@@ -17,8 +18,9 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 	modifier,
 	buffer,
 	onToggleScroll,
-	onLeftClick,
 	onRightClick,
+	isMirroring,
+	onToggleMirror,
 	onKeyboardToggle,
 	onModifierToggle,
 }) => {
@@ -61,9 +63,10 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 				{scrollMode ? "Scroll" : "Cursor"}
 			</button>
 			<button
-				className="btn btn-sm btn-outline"
+				className={`btn btn-sm ${isMirroring ? "btn-accent" : "btn-outline"}`}
+				onPointerDown={(e) => handleInteraction(e, onToggleMirror)}
 			>
-				Copy
+				Mirror
 			</button>
 			<button
 				className="btn btn-sm btn-outline"

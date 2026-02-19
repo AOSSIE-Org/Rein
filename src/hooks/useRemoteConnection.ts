@@ -3,6 +3,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 export const useRemoteConnection = () => {
     const wsRef = useRef<WebSocket | null>(null);
     const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
+    const [lastMessage, setLastMessage] = useState<any>(null);
+    const listenersRef = useRef<Set<(msg: any) => void>>(new Set());
 
     useEffect(() => {
         let isMounted = true;
@@ -35,12 +37,14 @@ export const useRemoteConnection = () => {
                 wsRef.current.onopen = null;
                 wsRef.current.onclose = null;
                 wsRef.current.onerror = null;
+                wsRef.current.onmessage = null;
                 wsRef.current.close();
                 wsRef.current = null;
             }
 
             setStatus('connecting');
             const socket = new WebSocket(wsUrl);
+            socket.binaryType = 'arraybuffer';
 
             socket.onopen = () => {
                 if (isMounted) setStatus('connected');
@@ -54,12 +58,28 @@ export const useRemoteConnection = () => {
             socket.onerror = () => {
                 socket.close();
             };
+            socket.onmessage = (event) => {
+                try {
+                    if (event.data instanceof ArrayBuffer) {
+                        if (isMounted) {
+                            listenersRef.current.forEach(l => l({ type: 'mirror-frame-bin', data: event.data }));
+                        }
+                        return;
+                    }
+
+                    const data = JSON.parse(event.data);
+                    if (isMounted) {
+                        setLastMessage(data);
+                        listenersRef.current.forEach(l => l(data));
+                    }
+                } catch {
+                    // Non-JSON frames (e.g. binary) handled above; ignore parse failures
+                }
+            };
 
             wsRef.current = socket;
         };
 
-        // Defer to next tick so React Strict Mode's immediate unmount
-        // sets isMounted=false before any socket is created
         const initialTimer = setTimeout(connect, 0);
 
         return () => {
@@ -67,10 +87,10 @@ export const useRemoteConnection = () => {
             clearTimeout(initialTimer);
             clearTimeout(reconnectTimer);
             if (wsRef.current) {
-                // Nullify handlers to prevent cascading error/close events
                 wsRef.current.onopen = null;
                 wsRef.current.onclose = null;
                 wsRef.current.onerror = null;
+                wsRef.current.onmessage = null;
                 wsRef.current.close();
                 wsRef.current = null;
             }
@@ -92,5 +112,10 @@ export const useRemoteConnection = () => {
         }
     }, []);
 
-    return { status, send, sendCombo };
+    const addListener = useCallback((l: (msg: any) => void) => {
+        listenersRef.current.add(l);
+        return () => listenersRef.current.delete(l);
+    }, []);
+
+    return { status, send, sendCombo, lastMessage, addListener };
 };
