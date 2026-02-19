@@ -19,7 +19,6 @@ function TrackpadPage() {
     const [buffer, setBuffer] = useState<string[]>([]);
     const bufferText = buffer.join(" + ");
     const hiddenInputRef = useRef<HTMLInputElement>(null);
-    const isComposingRef = useRef(false);
 
     // Load Client Settings
     const [sensitivity] = useState(() => {
@@ -128,23 +127,6 @@ function TrackpadPage() {
         }
     };
 
-    const handleCompositionStart = () => {
-        isComposingRef.current = true;
-    };
-
-    const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
-        isComposingRef.current = false;
-        const val = (e.target as HTMLInputElement).value;
-        if (val) {
-            // Don't send text during modifier mode
-            if (modifier !== "Release") {
-                handleModifier(val);
-            } else {
-                sendText(val);
-            }
-            (e.target as HTMLInputElement).value = '';
-        }
-    };
 
     const handleContainerClick = (e: React.MouseEvent) => {
         if (e.target === e.currentTarget) {
@@ -213,8 +195,6 @@ function TrackpadPage() {
                 className="opacity-0 absolute bottom-0 pointer-events-none h-0 w-0"
                 onKeyDown={handleKeyDown}
                 onChange={handleInput}
-                onCompositionStart={handleCompositionStart}
-                onCompositionEnd={handleCompositionEnd}
                 onBlur={() => {
                     setTimeout(() => hiddenInputRef.current?.focus(), 10);
                 }}
