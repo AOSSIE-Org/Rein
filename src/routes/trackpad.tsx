@@ -5,6 +5,7 @@ import { useTrackpadGesture } from '../hooks/useTrackpadGesture';
 import { ControlBar } from '../components/Trackpad/ControlBar';
 import { ExtraKeys } from '../components/Trackpad/ExtraKeys';
 import { TouchArea } from '../components/Trackpad/TouchArea';
+import { FloatingMirror } from '../components/Trackpad/FloatingMirror';
 import { BufferBar } from '@/components/Trackpad/Buffer';
 import { ModifierState } from '@/types';
 
@@ -16,6 +17,7 @@ function TrackpadPage() {
     const [scrollMode, setScrollMode] = useState(false);
     const [modifier, setModifier] = useState<ModifierState>("Release");
     const [buffer, setBuffer] = useState<string[]>([]);
+    const [isMirroring, setIsMirroring] = useState(false);
     const bufferText = buffer.join(" + ");
     const hiddenInputRef = useRef<HTMLInputElement>(null);
 
@@ -32,7 +34,7 @@ function TrackpadPage() {
         return s ? JSON.parse(s) : false;
     });
 
-    const { status, send, sendCombo } = useRemoteConnection();
+    const { status, send, sendCombo, addListener } = useRemoteConnection();
     // Pass sensitivity and invertScroll to the gesture hook
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
 
@@ -146,15 +148,25 @@ function TrackpadPage() {
                 handlers={handlers}
                 status={status}
             />
+
+            {/* Floating PiP Mirror — draggable & resizable */}
+            {isMirroring && (
+                <FloatingMirror
+                    addListener={addListener}
+                    send={send}
+                    onClose={() => setIsMirroring(false)}
+                />
+            )}
             {bufferText !== "" && <BufferBar bufferText={bufferText} />}
 
             {/* Controls */}
             <ControlBar
                 scrollMode={scrollMode}
+                isMirroring={isMirroring}
                 modifier={modifier}
                 buffer={buffer.join(" + ")}
                 onToggleScroll={() => setScrollMode(!scrollMode)}
-                onLeftClick={() => handleClick('left')}
+                onToggleMirror={() => setIsMirroring(m => !m)}
                 onRightClick={() => handleClick('right')}
                 onKeyboardToggle={focusInput}
                 onModifierToggle={handleModifierState}
