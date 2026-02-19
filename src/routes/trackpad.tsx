@@ -18,6 +18,7 @@ function TrackpadPage() {
     const [buffer, setBuffer] = useState<string[]>([]);
     const bufferText = buffer.join(" + ");
     const hiddenInputRef = useRef<HTMLInputElement>(null);
+    const [keyboardOpen, setKeyboardOpen] = useState(false);
 
     // Load Client Settings
     const [sensitivity] = useState(() => {
@@ -36,8 +37,13 @@ function TrackpadPage() {
     // Pass sensitivity and invertScroll to the gesture hook
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
 
-    const focusInput = () => {
-        hiddenInputRef.current?.focus();
+    const toggleKeyboard = () => {
+        if (keyboardOpen) {
+            hiddenInputRef.current?.blur();
+        } else {
+            hiddenInputRef.current?.focus();
+        }
+        setKeyboardOpen(!keyboardOpen);
     };
 
     const handleClick = (button: 'left' | 'right') => {
@@ -126,18 +132,9 @@ function TrackpadPage() {
         }
     };
 
-
-    const handleContainerClick = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) {
-            e.preventDefault();
-            focusInput();
-        }
-    };
-
     return (
         <div
             className="flex flex-col h-full overflow-hidden"
-            onClick={handleContainerClick}
         >
             {/* Touch Surface */}
             <TouchArea
@@ -156,7 +153,7 @@ function TrackpadPage() {
                 onToggleScroll={() => setScrollMode(!scrollMode)}
                 onLeftClick={() => handleClick('left')}
                 onRightClick={() => handleClick('right')}
-                onKeyboardToggle={focusInput}
+                onKeyboardToggle={toggleKeyboard}
                 onModifierToggle={handleModifierState}
             />
 
@@ -166,7 +163,7 @@ function TrackpadPage() {
                     if (modifier !== "Release") handleModifier(k);
                     else send({ type: 'key', key: k });
                 }}
-                onInputFocus={focusInput}
+                onInputFocus={() => hiddenInputRef.current?.focus()}
             />
 
             {/* Hidden Input for Mobile Keyboard */}
@@ -175,13 +172,10 @@ function TrackpadPage() {
                 className="opacity-0 absolute bottom-0 pointer-events-none h-0 w-0"
                 onKeyDown={handleKeyDown}
                 onChange={handleInput}
-                onBlur={() => {
-                    setTimeout(() => hiddenInputRef.current?.focus(), 10);
-                }}
+                onBlur={() => setKeyboardOpen(false)}
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
-                autoFocus // Attempt autofocus on mount
             />
         </div>
     )
