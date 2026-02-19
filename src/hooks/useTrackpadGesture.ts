@@ -50,6 +50,8 @@ export const useTrackpadGesture = (
         if (draggingTimeout.current) {
             clearTimeout(draggingTimeout.current);
             draggingTimeout.current = null;
+
+            send({ type: 'click', button: 'left', press: false });
         }
 
         if (dragging.current) {
