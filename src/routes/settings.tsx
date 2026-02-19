@@ -212,10 +212,11 @@ function SettingsPage() {
                         </div>
 
                         <div className="form-control w-full">
-                            <label className="label mb-3">
+                            <label className="label mb-3" htmlFor="theme-select">
                                 <span className="label-text">Theme</span>
                             </label>
                             <select
+                                id="theme-select"
                                 className="select select-bordered w-full rounded-md"
                                 value={theme}
                                 onChange={(e) => setTheme(e.target.value)}
@@ -230,10 +231,11 @@ function SettingsPage() {
                         <h2 className="text-xl font-semibold">Server Settings</h2>
 
                         <div className="form-control w-full">
-                            <label className="label mb-3">
+                            <label className="label mb-3" htmlFor="server-ip-input">
                                 <span className="label-text">Server IP (for Remote)</span>
                             </label>
                             <input
+                                id="server-ip-input"
                                 type="text"
                                 placeholder="192.168.1.X"
                                 className="input input-bordered w-full rounded-md"
@@ -246,10 +248,11 @@ function SettingsPage() {
                         </div>
 
                         <div className="form-control w-full">
-                            <label className="label mb-3">
+                            <label className="label mb-3" htmlFor="port-input">
                                 <span className="label-text">Port</span>
                             </label>
                             <input
+                                id="port-input"
                                 type="text"
                                 placeholder={String(CONFIG.FRONTEND_PORT)}
                                 className="input input-bordered w-full rounded-md"
