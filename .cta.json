@@ -1,0 +1,16 @@
+{
+  "projectName": "app",
+  "mode": "file-router",
+  "typescript": true,
+  "tailwind": false,
+  "packageManager": "npm",
+  "git": true,
+  "install": true,
+  "addOnOptions": {},
+  "version": 1,
+  "framework": "react-cra",
+  "chosenAddOns": [
+    "start",
+    "nitro"
+  ]
+}
