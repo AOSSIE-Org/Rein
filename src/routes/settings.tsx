@@ -45,16 +45,13 @@ function SettingsPage() {
 
     const [qrData, setQrData] = useState('');
 
-    // Load initial state (IP is not stored in localStorage; only sensitivity, invert, theme are client settings)
-    const [authToken, setAuthToken] = useState(() => {
-        if (typeof window === 'undefined') return '';
-        return localStorage.getItem('rein_auth_token') || '';
-    });
+    const [pin, setPin] = useState<string | null>(null);
+    const [pinError, setPinError] = useState<string | null>(null);
 
     // Derive URLs once at the top
     const appPort = String(frontendPort);
     const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
-    const shareUrl = ip ? `${protocol}//${ip}:${appPort}/trackpad${authToken ? `?token=${encodeURIComponent(authToken)}` : ''}` : '';
+    const shareUrl = ip ? `${protocol}//${ip}:${appPort}/trackpad` : '';
 
     useEffect(() => {
         const defaultIp = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
@@ -62,42 +59,40 @@ function SettingsPage() {
         setFrontendPort(String(CONFIG.FRONTEND_PORT));
     }, []);
 
-    // Auto-generate token on settings page load (localhost only)
+    // Fetch PIN from server when on localhost
     useEffect(() => {
         if (typeof window === 'undefined') return;
+        if (
+            window.location.hostname !== 'localhost' &&
+            window.location.hostname !== '127.0.0.1' &&
+            window.location.hostname !== '::1'
+        ) {
+            setPinError('PIN is only visible on the host machine.');
+            return;
+        }
 
         let isMounted = true;
-
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/ws`;
-        const socket = new WebSocket(wsUrl);
-
-        socket.onopen = () => {
-            if (socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({ type: 'generate-token' }));
-            }
-        };
-
-        socket.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                if (data.type === 'token-generated' && data.token) {
-                    if (isMounted) {
-                        setAuthToken(data.token);
-                        localStorage.setItem('rein_auth_token', data.token);
-                    }
-                    socket.close();
+        fetch('/api/auth/pin')
+            .then(async (res) => {
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data?.error || 'Failed to load PIN');
                 }
-            } catch (e) {
-                console.error(e);
-            }
-        };
+                return res.json();
+            })
+            .then((data) => {
+                if (isMounted) {
+                    setPin(data?.pin || null);
+                }
+            })
+            .catch((err) => {
+                if (isMounted) {
+                    setPinError(err?.message || 'Failed to load PIN');
+                }
+            });
 
         return () => {
             isMounted = false;
-            if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-                socket.close();
-            }
         };
     }, []);
 
@@ -124,7 +119,7 @@ function SettingsPage() {
         QRCode.toDataURL(shareUrl)
             .then(setQrData)
             .catch((e) => console.error('QR Error:', e));
-    }, [ip, authToken, shareUrl]);
+    }, [ip, shareUrl]);
 
     // Effect: Auto-detect LAN IP from Server (only if on localhost)
     useEffect(() => {
@@ -231,6 +226,20 @@ function SettingsPage() {
                         <h2 className="text-xl font-semibold">Server Settings</h2>
 
                         <div className="form-control w-full">
+                            <label className="label mb-3">
+                                <span className="label-text">Session PIN</span>
+                            </label>
+                            <div className="input input-bordered w-full flex items-center justify-center font-mono text-2xl tracking-[0.4rem]">
+                                {pin ? pin : '----'}
+                            </div>
+                            <label className="label">
+                                <span className="label-text-alt opacity-50">
+                                    {pinError ? pinError : 'PIN resets each time the server restarts.'}
+                                </span>
+                            </label>
+                        </div>
+
+                        <div className="form-control w-full">
                             <label className="label mb-3" htmlFor="server-ip-input">
                                 <span className="label-text">Server IP (for Remote)</span>
                             </label>
@@ -277,7 +286,7 @@ function SettingsPage() {
                             onClick={() => {
                                 const port = parseInt(frontendPort, 10);
                                 if (!Number.isFinite(port) || port < 1 || port > 65535) {
-                                    alert('Please enter a valid port number (1–65535).');
+                                    alert('Please enter a valid port number (1-65535).');
                                     return;
                                 }
 

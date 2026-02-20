@@ -1,11 +1,12 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { InputHandler, InputMessage } from './InputHandler';
-import { storeToken, isKnownToken, touchToken, generateToken, getActiveToken } from './tokenStore';
 import os from 'os';
 import fs from 'fs';
-import { IncomingMessage } from 'http';
+import { IncomingMessage, ServerResponse } from 'http';
 import { Socket } from 'net';
 import logger from '../utils/logger';
+import { createSession, isValidSession, touchSession } from './sessionStore';
+import { getPin, isLocalhost, validatePin } from './pinAuth';
 
 function getLocalIp(): string {
     const nets = os.networkInterfaces();
@@ -19,10 +20,78 @@ function getLocalIp(): string {
     return 'localhost';
 }
 
-function isLocalhost(request: IncomingMessage): boolean {
-    const addr = request.socket.remoteAddress;
-    if (!addr) return false;
-    return addr === '127.0.0.1' || addr === '::1' || addr === '::ffff:127.0.0.1';
+const MAX_BODY_BYTES = 2048;
+const AUTH_HANDLER_FLAG = Symbol.for('rein-auth-handler');
+
+function sendJson(res: ServerResponse, statusCode: number, body: unknown): void {
+    res.statusCode = statusCode;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(body));
+}
+
+async function readJsonBody(req: IncomingMessage): Promise<any> {
+    const chunks: Buffer[] = [];
+    let total = 0;
+
+    for await (const chunk of req) {
+        const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        total += buf.length;
+        if (total > MAX_BODY_BYTES) {
+            throw new Error('Payload too large');
+        }
+        chunks.push(buf);
+    }
+
+    if (chunks.length === 0) return {};
+    return JSON.parse(Buffer.concat(chunks).toString('utf-8'));
+}
+
+async function handleAuthRequest(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
+    const url = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
+    if (!url.pathname.startsWith('/api/auth')) return false;
+
+    if (url.pathname === '/api/auth/pin' && req.method === 'GET') {
+        if (!isLocalhost(req)) {
+            sendJson(res, 403, { error: 'PIN is only available on localhost.' });
+            return true;
+        }
+        sendJson(res, 200, { pin: getPin() });
+        return true;
+    }
+
+    if (url.pathname === '/api/auth/pin' && req.method === 'POST') {
+        try {
+            const body = await readJsonBody(req);
+            const pin = typeof body?.pin === 'string' ? body.pin : '';
+            if (!validatePin(pin)) {
+                sendJson(res, 401, { error: 'Invalid PIN.' });
+                return true;
+            }
+
+            const token = createSession(req.socket.remoteAddress || undefined);
+            sendJson(res, 200, { token });
+            return true;
+        } catch (error: any) {
+            const message = error?.message === 'Payload too large' ? 'Payload too large.' : 'Invalid request.';
+            sendJson(res, 400, { error: message });
+            return true;
+        }
+    }
+
+    if (url.pathname === '/api/auth/verify' && req.method === 'POST') {
+        try {
+            const body = await readJsonBody(req);
+            const token = typeof body?.token === 'string' ? body.token : '';
+            sendJson(res, 200, { valid: Boolean(token && isValidSession(token)) });
+            return true;
+        } catch (error: any) {
+            sendJson(res, 400, { error: 'Invalid request.' });
+            return true;
+        }
+    }
+
+    sendJson(res, 404, { error: 'Not found.' });
+    return true;
 }
 
 // server: any is used to support Vite's dynamic httpServer types (http, https, http2)
@@ -33,6 +102,19 @@ export function createWsServer(server: any) {
     const MAX_PAYLOAD_SIZE = 10 * 1024; // 10KB limit
 
     logger.info('WebSocket server initialized');
+    logger.info(`PIN authentication enabled. Current PIN: ${getPin()}`);
+
+    if (!(server as any)[AUTH_HANDLER_FLAG]) {
+        (server as any)[AUTH_HANDLER_FLAG] = true;
+        server.on('request', (req: IncomingMessage, res: ServerResponse) => {
+            handleAuthRequest(req, res).catch((error) => {
+                logger.error(`Auth handler error: ${String(error)}`);
+                if (!res.headersSent) {
+                    sendJson(res, 500, { error: 'Server error.' });
+                }
+            });
+        });
+    }
 
     server.on('upgrade', (request: IncomingMessage, socket: Socket, head: Buffer) => {
         const url = new URL(request.url || '', `http://${request.headers.host}`);
@@ -52,7 +134,7 @@ export function createWsServer(server: any) {
             return;
         }
 
-        // Remote connections require a token
+        // Remote connections require a valid session token
         if (!token) {
             logger.warn('Unauthorized connection attempt: No token provided');
             socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
@@ -61,8 +143,8 @@ export function createWsServer(server: any) {
         }
 
 
-        // Validate against known tokens
-        if (!isKnownToken(token)) {
+        // Validate against active sessions
+        if (!isValidSession(token)) {
             logger.warn('Unauthorized connection attempt: Invalid token');
             socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
             socket.destroy();
@@ -77,13 +159,9 @@ export function createWsServer(server: any) {
     });
 
     wss.on('connection', (ws: WebSocket, request: IncomingMessage, token: string | null, isLocal: boolean) => {
-        // Localhost: only store token if it's already known (trusted scan)
-        // Remote: token is already validated in the upgrade handler
         logger.info(`Client connected from ${request.socket.remoteAddress}`);
 
-        if (token && (isKnownToken(token) || !isLocal)) {
-            storeToken(token);
-        }
+        if (token && !isLocal) touchSession(token);
 
         ws.send(JSON.stringify({ type: 'connected', serverIp: LAN_IP }));
 
@@ -114,33 +192,12 @@ export function createWsServer(server: any) {
                 const msg = JSON.parse(raw);
 
                 // PERFORMANCE: Only touch if it's an actual command (not ping/ip)
-                if (token && msg.type !== 'get-ip' && msg.type !== 'generate-token') {
-                    touchToken(token);
+                if (token && msg.type !== 'get-ip') {
+                    touchSession(token);
                 }
 
                 if (msg.type === 'get-ip') {
                     ws.send(JSON.stringify({ type: 'server-ip', ip: LAN_IP }));
-                    return;
-                }
-
-                if (msg.type === 'generate-token') {
-                    if (!isLocal) {
-                        logger.warn('Token generation attempt from non-localhost');
-                        ws.send(JSON.stringify({ type: 'auth-error', error: 'Only localhost can generate tokens' }));
-                        return;
-                    }
-
-                    // Idempotent: return active token if one exists
-                    let tokenToReturn = getActiveToken();
-                    if (!tokenToReturn) {
-                        tokenToReturn = generateToken();
-                        storeToken(tokenToReturn);
-                        logger.info('New token generated');
-                    } else {
-                        logger.info('Existing active token returned');
-                    }
-
-                    ws.send(JSON.stringify({ type: 'token-generated', token: tokenToReturn }));
                     return;
                 }
 

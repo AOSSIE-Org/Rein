@@ -7,12 +7,19 @@ import { ExtraKeys } from '../components/Trackpad/ExtraKeys';
 import { TouchArea } from '../components/Trackpad/TouchArea';
 import { BufferBar } from '@/components/Trackpad/Buffer';
 import { ModifierState } from '@/types';
+import { usePinAuth } from '../hooks/usePinAuth';
 
 export const Route = createFileRoute('/trackpad')({
     component: TrackpadPage,
 })
 
 function TrackpadPage() {
+    const isLocalhost = typeof window !== 'undefined' && (
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname === '::1'
+    );
+    const { status: authStatus, token, error: authError, isSubmitting, submitPin } = usePinAuth({ bypass: isLocalhost });
     const [scrollMode, setScrollMode] = useState(false);
     const [modifier, setModifier] = useState<ModifierState>("Release");
     const [buffer, setBuffer] = useState<string[]>([]);
@@ -34,7 +41,10 @@ function TrackpadPage() {
         return s ? JSON.parse(s) : false;
     });
 
-    const { status, send, sendCombo } = useRemoteConnection();
+    const { status, send, sendCombo } = useRemoteConnection({
+        token,
+        enabled: isLocalhost || authStatus === 'authenticated',
+    });
     // Pass sensitivity and invertScroll to the gesture hook
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
 
@@ -196,6 +206,65 @@ function TrackpadPage() {
             focusInput();
         }
     };
+
+    if (!isLocalhost && authStatus !== 'authenticated') {
+        return (
+            <div className="flex items-center justify-center h-full p-6">
+                <div className="card bg-base-200 shadow-xl w-full max-w-md">
+                    <div className="card-body">
+                        <h1 className="card-title text-2xl">Enter PIN</h1>
+                        <p className="text-sm opacity-70">
+                            Ask the host for the 4-6 digit PIN shown in the settings or console.
+                        </p>
+                        <form
+                            className="mt-4 space-y-4"
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                const form = e.currentTarget;
+                                const data = new FormData(form);
+                                const rawPin = String(data.get('pin') || '').trim();
+                                if (!/^\d{4,6}$/.test(rawPin)) {
+                                    return;
+                                }
+                                submitPin(rawPin);
+                            }}
+                        >
+                            <input
+                                name="pin"
+                                type="password"
+                                inputMode="numeric"
+                                autoComplete="one-time-code"
+                                placeholder="PIN"
+                                className="input input-bordered w-full text-center text-2xl tracking-[0.5rem]"
+                                minLength={4}
+                                maxLength={6}
+                                pattern="\\d{4,6}"
+                                autoFocus
+                                disabled={isSubmitting}
+                            />
+                            <button
+                                type="submit"
+                                className="btn btn-primary w-full"
+                                disabled={isSubmitting || authStatus === 'checking'}
+                            >
+                                {isSubmitting ? 'Unlocking...' : 'Unlock'}
+                            </button>
+                        </form>
+                        {authStatus === 'checking' && (
+                            <div className="text-xs opacity-60">
+                                Checking session...
+                            </div>
+                        )}
+                        {authError && (
+                            <div className="alert alert-error text-sm">
+                                {authError}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div

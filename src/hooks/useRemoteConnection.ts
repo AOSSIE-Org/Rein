@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-export const useRemoteConnection = () => {
+type RemoteConnectionOptions = {
+    token?: string | null;
+    enabled?: boolean;
+};
+
+export const useRemoteConnection = (options: RemoteConnectionOptions = {}) => {
+    const { token, enabled = true } = options;
     const wsRef = useRef<WebSocket | null>(null);
     const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
 
@@ -8,16 +14,18 @@ export const useRemoteConnection = () => {
         let isMounted = true;
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.host;
-
-        // Get token from URL params (passed via QR code) or localStorage
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlToken = urlParams.get('token');
-        const storedToken = localStorage.getItem('rein_auth_token');
-        const token = urlToken || storedToken;
-
-        // Persist URL token to localStorage for future reconnections
-        if (urlToken && urlToken !== storedToken) {
-            localStorage.setItem('rein_auth_token', urlToken);
+        if (!enabled) {
+            if (wsRef.current) {
+                wsRef.current.onopen = null;
+                wsRef.current.onclose = null;
+                wsRef.current.onerror = null;
+                wsRef.current.close();
+                wsRef.current = null;
+            }
+            setStatus('disconnected');
+            return () => {
+                isMounted = false;
+            };
         }
 
         let wsUrl = `${protocol}//${host}/ws`;
@@ -75,7 +83,7 @@ export const useRemoteConnection = () => {
                 wsRef.current = null;
             }
         };
-    }, []);
+    }, [token, enabled]);
 
     const send = useCallback((msg: any) => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
