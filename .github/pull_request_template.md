@@ -34,7 +34,7 @@ Fixes #(issue number)
 
 ### Advanced Input
 
-- [ ] Key combinations: Verified "hold" behavior for modifiers (e.g., Ctrl+C).
+- [ ] Key combinations: Verified "hold" behavior for modifiers (e.g., Ctrl+C) and held keys are shown in buffer.
 
 - [ ] Keyboard input: Verified Space, Backspace, and Enter keys work correctly.
 
