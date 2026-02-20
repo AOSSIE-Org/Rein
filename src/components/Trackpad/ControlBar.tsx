@@ -5,22 +5,28 @@ interface ControlBarProps {
 	scrollMode: boolean;
 	modifier: ModifierState;
 	buffer: string;
+	clipboardOpen: boolean;
 	onToggleScroll: () => void;
-	onLeftClick: () => void;
 	onRightClick: () => void;
 	onKeyboardToggle: () => void;
 	onModifierToggle: () => void;
+	onCopy: () => void;
+	onPaste: () => void;
+	onClipboardToggle: () => void;
 }
 
 export const ControlBar: React.FC<ControlBarProps> = ({
 	scrollMode,
 	modifier,
 	buffer,
+	clipboardOpen,
 	onToggleScroll,
-	onLeftClick,
 	onRightClick,
 	onKeyboardToggle,
 	onModifierToggle,
+	onCopy,
+	onPaste,
+	onClipboardToggle,
 }) => {
 	const handleInteraction = (e: React.PointerEvent, action: () => void) => {
 		e.preventDefault();
@@ -53,7 +59,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 	};
 
 	return (
-		<div className="bg-base-200 p-2 grid grid-cols-5 gap-2 shrink-0">
+		<div className="bg-base-200 p-2 grid grid-cols-7 gap-2 shrink-0">
 			<button
 				className={`btn btn-sm ${scrollMode ? "btn-primary" : "btn-outline"}`}
 				onPointerDown={(e) => handleInteraction(e, onToggleScroll)}
@@ -62,22 +68,16 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 			</button>
 			<button
 				className="btn btn-sm btn-outline"
+				onPointerDown={(e) => handleInteraction(e, onCopy)}
 			>
 				Copy
 			</button>
 			<button
 				className="btn btn-sm btn-outline"
+				onPointerDown={(e) => handleInteraction(e, onPaste)}
 			>
 				Paste
 			</button>
-			{/* 
-			<button
-				className="btn btn-sm btn-outline"
-				onPointerDown={(e) => handleInteraction(e, onLeftClick)}
-			>
-				L-Click
-			</button>
-			*/}
 			<button
 				className="btn btn-sm btn-outline"
 				onPointerDown={(e) => handleInteraction(e, onRightClick)}
@@ -89,6 +89,13 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 				onPointerDown={(e) => handleInteraction(e, onModifierToggle)}
 			>
 				{getModifierLabel()}
+			</button>
+			<button
+				className={`btn btn-sm ${clipboardOpen ? 'btn-primary' : 'btn-outline'}`}
+				onPointerDown={(e) => handleInteraction(e, onClipboardToggle)}
+				title="Clipboard Sync"
+			>
+				📋
 			</button>
 			<button
 				className="btn btn-sm btn-secondary"

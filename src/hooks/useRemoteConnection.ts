@@ -92,5 +92,5 @@ export const useRemoteConnection = () => {
         }
     }, []);
 
-    return { status, send, sendCombo };
+    return { status, send, sendCombo, wsRef };
 };

@@ -2,10 +2,12 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState, useRef } from 'react'
 import { useRemoteConnection } from '../hooks/useRemoteConnection';
 import { useTrackpadGesture } from '../hooks/useTrackpadGesture';
+import { useClipboardSync } from '../hooks/useClipboardSync';
 import { ControlBar } from '../components/Trackpad/ControlBar';
 import { ExtraKeys } from '../components/Trackpad/ExtraKeys';
 import { TouchArea } from '../components/Trackpad/TouchArea';
 import { BufferBar } from '@/components/Trackpad/Buffer';
+import { ClipboardPanel } from '@/components/Clipboard/ClipboardPanel';
 import { ModifierState } from '@/types';
 
 export const Route = createFileRoute('/trackpad')({
@@ -34,9 +36,15 @@ function TrackpadPage() {
         return s ? JSON.parse(s) : false;
     });
 
-    const { status, send, sendCombo } = useRemoteConnection();
-    // Pass sensitivity and invertScroll to the gesture hook
+    const [clipboardOpen, setClipboardOpen] = useState(false);
+
+    const { status, send, sendCombo, wsRef } = useRemoteConnection();
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
+    const { pcClipboard, isBusy, readFromPC, sendToPC } = useClipboardSync(send, wsRef);
+
+    // Copy/Paste just fire the keyboard combos — same as pressing Ctrl+C / Ctrl+V
+    const handleCopy = () => sendCombo(['ctrl', 'c']);
+    const handlePaste = () => sendCombo(['ctrl', 'v']);
 
     const focusInput = () => {
         hiddenInputRef.current?.focus();
@@ -211,16 +219,30 @@ function TrackpadPage() {
             />
             {bufferText !== "" && <BufferBar bufferText={bufferText} />}
 
+            {/* Clipboard panel slides up when toggled */}
+            {clipboardOpen && (
+                <ClipboardPanel
+                    pcClipboard={pcClipboard}
+                    isBusy={isBusy}
+                    onReadFromPC={readFromPC}
+                    onSendToPC={sendToPC}
+                    onClose={() => setClipboardOpen(false)}
+                />
+            )}
+
             {/* Controls */}
             <ControlBar
                 scrollMode={scrollMode}
                 modifier={modifier}
                 buffer={buffer.join(" + ")}
+                clipboardOpen={clipboardOpen}
                 onToggleScroll={() => setScrollMode(!scrollMode)}
-                onLeftClick={() => handleClick('left')}
                 onRightClick={() => handleClick('right')}
                 onKeyboardToggle={focusInput}
                 onModifierToggle={handleModifierState}
+                onCopy={handleCopy}
+                onPaste={handlePaste}
+                onClipboardToggle={() => setClipboardOpen(!clipboardOpen)}
             />
 
             {/* Extra Keys */}
@@ -242,7 +264,11 @@ function TrackpadPage() {
                 onCompositionUpdate={handleCompositionUpdate}
                 onCompositionEnd={handleCompositionEnd}
                 onBlur={() => {
-                    setTimeout(() => hiddenInputRef.current?.focus(), 10);
+                    // Don't re-steal focus when clipboard panel is open —
+                    // the user needs to type in the clipboard input
+                    if (!clipboardOpen) {
+                        setTimeout(() => hiddenInputRef.current?.focus(), 10);
+                    }
                 }}
                 autoComplete="off"
                 autoCorrect="off"
