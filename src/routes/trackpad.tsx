@@ -34,7 +34,7 @@ function TrackpadPage() {
         return s ? JSON.parse(s) : false;
     });
 
-    const { status, send, sendCombo } = useRemoteConnection();
+    const { status, send, sendCombo, clipboardText, sendClipboard } = useRemoteConnection();
     // Pass sensitivity and invertScroll to the gesture hook
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
 
@@ -157,11 +157,8 @@ function TrackpadPage() {
     };
 
     const handleModifier = (key: string) => {
-        console.log(`handleModifier called with key: ${key}, current modifier: ${modifier}, buffer:`, buffer);
-
         if (modifier === "Hold") {
             const comboKeys = [...buffer, key];
-            console.log(`Sending combo:`, comboKeys);
             sendCombo(comboKeys);
             return;
         } else if (modifier === "Active") {
@@ -188,7 +185,6 @@ function TrackpadPage() {
             }
         }
     };
-
 
     const handleContainerClick = (e: React.MouseEvent) => {
         if (e.target === e.currentTarget) {
@@ -221,6 +217,15 @@ function TrackpadPage() {
                 onRightClick={() => handleClick('right')}
                 onKeyboardToggle={focusInput}
                 onModifierToggle={handleModifierState}
+                onCopy={() => sendClipboard('copy')}
+                onPaste={async () => {
+                    let text = clipboardText;
+                    try {
+                        const deviceText = await navigator.clipboard.readText();
+                        if (deviceText) text = deviceText;
+                    } catch { /* fallback to server-origin cache */ }
+                    sendClipboard('paste', text);
+                }}
             />
 
             {/* Extra Keys */}

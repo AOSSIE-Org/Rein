@@ -1,8 +1,8 @@
-import { mouse, Point, Button, keyboard, Key } from '@nut-tree-fork/nut-js';
+import { mouse, Point, Button, keyboard, Key, clipboard } from '@nut-tree-fork/nut-js';
 import { KEY_MAP } from './KeyMap';
 
 export interface InputMessage {
-    type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo';
+    type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo' | 'clipboard';
     dx?: number;
     dy?: number;
     button?: 'left' | 'right' | 'middle';
@@ -11,6 +11,7 @@ export interface InputMessage {
     keys?: string[];
     text?: string;
     delta?: number;
+    action?: 'copy' | 'paste';
 }
 
 export class InputHandler {
@@ -21,11 +22,37 @@ export class InputHandler {
     private moveTimer: ReturnType<typeof setTimeout> | null = null;
     private scrollTimer: ReturnType<typeof setTimeout> | null = null;
 
+    private async readClipboardText(): Promise<string> {
+        try {
+            return await clipboard.getContent();
+        } catch (error) {
+            console.error('Unable to read clipboard text:', error);
+            return '';
+        }
+    }
+
+    private async writeClipboardText(text: string): Promise<void> {
+        try {
+            await clipboard.setContent(text);
+        } catch (error) {
+            console.error('Unable to write clipboard text:', error);
+        }
+    }
+
+    private async triggerCopyShortcut(): Promise<void> {
+        const modifier = process.platform === 'darwin' ? Key.LeftSuper : Key.LeftControl;
+        try {
+            await keyboard.pressKey(modifier, Key.C);
+        } finally {
+            await keyboard.releaseKey(modifier, Key.C);
+        }
+    }
+
     constructor() {
         mouse.config.mouseSpeed = 1000;
     }
 
-    async handleMessage(msg: InputMessage) {
+    async handleMessage(msg: InputMessage): Promise<string | void> {
         // Validation: Text length sanitation
         if (msg.text && msg.text.length > 500) {
             msg.text = msg.text.substring(0, 500);
@@ -235,6 +262,36 @@ export class InputHandler {
                     console.log(`Combo complete: ${msg.keys.join('+')}`);
                 }
                 break;
+
+            case 'clipboard': {
+                if (msg.action === 'copy') {
+                    const before = await this.readClipboardText();
+                    try {
+                        await this.triggerCopyShortcut();
+                    } catch (error) {
+                        console.error('Unable to trigger system copy shortcut:', error);
+                    }
+
+                    for (let i = 0; i < 10; i++) {
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                        const current = await this.readClipboardText();
+                        if (current !== before) {
+                            return current;
+                        }
+                    }
+
+                    return before;
+                } else if (msg.action === 'paste') {
+                    const textToPaste = typeof msg.text === 'string' ? msg.text : await this.readClipboardText();
+                    if (!textToPaste) {
+                        return;
+                    }
+
+                    await this.writeClipboardText(textToPaste);
+                    await keyboard.type(textToPaste);
+                }
+                break;
+            }
 
             case 'text':
                 if (msg.text) {
