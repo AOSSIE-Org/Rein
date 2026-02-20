@@ -7,7 +7,6 @@ The comparison focuses on bundle size, build requirements, distribution formats,
 
 Test Environment:
 - Windows 11 (x64)
-- Ubuntu 22.04 (Linux testing)
 
 ---
 

@@ -29,11 +29,23 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Binary files (VERY IMPORTANT)
+# Windows
 *.exe
 *.msi
-*.blockmap
 *.dll
+*.blockmap
+
+# macOS
+*.dmg
+*.pkg
+*.app
+
+# Linux
+*.AppImage
+*.deb
+*.rpm
+*.snap
+*.flatpak
 
 # Cache
 .cache/
