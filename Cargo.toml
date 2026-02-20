@@ -1,8 +1,0 @@
-[package]
-name = "rein_controller_prototype"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-gilrs = "0.10"
-enigo = "0.1"
