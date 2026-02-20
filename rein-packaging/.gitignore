@@ -1,0 +1,39 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Build outputs
+dist/
+build/
+target/
+
+# Tauri specific
+src-tauri/target/
+
+# Electron specific
+electron-test/dist/
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.*
+
+# Editor
+.vscode/
+.idea/
+
+# Binary files (VERY IMPORTANT)
+*.exe
+*.msi
+*.blockmap
+*.dll
+
+# Cache
+.cache/
