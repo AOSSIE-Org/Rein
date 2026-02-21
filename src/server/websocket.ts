@@ -1,5 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { InputHandler, InputMessage } from './InputHandler';
+import { readClipboard, writeClipboard } from './ClipboardHandler';
 import { storeToken, isKnownToken, touchToken, generateToken, getActiveToken } from './tokenStore';
 import os from 'os';
 import fs from 'fs';
@@ -162,6 +163,24 @@ export function createWsServer(server: any) {
                     return;
                 }
 
+                // Clipboard: phone wants to read whats on the PC clipboard
+                if (msg.type === 'clipboard-read') {
+                    const text = await readClipboard();
+                    ws.send(JSON.stringify({ type: 'clipboard-content', text }));
+                    return;
+                }
+
+                // Clipboard: phone is pushing text into the PC clipboard
+                if (msg.type === 'clipboard-write') {
+                    if (typeof msg.text === 'string' && msg.text.length > 0) {
+                        const ok = await writeClipboard(msg.text);
+                        ws.send(JSON.stringify({ type: 'clipboard-written', success: ok }));
+                    } else {
+                        ws.send(JSON.stringify({ type: 'clipboard-written', success: false, error: 'No text provided' }));
+                    }
+                    return;
+                }
+
                 await inputHandler.handleMessage(msg as InputMessage);
 
             } catch (err: any) {
@@ -169,7 +188,7 @@ export function createWsServer(server: any) {
             }
         });
 
-        ws.on('close', () => {  
+        ws.on('close', () => {
             logger.info('Client disconnected');
         });
 
