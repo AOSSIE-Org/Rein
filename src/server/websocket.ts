@@ -49,10 +49,31 @@ export function createWsServer(server: Server) {
                 // Prevent JSON DoS
                 if (raw.length > MAX_PAYLOAD_SIZE) {
                     console.warn('Payload too large, rejecting message.');
+                    ws.send(JSON.stringify({ type: 'error', message: 'Payload too large' }));
                     return;
                 }
 
-                const msg = JSON.parse(raw);
+                let msg: Record<string, unknown>;
+                try {
+                    msg = JSON.parse(raw);
+                } catch (parseErr) {
+                    console.warn('Invalid JSON received, rejecting message.');
+                    ws.send(JSON.stringify({ type: 'error', message: 'Invalid JSON' }));
+                    return;
+                }
+
+                // Basic message validation
+                if (!msg || typeof msg !== 'object' || Array.isArray(msg)) {
+                    console.warn('Invalid message structure, rejecting.');
+                    ws.send(JSON.stringify({ type: 'error', message: 'Invalid message structure' }));
+                    return;
+                }
+
+                if (typeof msg.type !== 'string') {
+                    console.warn('Missing or invalid message type, rejecting.');
+                    ws.send(JSON.stringify({ type: 'error', message: 'Missing message type' }));
+                    return;
+                }
 
                 if (msg.type === 'get-ip') {
                     ws.send(JSON.stringify({ type: 'server-ip', ip: LAN_IP }));
@@ -65,7 +86,8 @@ export function createWsServer(server: Server) {
                         const configPath = './src/server-config.json';
                         // eslint-disable-next-line @typescript-eslint/no-require-imports
                         const current = fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, 'utf-8')) : {};
-                        const newConfig = { ...current, ...msg.config };
+                        const configUpdate = msg.config && typeof msg.config === 'object' ? msg.config : {};
+                        const newConfig = { ...current, ...configUpdate as object };
 
                         fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2));
                         ws.send(JSON.stringify({ type: 'config-updated', success: true }));
@@ -77,9 +99,15 @@ export function createWsServer(server: Server) {
                     return;
                 }
 
-                await inputHandler.handleMessage(msg as InputMessage);
+                await inputHandler.handleMessage(msg as unknown as InputMessage);
             } catch (err) {
+                // Log the error but don't crash - continue accepting new messages
                 console.error('Error processing message:', err);
+                try {
+                    ws.send(JSON.stringify({ type: 'error', message: 'Internal server error' }));
+                } catch {
+                    // Ignore send errors
+                }
             }
         });
 
