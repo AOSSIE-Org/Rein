@@ -14,15 +14,21 @@ export interface InputMessage {
 }
 
 export class InputHandler {
-    private lastMoveTime = 0;
-    private lastScrollTime = 0;
-    private pendingMove: InputMessage | null = null;
-    private pendingScroll: InputMessage | null = null;
-    private moveTimer: ReturnType<typeof setTimeout> | null = null;
-    private scrollTimer: ReturnType<typeof setTimeout> | null = null;
+    // Security Constants (ADDED)
+    private static readonly MAX_TEXT_LENGTH = 500;
+    private static readonly MAX_DELTA = 2000;
+    private static readonly MAX_SCROLL = 500;
+    private static readonly MAX_ZOOM_INPUT = 1000;
+    private static readonly MAX_COMBO_KEYS = 5;
 
     constructor() {
         mouse.config.mouseSpeed = 1000;
+    }
+
+    // Utility clamp (ADDED)
+    private clamp(value: number, min: number, max: number): number {
+        if (!Number.isFinite(value)) return 0;
+        return Math.max(min, Math.min(max, value));
     }
 
     async handleMessage(msg: InputMessage) {
@@ -82,19 +88,27 @@ export class InputHandler {
         }
 
         switch (msg.type) {
-            case 'move':
-                if (
-                    typeof msg.dx === 'number' &&
-                    typeof msg.dy === 'number' &&
-                    Number.isFinite(msg.dx) &&
-                    Number.isFinite(msg.dy)
-                ) {
-                    const currentPos = await mouse.getPosition();
 
-                    await mouse.setPosition(new Point(
-                        Math.round(currentPos.x + msg.dx),
-                        Math.round(currentPos.y + msg.dy)
-                    ));
+            case 'move':
+                if (msg.dx !== undefined && msg.dy !== undefined) {
+
+                    // Clamp dx/dy
+                    const safeDx = this.clamp(msg.dx, -InputHandler.MAX_DELTA, InputHandler.MAX_DELTA);
+                    const safeDy = this.clamp(msg.dy, -InputHandler.MAX_DELTA, InputHandler.MAX_DELTA);
+
+                    if (
+                        typeof msg.dx === 'number' &&
+                        typeof msg.dy === 'number' &&
+                        Number.isFinite(msg.dx) &&
+                        Number.isFinite(msg.dy)
+                    ) {
+                        const currentPos = await mouse.getPosition();
+
+                        await mouse.setPosition(new Point(
+                            Math.round(currentPos.x + safeDx),
+                            Math.round(currentPos.y + safeDy)
+                        ));
+                    }
                 }
                 break;
 
@@ -117,6 +131,15 @@ export class InputHandler {
 
             case 'scroll': {
                 const promises: Promise<void>[] = [];
+
+                // Clamp scroll values
+                const safeScrollY = typeof msg.dy === 'number'
+                    ? this.clamp(msg.dy, -InputHandler.MAX_SCROLL, InputHandler.MAX_SCROLL)
+                    : 0;
+
+                const safeScrollX = typeof msg.dx === 'number'
+                    ? this.clamp(msg.dx, -InputHandler.MAX_SCROLL, InputHandler.MAX_SCROLL)
+                    : 0;
 
                 // Vertical scroll
                 if (typeof msg.dy === 'number' && Math.round(msg.dy) !== 0) {
@@ -146,15 +169,19 @@ export class InputHandler {
 
             case 'zoom':
                 if (msg.delta !== undefined && msg.delta !== 0) {
+
+                    const safeDelta = this.clamp(
+                        msg.delta,
+                        -InputHandler.MAX_ZOOM_INPUT,
+                        InputHandler.MAX_ZOOM_INPUT
+                    );
+
                     const sensitivityFactor = 0.5;
                     const MAX_ZOOM_STEP = 5;
 
                     const scaledDelta =
-                        Math.sign(msg.delta) *
-                        Math.min(
-                            Math.abs(msg.delta) * sensitivityFactor,
-                            MAX_ZOOM_STEP
-                        );
+                        Math.sign(safeDelta) *
+                        Math.min(Math.abs(safeDelta) * sensitivityFactor, MAX_ZOOM_STEP);
 
                     const amount = Math.round(-scaledDelta);
 
@@ -176,24 +203,51 @@ export class InputHandler {
             case 'key':
                 if (msg.key) {
                     console.log(`Processing key: ${msg.key}`);
-                    const nutKey = KEY_MAP[msg.key.toLowerCase()];
+                    const lowerKey = msg.key.toLowerCase();
+
+                    if (!(lowerKey in KEY_MAP) && lowerKey.length !== 1) {
+                        console.warn(`Blocked unknown key: ${msg.key}`);
+                        return;
+                    }
+
+                    const nutKey = KEY_MAP[lowerKey];
 
                     if (nutKey !== undefined) {
                         await keyboard.type(nutKey);
-                    } else if (msg.key.length === 1) {
-                        await keyboard.type(msg.key);
-                    } else {
-                        console.log(`Unmapped key: ${msg.key}`);
+                    } else if (lowerKey.length === 1) {
+                        await keyboard.type(lowerKey);
                     }
                 }
                 break;
 
             case 'combo':
                 if (msg.keys && msg.keys.length > 0) {
+
+                    if (msg.keys.length > InputHandler.MAX_COMBO_KEYS) {
+                        console.warn('Combo too long — blocked');
+                        return;
+                    }
+                     // Remove duplicate keys
+                    const seen = new Set<string>();
+                    const uniqueKeys: string[] = [];
+                    for (const k of msg.keys) {
+                        const lower = k.toLowerCase();
+                        if (!seen.has(lower)) {
+                            seen.add(lower);
+                            uniqueKeys.push(k);
+                        }
+                    }
+
                     const nutKeys: (Key | string)[] = [];
 
-                    for (const k of msg.keys) {
+                    for (const k of uniqueKeys) {
                         const lowerKey = k.toLowerCase();
+
+                        if (!(lowerKey in KEY_MAP) && lowerKey.length !== 1) {
+                            console.warn(`Blocked unknown key in combo: ${k}`);
+                            continue;
+                        }
+
                         const nutKey = KEY_MAP[lowerKey];
 
                         if (nutKey !== undefined) {
@@ -238,6 +292,12 @@ export class InputHandler {
 
             case 'text':
                 if (msg.text) {
+
+                    if (msg.text.length > InputHandler.MAX_TEXT_LENGTH) {
+                        console.warn('Text input too long — blocked');
+                        return;
+                    }
+
                     await keyboard.type(msg.text);
                 }
                 break;
