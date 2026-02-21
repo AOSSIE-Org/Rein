@@ -9,17 +9,6 @@ Fixes #(issue number)
 ###  Screenshots/Recordings:
 <!-- If applicable, add screenshots or recordings to demonstrate the changes -->
 
-
-
-## Type of change
-- [ ] Bug fix (non-breaking change which fixes an issue)
-
-- [ ] New feature (non-breaking change which adds functionality)
-
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-
-- [ ] Documentation update
-
 ## Functional Verification
 - Please check off the behaviors verified with this change.
 
@@ -45,13 +34,15 @@ Fixes #(issue number)
 
 ### Advanced Input
 
-- [ ] Key combinations: Verified "hold" behavior for modifiers (e.g., Ctrl+C).
+- [ ] Key combinations: Verified "hold" behavior for modifiers (e.g., Ctrl+C) and held keys are shown in buffer.
 
 - [ ] Keyboard input: Verified Space, Backspace, and Enter keys work correctly.
 
 - [ ] Glide typing: Verified path drawing and text output.
 
 - [ ] Voice input: Verified speech-to-text functionality.
+
+- [ ] Backspace doesn't send the previous input.
 
 ### Any other gesture or input behavior introduced:
 
@@ -83,6 +74,8 @@ Fixes #(issue number)
 - [ ] I have read the 
 
 - [ ] Once I submit my PR, CodeRabbit AI will automatically review it and I will address CodeRabbit's comments.
+
+- [ ] Incase of UI change I've added a demo video.
 
 ⚠️ AI Notice - Important!
 We encourage contributors to use AI tools responsibly when creating Pull Requests. While AI can be a valuable aid, it is essential to ensure that your contributions meet the task requirements, build successfully, include relevant tests, and pass all linters. Submissions that do not meet these standards may be closed without warning to maintain the quality and integrity of the project. Please take the time to understand the changes you are proposing and their impact.

@@ -168,7 +168,7 @@ function SettingsPage() {
                         <h2 className="text-xl font-semibold">Client Settings</h2>
 
                         <div className="form-control w-full">
-                            <label className="label" htmlFor="sensitivity-slider">
+                            <label className="label mb-3" htmlFor="sensitivity-slider">
                                 <span className="label-text">Mouse Sensitivity</span>
                                 <span className="label-text-alt font-mono">
                                     {sensitivity.toFixed(1)}x
@@ -212,11 +212,12 @@ function SettingsPage() {
                         </div>
 
                         <div className="form-control w-full">
-                            <label className="label">
+                            <label className="label mb-3" htmlFor="theme-select">
                                 <span className="label-text">Theme</span>
                             </label>
                             <select
-                                className="select select-bordered w-full"
+                                id="theme-select"
+                                className="select select-bordered w-full rounded-md"
                                 value={theme}
                                 onChange={(e) => setTheme(e.target.value)}
                             >
@@ -230,13 +231,14 @@ function SettingsPage() {
                         <h2 className="text-xl font-semibold">Server Settings</h2>
 
                         <div className="form-control w-full">
-                            <label className="label">
+                            <label className="label mb-3" htmlFor="server-ip-input">
                                 <span className="label-text">Server IP (for Remote)</span>
                             </label>
                             <input
+                                id="server-ip-input"
                                 type="text"
                                 placeholder="192.168.1.X"
-                                className="input input-bordered w-full"
+                                className="input input-bordered w-full rounded-md"
                                 value={ip}
                                 onChange={(e) => setIp(e.target.value)}
                             />
@@ -246,13 +248,14 @@ function SettingsPage() {
                         </div>
 
                         <div className="form-control w-full">
-                            <label className="label">
+                            <label className="label mb-3" htmlFor="port-input">
                                 <span className="label-text">Port</span>
                             </label>
                             <input
+                                id="port-input"
                                 type="text"
                                 placeholder={String(CONFIG.FRONTEND_PORT)}
-                                className="input input-bordered w-full"
+                                className="input input-bordered w-full rounded-md"
                                 value={frontendPort}
                                 onChange={(e) => setFrontendPort(e.target.value)}
                             />
@@ -269,7 +272,7 @@ function SettingsPage() {
 
                         <button
                             type="button"
-                            className="btn btn-primary w-full"
+                            className="btn btn-primary w-full rounded-md"
                             disabled={!serverConfigChanged}
                             onClick={() => {
                                 const port = parseInt(frontendPort, 10);
