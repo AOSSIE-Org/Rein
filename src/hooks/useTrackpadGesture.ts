@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { TOUCH_MOVE_THRESHOLD, TOUCH_TIMEOUT, PINCH_THRESHOLD, calculateAccelerationMult } from '../utils/math';
 
 interface TrackedTouch {
@@ -34,13 +34,48 @@ export const useTrackpadGesture = (
     const draggingTimeout = useRef<NodeJS.Timeout | null>(null);
     const lastPinchDist = useRef<number | null>(null);
     const pinching = useRef(false);
+    const rafId = useRef<number | null>(null);
+    const pendingDx = useRef(0);
+    const pendingDy = useRef(0);
+    const lastSendTs = useRef(0);
+    const mounted = useRef(true);
+
+    useEffect(() => {
+        mounted.current = true;
+
+        return () => {
+            mounted.current = false;
+
+            if (draggingTimeout.current) {
+                clearTimeout(draggingTimeout.current);
+                draggingTimeout.current = null;
+            }
+
+            if (rafId.current !== null) {
+                cancelAnimationFrame(rafId.current);
+                rafId.current = null;
+            }
+
+            pendingDx.current = 0;
+            pendingDy.current = 0;
+            lastSendTs.current = 0;
+        };
+    }, [send]);
+
+    const safeSend = (msg: any) => {
+        if (!mounted.current) {
+            return;
+        }
+        lastSendTs.current = Date.now();
+        send(msg);
+    };
 
     // Helpers
     const findTouchIndex = (id: number) => ongoingTouches.current.findIndex(t => t.identifier === id);
 
     const processMovement = (sumX: number, sumY: number) => {
         if (dragging.current) {
-            send({ 
+            safeSend({ 
                 type: 'move', 
                 dx: Math.round(sumX * sensitivity * 10) / 10, 
                 dy: Math.round(sumY * sensitivity * 10) / 10 
@@ -54,10 +89,10 @@ export const useTrackpadGesture = (
             if (pinching.current || Math.abs(delta) > PINCH_THRESHOLD) {
                 pinching.current = true;
                 lastPinchDist.current = dist;
-                send({ type: 'zoom', delta: delta * sensitivity * invertMult });
+                safeSend({ type: 'zoom', delta: delta * sensitivity * invertMult });
             } else {
                 lastPinchDist.current = dist;
-                send({ 
+                safeSend({ 
                     type: 'scroll', 
                     dx: -sumX * sensitivity * invertMult, 
                     dy: -sumY * sensitivity * invertMult 
@@ -75,13 +110,13 @@ export const useTrackpadGesture = (
                     scrollDx = 0;
                 }
             }
-            send({ 
+            safeSend({ 
                 type: 'scroll', 
                 dx: Math.round(-scrollDx * sensitivity * 10 * invertMult) / 10, 
                 dy: Math.round(-scrollDy * sensitivity * 10 * invertMult) / 10 
             });
         } else if (ongoingTouches.current.length === 1) {
-            send({ 
+            safeSend({ 
                 type: 'move', 
                 dx: Math.round(sumX * sensitivity * 10) / 10, 
                 dy: Math.round(sumY * sensitivity * 10) / 10 
@@ -91,7 +126,7 @@ export const useTrackpadGesture = (
 
     const handleDraggingTimeout = () => {
         draggingTimeout.current = null;
-        send({ type: 'click', button: 'left', press: false });
+        safeSend({ type: 'click', button: 'left', press: false });
     };
 
     const handleTouchStart = (e: React.TouchEvent) => {
@@ -182,11 +217,37 @@ export const useTrackpadGesture = (
 
         // Send movement if we've moved
         if (moved.current) {
-            processMovement(sumX, sumY);
+            pendingDx.current += sumX;
+            pendingDy.current += sumY;
+
+            if (rafId.current === null) {
+                rafId.current = requestAnimationFrame(() => {
+                    rafId.current = null;
+                    const dx = pendingDx.current;
+                    const dy = pendingDy.current;
+                    pendingDx.current = 0;
+                    pendingDy.current = 0;
+
+                    if (moved.current && (dx !== 0 || dy !== 0)) {
+                        processMovement(dx, dy);
+                    }
+                });
+            }
         }
     };
 
     const handleTouchEnd = (e: React.TouchEvent) => {
+        if (rafId.current !== null) {
+            cancelAnimationFrame(rafId.current);
+            rafId.current = null;
+        }
+
+        if (moved.current && (pendingDx.current !== 0 || pendingDy.current !== 0)) {
+            processMovement(pendingDx.current, pendingDy.current);
+        }
+
+        pendingDx.current = 0;
+        pendingDy.current = 0;
 
         const touches = e.changedTouches;
 
@@ -215,7 +276,7 @@ export const useTrackpadGesture = (
             // Release drag if active
             if (dragging.current) {
                 dragging.current = false;
-                send({ type: 'click', button: 'left', press: false });
+                safeSend({ type: 'click', button: 'left', press: false });
             }
 
             // Handle tap/click if not moved and within timeout
@@ -231,13 +292,13 @@ export const useTrackpadGesture = (
                 }
 
                 if (button) {
-                    send({ type: 'click', button, press: true });
+                    safeSend({ type: 'click', button, press: true });
 
                     // For left click, set up drag timeout
                     if (button === 'left') {
                         draggingTimeout.current = setTimeout(handleDraggingTimeout, TOUCH_TIMEOUT);
                     } else {
-                        send({ type: 'click', button, press: false });
+                        safeSend({ type: 'click', button, press: false });
                     }
                 }
             }
