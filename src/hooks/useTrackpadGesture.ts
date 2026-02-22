@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useRef, useState } from 'react';
 import { TOUCH_MOVE_THRESHOLD, TOUCH_TIMEOUT, PINCH_THRESHOLD, calculateAccelerationMult } from '../utils/math';
 
@@ -37,8 +39,12 @@ export const useTrackpadGesture = (
     const rafId = useRef<number | null>(null);
     const pendingDx = useRef(0);
     const pendingDy = useRef(0);
-    const lastSendTs = useRef(0);
     const mounted = useRef(true);
+    const sendRef = useRef(send);
+
+    useEffect(() => {
+        sendRef.current = send;
+    }, [send]);
 
     useEffect(() => {
         mounted.current = true;
@@ -58,16 +64,14 @@ export const useTrackpadGesture = (
 
             pendingDx.current = 0;
             pendingDy.current = 0;
-            lastSendTs.current = 0;
         };
-    }, [send]);
+    }, []);
 
     const safeSend = (msg: any) => {
         if (!mounted.current) {
             return;
         }
-        lastSendTs.current = Date.now();
-        send(msg);
+        sendRef.current(msg);
     };
 
     // Helpers
