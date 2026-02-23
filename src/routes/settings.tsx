@@ -11,12 +11,10 @@ function SettingsPage() {
     const [ip, setIp] = useState('');
     const [frontendPort, setFrontendPort] = useState(String(CONFIG.FRONTEND_PORT));
     const [originalPort] = useState(String(CONFIG.FRONTEND_PORT));
-    const isMobile =
-    typeof window !== 'undefined' &&
-    /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
     const isHost =
     typeof window !== 'undefined' &&
-    !isMobile; 
+    (window.location.hostname === 'localhost' ||
+     window.location.hostname === '127.0.0.1');
 
     const serverConfigChanged =
         frontendPort !== originalPort;  
