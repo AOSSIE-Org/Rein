@@ -11,6 +11,12 @@ function SettingsPage() {
     const [ip, setIp] = useState('');
     const [frontendPort, setFrontendPort] = useState(String(CONFIG.FRONTEND_PORT));
     const [originalPort] = useState(String(CONFIG.FRONTEND_PORT));
+    const isMobile =
+    typeof window !== 'undefined' &&
+    /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+    const isHost =
+    typeof window !== 'undefined' &&
+    !isMobile; 
 
     const serverConfigChanged =
         frontendPort !== originalPort;  
@@ -230,6 +236,11 @@ function SettingsPage() {
 
                         <h2 className="text-xl font-semibold">Server Settings</h2>
 
+                        {!isHost && (
+                            <div className="alert alert-info text-sm">
+                                Server settings can only be changed from the host computer.
+                            </div>
+                        )}
                         <div className="form-control w-full">
                             <label className="label mb-3" htmlFor="server-ip-input">
                                 <span className="label-text">Server IP (for Remote)</span>
@@ -237,10 +248,12 @@ function SettingsPage() {
                             <input
                                 id="server-ip-input"
                                 type="text"
-                                placeholder="192.168.1.X"
-                                className="input input-bordered w-full rounded-md"
+                                className={`input input-bordered w-full rounded-md ${
+                                    !isHost ? 'opacity-60 cursor-not-allowed' : ''
+                                }`}
                                 value={ip}
                                 onChange={(e) => setIp(e.target.value)}
+                                disabled={!isHost}
                             />
                             <label className="label">
                                 <span className="label-text-alt opacity-50">This Computer's LAN IP</span>
@@ -254,10 +267,12 @@ function SettingsPage() {
                             <input
                                 id="port-input"
                                 type="text"
-                                placeholder={String(CONFIG.FRONTEND_PORT)}
-                                className="input input-bordered w-full rounded-md"
+                                className={`input input-bordered w-full rounded-md ${
+                                    !isHost ? 'opacity-60 cursor-not-allowed' : ''
+                                }`}
                                 value={frontendPort}
                                 onChange={(e) => setFrontendPort(e.target.value)}
+                                disabled={!isHost}
                             />
                         </div>
 
@@ -272,8 +287,10 @@ function SettingsPage() {
 
                         <button
                             type="button"
-                            className="btn btn-primary w-full rounded-md"
-                            disabled={!serverConfigChanged}
+                            className={`btn btn-primary w-full rounded-md ${
+                                !isHost ? 'opacity-60 cursor-not-allowed' : ''
+                            }`}
+                            disabled={!isHost || !serverConfigChanged}
                             onClick={() => {
                                 const port = parseInt(frontendPort, 10);
                                 if (!Number.isFinite(port) || port < 1 || port > 65535) {
@@ -325,12 +342,18 @@ function SettingsPage() {
                                     </div>
                                 )}
 
-                                <a
-                                    className="link link-primary mt-2 break-all text-lg font-mono bg-base-100 px-4 py-2 rounded-lg inline-block max-w-full overflow-hidden text-ellipsis"
-                                    href={shareUrl}
-                                >
-                                    {shareUrl.replace(`${protocol}//`, '')}
-                                </a>
+                                {!isHost ? (
+                                    <div className="mt-2 text-lg font-mono bg-base-100 px-4 py-2 rounded-lg break-all opacity-70">
+                                        {shareUrl.replace(`${protocol}//`, '')}
+                                    </div>
+                                ) : (
+                                    <a
+                                        className="link link-primary mt-2 break-all text-lg font-mono bg-base-100 px-4 py-2 rounded-lg inline-block"
+                                        href={shareUrl}
+                                    >
+                                        {shareUrl.replace(`${protocol}//`, '')}
+                                    </a>
+                                )}
                             </div>
                         </div>
 
