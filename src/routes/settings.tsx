@@ -13,7 +13,7 @@ function SettingsPage() {
     const [originalPort] = useState(String(CONFIG.FRONTEND_PORT));
 
     const serverConfigChanged =
-        frontendPort !== originalPort;
+        frontendPort !== originalPort;  
 
     // Client Side Settings (LocalStorage)
     const [invertScroll, setInvertScroll] = useState(() => {
@@ -22,7 +22,7 @@ function SettingsPage() {
             const saved = localStorage.getItem('rein_invert');
             return saved === 'true';
         } catch {
-            return false;
+            return false;   
         }
     });
 
@@ -175,7 +175,16 @@ function SettingsPage() {
                                 </span>
                             </label>
 
-                           <input type="range" id="sensitivity-slider" min="0.1" max="3.0" step="0.1" value={sensitivity} onChange={(e) => setSensitivity(parseFloat(e.target.value))} className="range range-primary range-sm w-full" />
+                            <input
+                                type="range"
+                                id="sensitivity-slider"
+                                min="0.1"
+                                max="3.0"
+                                step="0.1"
+                                value={sensitivity}
+                                onChange={(e) => setSensitivity(parseFloat(e.target.value))}
+                                className="range range-primary range-sm w-full"
+                            />
 
                             <div className="mt-2 flex w-full justify-between px-2 text-xs opacity-50">
                                 <span>Slow</span>
@@ -225,7 +234,14 @@ function SettingsPage() {
                             <label className="label mb-3" htmlFor="server-ip-input">
                                 <span className="label-text">Server IP (for Remote)</span>
                             </label>
-                            <input id="server-ip-input" type="text" placeholder="192.168.1.X" className="input input-bordered w-full rounded-md" value={ip} onChange={(e) => setIp(e.target.value)} />
+                            <input
+                                id="server-ip-input"
+                                type="text"
+                                placeholder="192.168.1.X"
+                                className="input input-bordered w-full rounded-md"
+                                value={ip}
+                                onChange={(e) => setIp(e.target.value)}
+                            />
                             <label className="label">
                                 <span className="label-text-alt opacity-50">This Computer's LAN IP</span>
                             </label>
