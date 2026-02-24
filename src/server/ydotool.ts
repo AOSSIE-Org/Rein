@@ -139,7 +139,11 @@ export class YdotoolFallback {
         const codes: number[] = [];
         for (const k of keys) {
              const code = YDOTOOL_KEY_MAP[k.toLowerCase()];
-             if (code !== undefined) codes.push(code);
+             if (code !== undefined) {
+                 codes.push(code);
+             } else {
+                 console.warn(`[YdotoolFallback] Unknown key in combo: ${k}`);
+             }
         }
 
         if (codes.length === 0) return;
