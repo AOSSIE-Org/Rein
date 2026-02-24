@@ -23,6 +23,7 @@
     "qrcode": "^1.5.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-icons": "^5.5.0",
     "vite-tsconfig-paths": "^6.0.2",
     "winston": "^3.19.0",
     "ws": "^8.18.0"

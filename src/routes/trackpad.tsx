@@ -1,10 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useRef } from 'react'
-import { useRemoteConnection } from '../hooks/useRemoteConnection';
-import { useTrackpadGesture } from '../hooks/useTrackpadGesture';
-import { ControlBar } from '../components/Trackpad/ControlBar';
-import { ExtraKeys } from '../components/Trackpad/ExtraKeys';
-import { TouchArea } from '../components/Trackpad/TouchArea';
+import { useState, useRef, useEffect } from 'react'
+import { useRemoteConnection } from '@/hooks/useRemoteConnection';
+import { useTrackpadGesture } from '@/hooks/useTrackpadGesture';
+import { ControlBar } from '@/components/Trackpad/ControlBar';
+import { ExtraKeys } from '@/components/Trackpad/ExtraKeys';
+import { TouchArea } from '@/components/Trackpad/TouchArea';
 import { BufferBar } from '@/components/Trackpad/Buffer';
 import { ModifierState } from '@/types';
 
@@ -16,12 +16,13 @@ function TrackpadPage() {
     const [scrollMode, setScrollMode] = useState(false);
     const [modifier, setModifier] = useState<ModifierState>("Release");
     const [buffer, setBuffer] = useState<string[]>([]);
+    const [keyboardOpen, setKeyboardOpen] = useState(false);
+    const [extraKeysVisible, setExtraKeysVisible] = useState(true);
+
     const bufferText = buffer.join(" + ");
     const hiddenInputRef = useRef<HTMLInputElement>(null);
     const isComposingRef = useRef(false);
-    const prevCompositionDataRef = useRef('');
 
-    // Load Client Settings
     const [sensitivity] = useState(() => {
         if (typeof window === 'undefined') return 1.0;
         const s = localStorage.getItem('rein_sensitivity');
@@ -35,80 +36,36 @@ function TrackpadPage() {
     });
 
     const { status, send, sendCombo } = useRemoteConnection();
-    // Pass sensitivity and invertScroll to the gesture hook
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
 
-    const focusInput = () => {
-        hiddenInputRef.current?.focus();
+    // When keyboardOpen changes, focus or blur the hidden input
+    useEffect(() => {
+        if (keyboardOpen) {
+            hiddenInputRef.current?.focus();
+        } else {
+            hiddenInputRef.current?.blur();
+        }
+    }, [keyboardOpen]);
+
+    const toggleKeyboard = () => {
+        setKeyboardOpen(prev => !prev);
+    };
+
+    // Silent focus for ExtraKeys — does NOT open mobile keyboard
+    // ExtraKeys send via callback so they don't actually need input focus,
+    // but keep this in case it's used elsewhere.
+    const focusInputSilent = () => {
+        if (keyboardOpen) {
+            hiddenInputRef.current?.focus();
+        }
     };
 
     const handleClick = (button: 'left' | 'right') => {
         send({ type: 'click', button, press: true });
-        // Release after short delay to simulate click
         setTimeout(() => send({ type: 'click', button, press: false }), 50);
     };
 
-    const processCompositionDiff = (currentData: string, prevData: string) => {
-        if (currentData === prevData) return;
-
-        // Find common prefix length
-        let commonLen = 0;
-        while (
-            commonLen < prevData.length &&
-            commonLen < currentData.length &&
-            prevData[commonLen] === currentData[commonLen]
-        ) {
-            commonLen++;
-        }
-
-        // Send backspaces for removed/changed characters
-        const deletions = prevData.length - commonLen;
-        for (let i = 0; i < deletions; i++) {
-            send({ type: 'key', key: 'backspace' });
-        }
-
-        // Send new characters individually
-        const newChars = currentData.slice(commonLen);
-        for (const char of newChars) {
-            if (modifier !== "Release") {
-                handleModifier(char);
-            } else {
-                send({ type: 'text', text: char });
-            }
-        }
-    };
-
-    const handleCompositionStart = () => {
-        isComposingRef.current = true;
-        prevCompositionDataRef.current = '';
-    };
-
-    const handleCompositionUpdate = (e: React.CompositionEvent<HTMLInputElement>) => {
-        const currentData = e.data || '';
-        processCompositionDiff(currentData, prevCompositionDataRef.current);
-        prevCompositionDataRef.current = currentData;
-    };
-
-    const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
-        const currentData = e.data || '';
-        processCompositionDiff(currentData, prevCompositionDataRef.current);
-        prevCompositionDataRef.current = '';
-
-        // Clear input to prevent buffer accumulation
-        if (hiddenInputRef.current) {
-            hiddenInputRef.current.value = '';
-        }
-
-        // Delay flag reset so the onChange firing after compositionend is suppressed
-        setTimeout(() => {
-            isComposingRef.current = false;
-        }, 0);
-    };
-
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        // Skip during IME composition — composition handlers manage input
-        if (e.nativeEvent.isComposing || isComposingRef.current) return;
-
         const key = e.key.toLowerCase();
 
         if (modifier !== "Release") {
@@ -129,6 +86,7 @@ function TrackpadPage() {
             }
             return;
         }
+
         if (key === 'backspace') send({ type: 'key', key: 'backspace' });
         else if (key === 'enter') send({ type: 'key', key: 'enter' });
         else if (key !== 'unidentified' && key.length > 1) {
@@ -170,6 +128,7 @@ function TrackpadPage() {
         }
     };
 
+
     const sendText = (val: string) => {
         if (!val) return;
         const toSend = val.length > 1 ? `${val} ` : val;
@@ -177,7 +136,7 @@ function TrackpadPage() {
     };
 
     const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (isComposingRef.current) return; // Skip during IME composition
+        if (isComposingRef.current) return;
         const val = e.target.value;
         if (val) {
             e.target.value = '';
@@ -189,67 +148,84 @@ function TrackpadPage() {
         }
     };
 
+    const handleCompositionStart = () => {
+        isComposingRef.current = true;
+    };
 
-    const handleContainerClick = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) {
-            e.preventDefault();
-            focusInput();
+    const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
+        isComposingRef.current = false;
+        const val = (e.target as HTMLInputElement).value;
+        if (val) {
+            modifier !== "Release" ? handleModifier(val) : sendText(val);
+            (e.target as HTMLInputElement).value = '';
         }
     };
 
     return (
-        <div
-            className="flex flex-col h-full overflow-hidden"
-            onClick={handleContainerClick}
-        >
-            {/* Touch Surface */}
-            <TouchArea
-                isTracking={isTracking}
-                scrollMode={scrollMode}
-                handlers={handlers}
-                status={status}
-            />
-            {bufferText !== "" && <BufferBar bufferText={bufferText} />}
+        <div className="flex flex-col h-full min-h-0 bg-base-300 overflow-hidden">
 
-            {/* Controls */}
-            <ControlBar
-                scrollMode={scrollMode}
-                modifier={modifier}
-                buffer={buffer.join(" + ")}
-                onToggleScroll={() => setScrollMode(!scrollMode)}
-                onLeftClick={() => handleClick('left')}
-                onRightClick={() => handleClick('right')}
-                onKeyboardToggle={focusInput}
-                onModifierToggle={handleModifierState}
-            />
+            {/* TOUCH AREA */}
+            <div className="flex-1 min-h-0 relative flex flex-col border-b border-base-200">
+                <TouchArea
+                    isTracking={isTracking}
+                    scrollMode={scrollMode}
+                    handlers={handlers}
+                    status={status}
+                />
 
-            {/* Extra Keys */}
-            <ExtraKeys
-                sendKey={(k) => {
-                    if (modifier !== "Release") handleModifier(k);
-                    else send({ type: 'key', key: k });
-                }}
-                onInputFocus={focusInput}
-            />
+                {bufferText && (
+                    <div className="absolute bottom-4 left-0 right-0 px-4">
+                        <BufferBar bufferText={bufferText} />
+                    </div>
+                )}
+            </div>
 
-            {/* Hidden Input for Mobile Keyboard */}
+            {/* CONTROL BAR */}
+            <div className="shrink-0 border-b border-base-200">
+                <ControlBar
+                    scrollMode={scrollMode}
+                    modifier={modifier}
+                    buffer={bufferText}
+                    keyboardOpen={keyboardOpen}
+                    extraKeysVisible={extraKeysVisible}
+                    onToggleScroll={() => setScrollMode(!scrollMode)}
+                    onLeftClick={() => handleClick('left')}
+                    onRightClick={() => handleClick('right')}
+                    onKeyboardToggle={toggleKeyboard}
+                    onModifierToggle={handleModifierState}
+                    onExtraKeysToggle={() => setExtraKeysVisible(prev => !prev)}
+                />
+            </div>
+
+            {/* EXTRA KEYS */}
+            <div
+                className={`shrink-0 overflow-hidden transition-all duration-300
+                ${(!extraKeysVisible || keyboardOpen)
+                    ? "max-h-0 opacity-0 pointer-events-none"
+                    : "max-h-[50vh] opacity-100"
+                }`}
+            >
+                <ExtraKeys
+                    sendKey={(k) => {
+                        if (modifier !== "Release") handleModifier(k);
+                        else send({ type: 'key', key: k });
+                    }}
+                    onInputFocus={focusInputSilent}
+                />
+            </div>
+
+            {/* HIDDEN INPUT — focused when keyboard is open, works for both mobile (native keyboard) and laptop (physical keyboard) */}
             <input
                 ref={hiddenInputRef}
-                className="opacity-0 absolute bottom-0 pointer-events-none h-0 w-0"
+                className="absolute bottom-0 w-0 h-0 opacity-0 pointer-events-none"
                 onKeyDown={handleKeyDown}
                 onChange={handleInput}
                 onCompositionStart={handleCompositionStart}
-                onCompositionUpdate={handleCompositionUpdate}
                 onCompositionEnd={handleCompositionEnd}
-                onBlur={() => {
-                    setTimeout(() => hiddenInputRef.current?.focus(), 10);
-                }}
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
-                spellCheck={false}
-                autoFocus
             />
         </div>
-    )
+    );
 }

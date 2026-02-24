@@ -65,7 +65,6 @@ function Navbar() {
     <div className="navbar bg-base-100 border-b border-base-300 min-h-12 h-12 z-50 px-4">
       <div className="flex-1">
         <Link to="/trackpad" className="btn btn-ghost text-xl normal-case">
-          <img src="/app_icon/IconLine.png" height={32} width={32} alt="Rein logo" />
           Rein
         </Link>
       </div>
