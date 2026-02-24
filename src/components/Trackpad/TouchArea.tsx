@@ -1,5 +1,17 @@
+'use client';
+
 import React, { useEffect, useRef, useState } from 'react';
 import { WSMessage } from '@/hooks/useRemoteConnection';
+
+const MESSAGES = {
+    CONNECTING: 'Connecting Mirror...',
+    UNSUPPORTED: 'Mirroring Unsupported',
+    UNAVAILABLE: 'Mirroring Unavailable',
+    STALLED: 'Stalled',
+    SCROLL_ACTIVE: 'SCROLL ACTIVE',
+    SCROLL_MODE: 'Scroll Mode',
+    TOUCH_AREA: 'Touch Area'
+} as const;
 
 interface TouchAreaProps {
     scrollMode: boolean;
@@ -30,8 +42,11 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
     const [stalled, setStalled] = useState(false);
     const [mirrorError, setMirrorError] = useState<string | null>(null);
     const stalledTimer = useRef<NodeJS.Timeout | null>(null);
+    const loadingRef = useRef<{ img: HTMLImageElement | null; url: string | null }>({ img: null, url: null });
 
     // Mirroring Frame Loop
+    // Design Intent: TouchArea remains interactive during mirroring.
+    // Touches pass through the canvas overlay (pointer-events-none) to the remote system.
     useEffect(() => {
         if (!isMirroring || !addListener || !send || status !== 'connected') {
             setHasFrame(false);
@@ -68,8 +83,10 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
             const blob = new Blob([frameData], { type: 'image/jpeg' });
             const url = URL.createObjectURL(blob);
             const img = new Image();
+            loadingRef.current = { img, url };
 
             img.onload = () => {
+                loadingRef.current = { img: null, url: null };
                 const canvas = canvasRef.current;
                 if (!canvas) { URL.revokeObjectURL(url); return; }
                 const ctx = canvas.getContext('2d');
@@ -103,6 +120,7 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
             };
 
             img.onerror = () => {
+                loadingRef.current = { img: null, url: null };
                 URL.revokeObjectURL(url);
                 requestFrame();
             };
@@ -117,6 +135,15 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
 
         return () => {
             cleanup();
+            const { img, url } = loadingRef.current;
+            if (img) {
+                img.onload = null;
+                img.onerror = null;
+                img.src = '';
+            }
+            if (url) {
+                URL.revokeObjectURL(url);
+            }
             send({ type: 'stop-mirror' });
             if (stalledTimer.current) clearTimeout(stalledTimer.current);
         };
@@ -155,7 +182,7 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
                                 </svg>
                             </div>
                             <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest leading-relaxed">
-                                {mirrorError.includes('Wayland') ? 'Mirroring Unsupported' : 'Mirroring Unavailable'}
+                                {mirrorError.includes('Wayland') ? MESSAGES.UNSUPPORTED : MESSAGES.UNAVAILABLE}
                             </span>
                             <span className="text-[9px] text-neutral-500 mt-1 max-w-[180px] leading-tight">
                                 {mirrorError}
@@ -164,13 +191,13 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
                     ) : !hasFrame ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-neutral-900/40">
                             <div className="loading loading-spinner loading-md text-primary"></div>
-                            <span className="text-[10px] uppercase tracking-widest opacity-50 font-bold">Connecting Mirror...</span>
+                            <span className="text-[10px] uppercase tracking-widest opacity-50 font-bold">{MESSAGES.CONNECTING}</span>
                         </div>
                     ) : null}
                     {stalled && hasFrame && !mirrorError && (
                         <div className="absolute top-4 left-4 badge badge-warning gap-2">
                             <span className="w-2 h-2 rounded-full bg-current animate-pulse"></span>
-                            Stalled
+                            {MESSAGES.STALLED}
                         </div>
                     )}
                 </div>
@@ -180,13 +207,13 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
 
             <div className={`text-neutral-600 text-center pointer-events-none z-10 ${isMirroring ? 'opacity-0' : 'opacity-100'}`}>
                 <div className="text-4xl mb-2 opacity-20 font-black italic uppercase tracking-tighter">
-                    {scrollMode ? 'Scroll Mode' : 'Touch Area'}
+                    {scrollMode ? MESSAGES.SCROLL_MODE : MESSAGES.TOUCH_AREA}
                 </div>
                 {isTracking && <div className="loading loading-ring loading-lg"></div>}
             </div>
 
             {scrollMode && (
-                <div className="absolute top-4 right-4 badge badge-info z-10 font-bold">SCROLL ACTIVE</div>
+                <div className="absolute top-4 right-4 badge badge-info z-10 font-bold">{MESSAGES.SCROLL_ACTIVE}</div>
             )}
         </div>
     );

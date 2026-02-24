@@ -13,6 +13,9 @@ export type WSMessage =
     | { type: 'cursor-pos'; fx: number; fy: number }
     | { type: 'combo'; keys: string[] }
     | { type: 'config-updated'; success: boolean; error?: string }
+    | { type: 'click'; button: 'left' | 'right'; press: boolean }
+    | { type: 'key'; key: string }
+    | { type: 'text'; text: string }
     | MirrorFrameBin;
 
 export type MessageListener = (msg: any) => void;

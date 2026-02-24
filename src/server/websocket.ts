@@ -9,16 +9,34 @@ import { IncomingMessage } from 'http';
 import { Socket } from 'net';
 import logger from '../utils/logger';
 
-/** Extended WebSocket that carries per-connection mirror state. */
-type MirrorWs = WebSocket & {
-    _frameInProgress?: boolean;
-    _frameW?: number;
-    _frameH?: number;
-    _logScreenW?: number;
-    _logScreenH?: number;
-    _cursorInterval?: ReturnType<typeof setInterval>;
-    _loggedWaylandWarning?: boolean;
-};
+/** Per-connection mirror state managed via WeakMap to avoid monkey-patching WebSocket. */
+interface MirrorState {
+    frameInProgress: boolean;
+    frameW: number;
+    frameH: number;
+    logScreenW: number;
+    logScreenH: number;
+    cursorTimeout?: ReturnType<typeof setTimeout>;
+    loggedWaylandWarning: boolean;
+}
+
+const mirrorStates = new WeakMap<WebSocket, MirrorState>();
+
+function getMirrorState(ws: WebSocket): MirrorState {
+    let state = mirrorStates.get(ws);
+    if (!state) {
+        state = {
+            frameInProgress: false,
+            frameW: 640,
+            frameH: 360,
+            logScreenW: 1920,
+            logScreenH: 1080,
+            loggedWaylandWarning: false
+        };
+        mirrorStates.set(ws, state);
+    }
+    return state;
+}
 
 function getLocalIp(): string {
     const nets = os.networkInterfaces();
@@ -89,7 +107,7 @@ export function createWsServer(server: any) {
         });
     });
 
-    wss.on('connection', (ws: MirrorWs, request: IncomingMessage, token: string | null, isLocal: boolean) => {
+    wss.on('connection', (ws: WebSocket, request: IncomingMessage, token: string | null, isLocal: boolean) => {
         // Localhost: only store token if it's already known (trusted scan)
         // Remote: token is already validated in the upgrade handler
         logger.info(`Client connected from ${request.socket.remoteAddress}`);
@@ -177,100 +195,113 @@ export function createWsServer(server: any) {
                 }
 
                 if (msg.type === 'request-frame') {
-                    if (ws._frameInProgress) return;
-                    ws._frameInProgress = true;
+                    const state = getMirrorState(ws);
+                    if (state.frameInProgress) return;
+                    state.frameInProgress = true;
 
                     try {
                         const isWayland = process.env.XDG_SESSION_TYPE === 'wayland' || process.env.WAYLAND_DISPLAY;
 
-                        // robotjs (via nut-js) uses X11 and often crashes on Wayland with BadMatch errors.
                         if (isWayland) {
-                            if (!ws._loggedWaylandWarning) {
-                                logger.warn('Screen capture may fail or crash on Wayland/XWayland. Skipping to maintain server stability.');
-                                ws._loggedWaylandWarning = true;
+                            if (!state.loggedWaylandWarning) {
+                                logger.warn('Screen capture not supported on Wayland via X11');
+                                state.loggedWaylandWarning = true;
                             }
-                            throw new Error('Screen capture not supported on Wayland via X11');
+                            throw new Error('WAYLAND_UNSUPPORTED');
                         }
 
                         const img = await Promise.race([
                             screen.grab(),
-                            new Promise<null>((_, reject) => setTimeout(() => reject(new Error('Screen grab timeout')), 2500))
+                            new Promise<null>((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 2500))
                         ]);
 
-                        if (!img) throw new Error('Screen grab returned null');
-
-                        // nut-js returns BGRA on Windows. Swap B↔R for correct RGB.
-                        const raw = Buffer.from(img.data);
-                        for (let i = 0; i < raw.length; i += 4) {
-                            const b = raw[i];
-                            raw[i] = raw[i + 2];
-                            raw[i + 2] = b;
-                        }
+                        if (!img) throw new Error('GRAB_FAILED');
 
                         const targetW = 640;
-                        const buffer = await sharp(raw, {
+                        let pipeline = sharp(Buffer.from(img.data), {
                             raw: { width: img.width, height: img.height, channels: 4 },
-                        })
+                        });
+
+                        // nut-js returns BGRA on Windows. Recombine channels efficiently.
+                        if (process.platform === 'win32') {
+                            pipeline = pipeline.recomb([
+                                [0, 0, 1, 0], // B -> R
+                                [0, 1, 0, 0], // G -> G
+                                [1, 0, 0, 0], // R -> B
+                                [0, 0, 0, 1], // A (keep)
+                            ]);
+                        }
+
+                        const buffer = await pipeline
                             .resize(targetW, null, { withoutEnlargement: true })
                             .jpeg({ quality: 55 })
                             .toBuffer();
 
-                        // Store actual JPEG frame dimensions for DPI-safe cursor mapping.
-                        ws._frameW = Math.min(targetW, img.width);
-                        ws._frameH = Math.round(ws._frameW * (img.height / img.width));
+                        state.frameW = Math.min(targetW, img.width);
+                        state.frameH = Math.round(state.frameW * (img.height / img.width));
 
                         if (ws.readyState === WebSocket.OPEN) {
                             ws.send(buffer);
                         }
-                    } catch (err: any) {
-                        ws._frameInProgress = false;
-                        logger.error(`Mirroring error: ${err.message}`);
-                        ws.send(JSON.stringify({
-                            type: 'mirror-error',
-                            message: err.message,
-                            isWayland: process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY
-                        }));
+                    } catch (err: unknown) {
+                        const message = err instanceof Error ? err.message : 'Unknown error';
+                        logger.error(`Mirroring error: ${message}`);
+
+                        if (ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({
+                                type: 'mirror-error',
+                                message: message === 'WAYLAND_UNSUPPORTED' ? 'Screen capture not supported on Wayland' : 'Mirroring failed',
+                                isWayland: process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY
+                            }));
+                        }
                     } finally {
-                        ws._frameInProgress = false;
+                        state.frameInProgress = false;
                     }
                     return;
                 }
 
                 if (msg.type === 'start-mirror') {
                     logger.info('Mirroring started');
+                    const state = getMirrorState(ws);
 
-                    // Get logical screen dimensions once (DPI-safe cursor normalization).
-                    // mouse.getPosition() is in logical space; screen.grab() is physical.
-                    const [logW, logH] = await Promise.all([screen.width(), screen.height()]);
-                    ws._logScreenW = logW;
-                    ws._logScreenH = logH;
+                    try {
+                        const [logW, logH] = await Promise.race([
+                            Promise.all([screen.width(), screen.height()]),
+                            new Promise<[number, number]>((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 2500))
+                        ]);
+                        state.logScreenW = logW;
+                        state.logScreenH = logH;
+                    } catch (e) {
+                        logger.warn(`Failed to get screen dimensions: ${e}`);
+                    }
 
-                    // Independent 30 fps cursor stream, decoupled from frame grabs.
-                    clearInterval(ws._cursorInterval);
-                    ws._cursorInterval = setInterval(async () => {
+                    // Independent cursor stream via self-scheduling timeout to prevent stacking.
+                    clearTimeout(state.cursorTimeout);
+                    const updateCursor = async () => {
                         if (ws.readyState !== WebSocket.OPEN) return;
-                        // Skip if socket is backed up — don't let cursor flood frames
-                        if (ws.bufferedAmount > 4096) return;
+                        if (ws.bufferedAmount > 4096) {
+                            state.cursorTimeout = setTimeout(updateCursor, 33);
+                            return;
+                        }
                         try {
                             const pos = await mouse.getPosition();
-                            const lW = ws._logScreenW ?? 1920;
-                            const lH = ws._logScreenH ?? 1080;
-                            const fW = ws._frameW ?? 640;
-                            const fH = ws._frameH ?? 360;
                             ws.send(JSON.stringify({
                                 type: 'cursor-pos',
-                                fx: Math.round((pos.x / lW) * fW),
-                                fy: Math.round((pos.y / lH) * fH),
+                                fx: Math.round((pos.x / state.logScreenW) * state.frameW),
+                                fy: Math.round((pos.y / state.logScreenH) * state.frameH),
                             }));
-                        } catch { /* ignore transient cursor read errors */ }
-                    }, 33);
+                        } catch { /* ignore transient errors */ }
+                        state.cursorTimeout = setTimeout(updateCursor, 33);
+                    };
+                    state.cursorTimeout = setTimeout(updateCursor, 33);
                     return;
                 }
 
                 if (msg.type === 'stop-mirror') {
                     logger.info('Mirroring stopped');
-                    clearInterval(ws._cursorInterval);
-                    ws._cursorInterval = undefined;
+                    const state = getMirrorState(ws);
+                    clearTimeout(state.cursorTimeout);
+                    state.cursorTimeout = undefined;
                     return;
                 }
 
@@ -282,7 +313,8 @@ export function createWsServer(server: any) {
         });
 
         ws.on('close', () => {
-            clearInterval(ws._cursorInterval);
+            const state = getMirrorState(ws);
+            clearTimeout(state.cursorTimeout);
             logger.info('Client disconnected');
         });
 

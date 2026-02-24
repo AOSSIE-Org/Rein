@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useRef, useEffect } from 'react'
 import { useRemoteConnection } from '@/hooks/useRemoteConnection';
+// TODO: FloatingMirror is currently preserved as an alternative to integrated mirroring.
+// It could be moved to a toggleable 'PIP Mode' in the future.
 import { useTrackpadGesture } from '@/hooks/useTrackpadGesture';
 import { ControlBar } from '@/components/Trackpad/ControlBar';
 import { ExtraKeys } from '@/components/Trackpad/ExtraKeys';
