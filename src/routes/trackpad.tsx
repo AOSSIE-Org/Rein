@@ -5,7 +5,6 @@ import { useTrackpadGesture } from '@/hooks/useTrackpadGesture';
 import { ControlBar } from '@/components/Trackpad/ControlBar';
 import { ExtraKeys } from '@/components/Trackpad/ExtraKeys';
 import { TouchArea } from '@/components/Trackpad/TouchArea';
-import { FloatingMirror } from '@/components/Trackpad/FloatingMirror';
 
 import { BufferBar } from '@/components/Trackpad/Buffer';
 import { ModifierState } from '@/types';
@@ -174,19 +173,13 @@ function TrackpadPage() {
                     scrollMode={scrollMode}
                     handlers={handlers}
                     status={status}
+                    isMirroring={isMirroring}
+                    send={send}
+                    addListener={addListener}
                 />
 
-                {/* Floating PiP Mirror — draggable & resizable */}
-                {isMirroring && (
-                    <FloatingMirror
-                        addListener={addListener}
-                        send={send}
-                        onClose={() => setIsMirroring(false)}
-                    />
-                )}
-
                 {bufferText && (
-                    <div className="absolute bottom-4 left-0 right-0 px-4">
+                    <div className="absolute bottom-4 left-0 right-0 px-4 z-20">
                         <BufferBar bufferText={bufferText} />
                     </div>
                 )}

@@ -180,7 +180,12 @@ export function createWsServer(server: any) {
                     ws._frameInProgress = true;
 
                     try {
-                        const img = await screen.grab();
+                        const img = await Promise.race([
+                            screen.grab(),
+                            new Promise<null>((_, reject) => setTimeout(() => reject(new Error('Screen grab timeout')), 2500))
+                        ]);
+
+                        if (!img) throw new Error('Screen grab returned null');
 
                         // nut-js returns BGRA on Windows. Swap B↔R for correct RGB.
                         const raw = Buffer.from(img.data);
