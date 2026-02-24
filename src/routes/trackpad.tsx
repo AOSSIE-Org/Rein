@@ -19,7 +19,7 @@ function TrackpadPage() {
     const [buffer, setBuffer] = useState<string[]>([]);
     const [keyboardOpen, setKeyboardOpen] = useState(false);
     const [extraKeysVisible, setExtraKeysVisible] = useState(true);
-    const [isMirroring, setIsMirroring] = useState(false);
+    const [isMirroring] = useState(true);
     const bufferText = buffer.join(" + ");
     const hiddenInputRef = useRef<HTMLInputElement>(null);
     const isComposingRef = useRef(false);
@@ -193,9 +193,7 @@ function TrackpadPage() {
                     buffer={bufferText}
                     keyboardOpen={keyboardOpen}
                     extraKeysVisible={extraKeysVisible}
-                    isMirroring={isMirroring}
                     onToggleScroll={() => setScrollMode(!scrollMode)}
-                    onToggleMirror={() => setIsMirroring(m => !m)}
                     onLeftClick={() => handleClick('left')}
                     onRightClick={() => handleClick('right')}
                     onKeyboardToggle={toggleKeyboard}
