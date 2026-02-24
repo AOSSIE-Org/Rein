@@ -13,8 +13,6 @@ interface ControlBarProps {
     keyboardOpen: boolean;
     extraKeysVisible: boolean;
     onExtraKeysToggle: () => void;
-    isMirroring: boolean;
-    onToggleMirror: () => void;
 }
 
 const CursorIcon = () => (
@@ -74,15 +72,6 @@ const KeyboardIcon = () => (
     </svg>
 );
 
-const MirrorIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <title>Screen Mirror</title>
-        <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-        <line x1="8" y1="21" x2="16" y2="21" />
-        <line x1="12" y1="17" x2="12" y2="21" />
-    </svg>
-);
-
 export const ControlBar: React.FC<ControlBarProps> = ({
     scrollMode,
     modifier,
@@ -91,8 +80,6 @@ export const ControlBar: React.FC<ControlBarProps> = ({
     onRightClick,
     onKeyboardToggle,
     onModifierToggle,
-    isMirroring,
-    onToggleMirror,
 }) => {
 
     const prevent = (e: React.PointerEvent, cb: () => void) => {
@@ -146,19 +133,10 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 
             <button
                 type="button"
-                className={`${baseBtn} ${isMirroring ? "text-accent" : ""}`}
-                onPointerDown={(e) => prevent(e, onToggleMirror)}
-                aria-label={isMirroring ? "Disable Screen Mirroring" : "Enable Screen Mirroring"}
-                title={isMirroring ? "Disable Mirror" : "Enable Mirror"}
-            >
-                <MirrorIcon />
-            </button>
-
-            <button
-                type="button"
-                className={baseBtn}
-                aria-label="Paste from Clipboard"
-                title="Paste"
+                className={`${baseBtn} opacity-30 cursor-not-allowed`}
+                aria-label="Paste from Clipboard (Not implemented)"
+                title="Paste (Not implemented)"
+                disabled
             >
                 <PasteIcon />
             </button>

@@ -1,9 +1,26 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
+export interface MirrorFrameBin {
+    type: 'mirror-frame-bin';
+    data: ArrayBuffer;
+}
+
+export type WSMessage =
+    | { type: 'request-frame' }
+    | { type: 'start-mirror' }
+    | { type: 'stop-mirror' }
+    | { type: 'mirror-error'; message: string; isWayland?: boolean }
+    | { type: 'cursor-pos'; fx: number; fy: number }
+    | { type: 'combo'; keys: string[] }
+    | { type: 'config-updated'; success: boolean; error?: string }
+    | MirrorFrameBin;
+
+export type MessageListener = (msg: any) => void;
+
 export const useRemoteConnection = () => {
     const wsRef = useRef<WebSocket | null>(null);
     const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
-    const [lastMessage, setLastMessage] = useState<any>(null);
+    const [lastMessage, setLastMessage] = useState<WSMessage | null>(null);
     const listenersRef = useRef<Set<(msg: any) => void>>(new Set());
 
     useEffect(() => {
@@ -67,7 +84,7 @@ export const useRemoteConnection = () => {
                         return;
                     }
 
-                    const data = JSON.parse(event.data);
+                    const data = JSON.parse(event.data) as WSMessage;
                     if (isMounted) {
                         setLastMessage(data);
                         listenersRef.current.forEach(l => l(data));
@@ -97,7 +114,7 @@ export const useRemoteConnection = () => {
         };
     }, []);
 
-    const send = useCallback((msg: any) => {
+    const send = useCallback((msg: WSMessage) => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify(msg));
         }

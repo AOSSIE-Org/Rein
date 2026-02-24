@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
+import { WSMessage } from '@/hooks/useRemoteConnection';
+
 interface FloatingMirrorProps {
-    addListener: (l: (msg: any) => void) => () => void;
-    send: (msg: any) => void;
+    addListener: (l: (msg: WSMessage) => void) => () => void;
+    send: (msg: WSMessage) => void;
     onClose: () => void;
 }
 
@@ -17,7 +19,13 @@ export function FloatingMirror({ addListener, send, onClose }: FloatingMirrorPro
 
     // Position & size state
     const [pos, setPos] = useState({ x: 16, y: 120 });
+    const posRef = useRef(pos);
     const [size, setSize] = useState({ w: DEFAULT_W, h: DEFAULT_H });
+
+    // Keep posRef in sync for drag calculations without dependency churn
+    useEffect(() => {
+        posRef.current = pos;
+    }, [pos]);
 
     // FPS & stall & loading
     const [fps, setFps] = useState(0);
@@ -36,11 +44,11 @@ export function FloatingMirror({ addListener, send, onClose }: FloatingMirrorPro
         const t = e.touches[0];
         dragStart.current = {
             touchId: t.identifier,
-            ox: t.clientX - pos.x,
-            oy: t.clientY - pos.y,
+            ox: t.clientX - posRef.current.x,
+            oy: t.clientY - posRef.current.y,
         };
         e.stopPropagation();
-    }, [pos]);
+    }, []); // No more pos dependency
 
     const onDragMove = useCallback((e: React.TouchEvent) => {
         if (!dragStart.current || e.touches.length !== 1) return;
@@ -132,7 +140,7 @@ export function FloatingMirror({ addListener, send, onClose }: FloatingMirrorPro
                 }
                 ctx.drawImage(img, 0, 0);
                 URL.revokeObjectURL(url);
-                if (!hasFrame) setHasFrame(true);
+                setHasFrame(prev => prev ? prev : true);
 
                 // Draw cursor on canvas (in frame pixel coords)
                 const cur = cursorRef.current;
@@ -227,8 +235,10 @@ export function FloatingMirror({ addListener, send, onClose }: FloatingMirrorPro
                     {stalled ? '⚠ Stalled' : fps > 0 ? `${fps} fps` : '…'}
                 </span>
                 <button
+                    type="button"
                     className="pointer-events-auto w-4 h-4 rounded-full bg-red-500/80 hover:bg-red-400 flex items-center justify-center text-[8px] text-white leading-none"
                     onPointerDown={(e) => { e.stopPropagation(); onClose(); }}
+                    aria-label="Close mirroring window"
                 >
                     ✕
                 </button>
@@ -243,6 +253,7 @@ export function FloatingMirror({ addListener, send, onClose }: FloatingMirrorPro
             >
                 {/* visual grip dots */}
                 <svg width="10" height="10" viewBox="0 0 10 10" className="opacity-50">
+                    <title>Resize window</title>
                     <circle cx="8" cy="8" r="1.2" fill="white" />
                     <circle cx="4.5" cy="8" r="1.2" fill="white" />
                     <circle cx="8" cy="4.5" r="1.2" fill="white" />

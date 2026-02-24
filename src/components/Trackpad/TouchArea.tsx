@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { WSMessage } from '@/hooks/useRemoteConnection';
 
 interface TouchAreaProps {
     scrollMode: boolean;
@@ -10,8 +11,8 @@ interface TouchAreaProps {
     };
     status: 'connecting' | 'connected' | 'disconnected';
     isMirroring?: boolean;
-    addListener?: (l: (msg: any) => void) => () => void;
-    send?: (msg: any) => void;
+    addListener?: (l: (msg: WSMessage) => void) => () => void;
+    send?: (msg: WSMessage) => void;
 }
 
 export const TouchArea: React.FC<TouchAreaProps> = ({
@@ -80,7 +81,7 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
                 }
                 ctx.drawImage(img, 0, 0);
                 URL.revokeObjectURL(url);
-                if (!hasFrame) setHasFrame(true);
+                setHasFrame(prev => prev ? prev : true);
 
                 // Draw cursor overlay
                 const cur = cursorRef.current;
