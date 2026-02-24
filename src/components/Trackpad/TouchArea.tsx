@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { WSMessage } from '@/hooks/useRemoteConnection';
+import { WSInboundMessage, WSOutboundMessage } from '@/hooks/useRemoteConnection';
 import { t } from '@/utils/i18n';
 
 
@@ -15,8 +15,8 @@ interface TouchAreaProps {
     };
     status: 'connecting' | 'connected' | 'disconnected';
     isMirroring?: boolean;
-    addListener?: (l: (msg: WSMessage) => void) => () => void;
-    send?: (msg: WSMessage) => void;
+    addListener?: (l: (msg: WSInboundMessage) => void) => () => void;
+    send?: (msg: WSOutboundMessage) => void;
 }
 
 export const TouchArea: React.FC<TouchAreaProps> = ({
@@ -49,7 +49,7 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
 
         const requestFrame = () => send({ type: 'request-frame' });
 
-        const cleanup = addListener((msg: any) => {
+        const cleanup = addListener((msg: WSInboundMessage) => {
             if (msg.type === 'cursor-pos') {
                 cursorRef.current = { fx: msg.fx, fy: msg.fy };
                 return;
@@ -61,15 +61,14 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
                 return;
             }
 
-            if (!(msg instanceof Uint8Array || msg instanceof Blob || (msg.type === 'mirror-frame-bin' && msg.data))) {
+            if (msg.type !== 'mirror-frame-bin') {
                 return;
             }
-            // ... [rest of the listener logic remains largely the same, but I'll ensure I use a single ReplacementChunk]
-            // Handle both raw binary (if sent directly) and wrapped binary
-            const frameData = (msg instanceof Uint8Array || msg instanceof Blob) ? msg : msg.data;
+
+            const frameData = msg.data;
 
             if (stalledTimer.current) clearTimeout(stalledTimer.current);
-            setStalled(false);
+            setStalled(s => s ? false : s);
             stalledTimer.current = setTimeout(() => setStalled(true), 3000);
 
             const blob = new Blob([frameData], { type: 'image/jpeg' });

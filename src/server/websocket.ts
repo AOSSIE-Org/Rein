@@ -8,6 +8,14 @@ import { IncomingMessage } from 'http';
 import { Socket } from 'net';
 import logger from '../utils/logger';
 
+let sharpInstance: any = null;
+async function getSharp() {
+    if (!sharpInstance) {
+        sharpInstance = (await import('sharp')).default;
+    }
+    return sharpInstance;
+}
+
 /** Per-connection mirror state managed via WeakMap to avoid monkey-patching WebSocket. */
 interface MirrorState {
     frameInProgress: boolean;
@@ -217,7 +225,7 @@ export function createWsServer(server: any) {
                         if (!img) throw new Error('GRAB_FAILED');
 
                         const targetW = 640;
-                        const sharp = (await import('sharp')).default;
+                        const sharp = await getSharp();
                         let pipeline = sharp(Buffer.from(img.data), {
                             raw: { width: img.width, height: img.height, channels: 4 },
                         });

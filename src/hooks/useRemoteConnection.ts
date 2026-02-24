@@ -7,26 +7,34 @@ export interface MirrorFrameBin {
     data: ArrayBuffer;
 }
 
-export type WSMessage =
+export type WSInboundMessage =
+    | { type: 'connected'; serverIp: string } // Handled by server-side logic we've seen
+    | { type: 'server-ip'; ip: string }
+    | { type: 'token-generated'; token: string }
+    | { type: 'auth-error'; error: string }
+    | { type: 'mirror-error'; message: string; isWayland?: boolean }
+    | { type: 'cursor-pos'; fx: number; fy: number }
+    | { type: 'config-updated'; success: boolean; error?: string }
+    | MirrorFrameBin;
+
+export type WSOutboundMessage =
     | { type: 'request-frame' }
     | { type: 'start-mirror' }
     | { type: 'stop-mirror' }
-    | { type: 'mirror-error'; message: string; isWayland?: boolean }
-    | { type: 'cursor-pos'; fx: number; fy: number }
+    | { type: 'generate-token' }
+    | { type: 'get-ip' }
+    | { type: 'update-config'; config: Record<string, any> }
     | { type: 'combo'; keys: string[] }
-    | { type: 'config-updated'; success: boolean; error?: string }
     | { type: 'click'; button: 'left' | 'right'; press: boolean }
     | { type: 'key'; key: string }
-    | { type: 'text'; text: string }
-    | MirrorFrameBin;
+    | { type: 'text'; text: string };
 
-export type MessageListener = (msg: any) => void;
+export type MessageListener = (msg: WSInboundMessage) => void;
 
 export const useRemoteConnection = () => {
     const wsRef = useRef<WebSocket | null>(null);
     const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
-    const [lastMessage, setLastMessage] = useState<WSMessage | null>(null);
-    const listenersRef = useRef<Set<(msg: any) => void>>(new Set());
+    const listenersRef = useRef<Set<MessageListener>>(new Set());
 
     useEffect(() => {
         let isMounted = true;
@@ -84,17 +92,17 @@ export const useRemoteConnection = () => {
                 try {
                     if (event.data instanceof ArrayBuffer) {
                         if (isMounted) {
-                            listenersRef.current.forEach(l => l({ type: 'mirror-frame-bin', data: event.data }));
+                            const binMsg: WSInboundMessage = { type: 'mirror-frame-bin', data: event.data };
+                            listenersRef.current.forEach(l => { l(binMsg); });
                         }
                         return;
                     }
 
-                    const data = JSON.parse(event.data) as WSMessage;
+                    const data = JSON.parse(event.data) as WSInboundMessage;
                     if (!data || typeof data.type !== 'string') return;
 
                     if (isMounted) {
-                        setLastMessage(data);
-                        listenersRef.current.forEach(l => l(data));
+                        listenersRef.current.forEach(l => { l(data); });
                     }
                 } catch {
                     // Non-JSON frames (e.g. binary) handled above; ignore parse failures
@@ -121,7 +129,7 @@ export const useRemoteConnection = () => {
         };
     }, []);
 
-    const send = useCallback((msg: WSMessage) => {
+    const send = useCallback((msg: WSOutboundMessage) => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify(msg));
         }
@@ -136,10 +144,10 @@ export const useRemoteConnection = () => {
         }
     }, []);
 
-    const addListener = useCallback((l: (msg: any) => void) => {
+    const addListener = useCallback((l: MessageListener) => {
         listenersRef.current.add(l);
-        return () => listenersRef.current.delete(l);
+        return () => { listenersRef.current.delete(l); };
     }, []);
 
-    return { status, send, sendCombo, lastMessage, addListener };
+    return { status, send, sendCombo, addListener };
 };
