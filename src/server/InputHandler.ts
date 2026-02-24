@@ -2,7 +2,7 @@ import { mouse, Point, Button, keyboard, Key } from '@nut-tree-fork/nut-js';
 import { KEY_MAP } from './KeyMap';
 
 export interface InputMessage {
-    type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo';
+    type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo' | 'copy' | 'paste';
     dx?: number;
     dy?: number;
     button?: 'left' | 'right' | 'middle';
@@ -11,6 +11,45 @@ export interface InputMessage {
     keys?: string[];
     text?: string;
     delta?: number;
+}
+
+function getPlatformCopyCombo(): Key[] {
+    switch (process.platform) {
+        case 'darwin':
+            return [Key.LeftSuper, Key.C];
+        case 'win32':
+            return [Key.LeftControl, Key.Insert];
+        case 'linux':
+        default:
+            return [Key.LeftControl, Key.LeftShift, Key.C];
+    }
+}
+
+function getPlatformPasteCombo(): Key[] {
+    switch (process.platform) {
+        case 'darwin':
+            return [Key.LeftSuper, Key.V];
+        case 'win32':
+            return [Key.LeftShift, Key.Insert];
+        case 'linux':
+        default:
+            return [Key.LeftControl, Key.LeftShift, Key.V];
+    }
+}
+
+async function pressCombo(combo: Key[]): Promise<void> {
+    const pressed: Key[] = [];
+    try {
+        for (const k of combo) {
+            await keyboard.pressKey(k);
+            pressed.push(k);
+        }
+        await new Promise(resolve => setTimeout(resolve, 10));
+    } finally {
+        for (const k of pressed.reverse()) {
+            await keyboard.releaseKey(k);
+        }
+    }
 }
 
 export class InputHandler {
@@ -235,6 +274,16 @@ export class InputHandler {
                     console.log(`Combo complete: ${msg.keys.join('+')}`);
                 }
                 break;
+
+            case 'copy': {
+                await pressCombo(getPlatformCopyCombo());
+                break;
+            }
+
+            case 'paste': {
+                await pressCombo(getPlatformPasteCombo());
+                break;
+            }
 
             case 'text':
                 if (msg.text) {

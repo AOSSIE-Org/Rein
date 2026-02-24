@@ -8,6 +8,8 @@ interface ControlBarProps {
     onToggleScroll: () => void;
     onLeftClick: () => void;
     onRightClick: () => void;
+    onCopy: () => void;
+    onPaste: () => void;
     onKeyboardToggle: () => void;
     onModifierToggle: () => void;
     keyboardOpen: boolean;
@@ -82,6 +84,8 @@ export const ControlBar: React.FC<ControlBarProps> = ({
     onToggleScroll,
     onLeftClick,
     onRightClick,
+    onCopy,
+    onPaste,
     onKeyboardToggle,
     onModifierToggle,
 }) => {
@@ -126,11 +130,17 @@ export const ControlBar: React.FC<ControlBarProps> = ({
                 <MouseIcon side="R" />
             </button>
 
-            <button className={baseBtn}>
+            <button
+                className={baseBtn}
+                onPointerDown={(e) => prevent(e, onCopy)}
+            >
                 <CopyIcon />
             </button>
 
-            <button className={baseBtn}>
+            <button
+                className={baseBtn}
+                onPointerDown={(e) => prevent(e, onPaste)}
+            >
                 <PasteIcon />
             </button>
 

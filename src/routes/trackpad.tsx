@@ -65,6 +65,14 @@ function TrackpadPage() {
         setTimeout(() => send({ type: 'click', button, press: false }), 50);
     };
 
+    const handleCopy = () => {
+        send({ type: 'copy' });
+    };
+
+    const handlePaste = () => {
+        send({ type: 'paste' });
+    };
+
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         const key = e.key.toLowerCase();
 
@@ -191,6 +199,8 @@ function TrackpadPage() {
                     onToggleScroll={() => setScrollMode(!scrollMode)}
                     onLeftClick={() => handleClick('left')}
                     onRightClick={() => handleClick('right')}
+                    onCopy={handleCopy}
+                    onPaste={handlePaste}
                     onKeyboardToggle={toggleKeyboard}
                     onModifierToggle={handleModifierState}
                     onExtraKeysToggle={() => setExtraKeysVisible(prev => !prev)}
