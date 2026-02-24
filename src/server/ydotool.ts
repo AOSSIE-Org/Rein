@@ -56,25 +56,70 @@ export class YdotoolFallback {
         return this.checkPromise;
     }
 
-    static async move(dx: number, dy: number): Promise<void> {
-        if (Math.round(dx) === 0 && Math.round(dy) === 0) return;
+        static async move(dx: number, dy: number): Promise<void> {
+        const rx = Math.round(dx);
+        const ry = Math.round(dy);
+    
+        if (rx === 0 && ry === 0) return;
+    
         try {
-            await execFileAsync('ydotool', ['mousemove', '--', Math.round(dx).toString(), Math.round(dy).toString()]);
+            await execFileAsync('ydotool', [
+                'mousemove',
+                '-x',
+                rx.toString(),
+                '-y',
+                ry.toString(),
+            ]);
         } catch (err) {
-            console.error('[YdotoolFallback] move error:', err);
+            console.error(
+                '[YdotoolFallback] move error (ensure ydotoold daemon is running for v1.0.0+):',
+                err
+            );
         }
     }
 
-    static async click(button: 'left' | 'right' | 'middle', press: boolean): Promise<void> {
-        if (!press) return;
-        let btnCode = '0xC0';
-        if (button === 'right') btnCode = '0xC1';
-        else if (button === 'middle') btnCode = '0xC2';
-
+    static async click(
+        button: 'left' | 'right' | 'middle',
+        press?: boolean
+    ): Promise<void> {
+        const buttonMap: Record<typeof button, string> = {
+            left: '0x110',
+            right: '0x111',
+            middle: '0x112',
+        };
+    
+        const btnCode = buttonMap[button];
+    
         try {
-            await execFileAsync('ydotool', ['click', btnCode]);
+            if (press === true) {
+                // press only
+                await execFileAsync('ydotool', [
+                    'pointer',
+                    'press',
+                    '-b',
+                    btnCode,
+                ]);
+            } else if (press === false) {
+                // release only
+                await execFileAsync('ydotool', [
+                    'pointer',
+                    'release',
+                    '-b',
+                    btnCode,
+                ]);
+            } else {
+                // full click fallback
+                await execFileAsync('ydotool', [
+                    'click',
+                    '-b',
+                    btnCode,
+                ]);
+            }
         } catch (err) {
-            console.error('[YdotoolFallback] click error:', err);
+            console.error(
+                '[YdotoolFallback] click error (ensure ydotoold daemon is running):',
+                err
+            );
         }
     }
 
