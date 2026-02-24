@@ -159,7 +159,7 @@ export class YdotoolFallback {
     static async text(textString: string): Promise<void> {
         if (!textString) return;
         try {
-            await execFileAsync('ydotool', ['type', textString]);
+            await execFileAsync('ydotool', ['type', '--', textString]);
         } catch (err) {
             console.error('[YdotoolFallback] text error:', err);
         }
