@@ -17,6 +17,7 @@ type MirrorWs = WebSocket & {
     _logScreenW?: number;
     _logScreenH?: number;
     _cursorInterval?: ReturnType<typeof setInterval>;
+    _loggedWaylandWarning?: boolean;
 };
 
 function getLocalIp(): string {
@@ -180,6 +181,17 @@ export function createWsServer(server: any) {
                     ws._frameInProgress = true;
 
                     try {
+                        const isWayland = process.env.XDG_SESSION_TYPE === 'wayland' || process.env.WAYLAND_DISPLAY;
+
+                        // robotjs (via nut-js) uses X11 and often crashes on Wayland with BadMatch errors.
+                        if (isWayland) {
+                            if (!ws._loggedWaylandWarning) {
+                                logger.warn('Screen capture may fail or crash on Wayland/XWayland. Skipping to maintain server stability.');
+                                ws._loggedWaylandWarning = true;
+                            }
+                            throw new Error('Screen capture not supported on Wayland via X11');
+                        }
+
                         const img = await Promise.race([
                             screen.grab(),
                             new Promise<null>((_, reject) => setTimeout(() => reject(new Error('Screen grab timeout')), 2500))
@@ -210,8 +222,14 @@ export function createWsServer(server: any) {
                         if (ws.readyState === WebSocket.OPEN) {
                             ws.send(buffer);
                         }
-                    } catch (e) {
-                        logger.error(`Mirroring error: ${String(e)}`);
+                    } catch (err: any) {
+                        ws._frameInProgress = false;
+                        logger.error(`Mirroring error: ${err.message}`);
+                        ws.send(JSON.stringify({
+                            type: 'mirror-error',
+                            message: err.message,
+                            isWayland: process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY
+                        }));
                     } finally {
                         ws._frameInProgress = false;
                     }

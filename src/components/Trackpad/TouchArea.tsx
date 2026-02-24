@@ -27,13 +27,15 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
     const cursorRef = useRef<{ fx: number; fy: number } | null>(null);
     const [hasFrame, setHasFrame] = useState(false);
     const [stalled, setStalled] = useState(false);
+    const [mirrorError, setMirrorError] = useState<string | null>(null);
     const stalledTimer = useRef<NodeJS.Timeout | null>(null);
 
     // Mirroring Frame Loop
     useEffect(() => {
-        if (!isMirroring || !addListener || !send) {
+        if (!isMirroring || !addListener || !send || status !== 'connected') {
             setHasFrame(false);
             setStalled(false);
+            setMirrorError(null);
             return;
         }
 
@@ -45,10 +47,16 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
                 return;
             }
 
-            if (!(msg instanceof Uint8Array || msg instanceof Blob || (msg.type === 'mirror-frame-bin' && msg.data))) {
+            if (msg.type === 'mirror-error') {
+                setMirrorError(msg.message);
+                setHasFrame(false);
                 return;
             }
 
+            if (!(msg instanceof Uint8Array || msg instanceof Blob || (msg.type === 'mirror-frame-bin' && msg.data))) {
+                return;
+            }
+            // ... [rest of the listener logic remains largely the same, but I'll ensure I use a single ReplacementChunk]
             // Handle both raw binary (if sent directly) and wrapped binary
             const frameData = (msg instanceof Uint8Array || msg instanceof Blob) ? msg : msg.data;
 
@@ -102,6 +110,7 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
         });
 
         send({ type: 'start-mirror' });
+        // Small delay to ensure server state is ready if needed, but the loop is self-correcting
         requestFrame();
         stalledTimer.current = setTimeout(() => setStalled(true), 3000);
 
@@ -110,7 +119,7 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
             send({ type: 'stop-mirror' });
             if (stalledTimer.current) clearTimeout(stalledTimer.current);
         };
-    }, [isMirroring, addListener, send]);
+    }, [isMirroring, addListener, send, status]);
 
     const handleStart = (e: React.TouchEvent) => {
         handlers.onTouchStart(e);
@@ -137,13 +146,27 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
                         ref={canvasRef}
                         className="w-full h-full object-contain pointer-events-none rounded-lg"
                     />
-                    {!hasFrame && (
+                    {mirrorError ? (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-neutral-900/60 transition-all">
+                            <div className="w-12 h-12 mb-3 text-error opacity-40">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest leading-relaxed">
+                                {mirrorError.includes('Wayland') ? 'Mirroring Unsupported' : 'Mirroring Unavailable'}
+                            </span>
+                            <span className="text-[9px] text-neutral-500 mt-1 max-w-[180px] leading-tight">
+                                {mirrorError}
+                            </span>
+                        </div>
+                    ) : !hasFrame ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-neutral-900/40">
                             <div className="loading loading-spinner loading-md text-primary"></div>
                             <span className="text-[10px] uppercase tracking-widest opacity-50 font-bold">Connecting Mirror...</span>
                         </div>
-                    )}
-                    {stalled && hasFrame && (
+                    ) : null}
+                    {stalled && hasFrame && !mirrorError && (
                         <div className="absolute top-4 left-4 badge badge-warning gap-2">
                             <span className="w-2 h-2 rounded-full bg-current animate-pulse"></span>
                             Stalled
