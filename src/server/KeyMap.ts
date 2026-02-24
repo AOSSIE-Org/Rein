@@ -1,4 +1,4 @@
-import { Key } from '@nut-tree-fork/nut-js';
+import { Key } from "@nut-tree-fork/nut-js";
 
 /**
  * Maps client-sent key strings (lowercase) to nut-js Key enum.

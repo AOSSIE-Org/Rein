@@ -2,7 +2,5 @@
 @plugin "@tailwindcss/typography";
 
 @plugin "daisyui" {
-  themes:
-    dracula --default --prefersdark,
-    cupcake;
+	themes: dracula --default --prefersdark, cupcake;
 }
