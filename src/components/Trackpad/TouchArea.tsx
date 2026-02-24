@@ -22,6 +22,8 @@ export const TouchArea: React.FC<TouchAreaProps> = ({ scrollMode, isTracking, ha
 
     return (
         <div
+            role="region"
+            aria-label={scrollMode ? "Touch Area (Scroll Mode)" : "Touch Area (Cursor Mode)"}
             className="flex-1 bg-neutral-800 relative touch-none select-none flex items-center justify-center p-4"
             onTouchStart={handleStart}
             onTouchMove={handlers.onTouchMove}

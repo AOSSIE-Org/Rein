@@ -19,6 +19,7 @@ interface ControlBarProps {
 
 const CursorIcon = () => (
     <svg width="17" height="17" viewBox="0 0 20 20" fill="currentColor">
+        <title>Cursor Mode</title>
         <path d="M3 1 L3 17 L7 13 L10 19 L12.5 18 L9.5 12 L15 12 Z" />
     </svg>
 );
@@ -26,6 +27,7 @@ const CursorIcon = () => (
 const MouseIcon = ({ side }: { side: "L" | "R" }) => (
     <div className="flex items-center gap-[3px] leading-none">
         <svg width="14" height="18" viewBox="0 0 14 22" fill="none" stroke="currentColor" strokeWidth="1.4">
+            <title>{side} Click</title>
             <rect x="0.7" y="0.7" width="12.6" height="20.6" rx="6.3" />
             <line x1="7" y1="0.7" x2="7" y2="10.5" />
             {side === "L"
@@ -39,6 +41,7 @@ const MouseIcon = ({ side }: { side: "L" | "R" }) => (
 const PasteIcon = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <title>Paste</title>
         <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
         <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
     </svg>
@@ -55,6 +58,7 @@ const KeyboardIcon = () => (
         strokeLinecap="round"
         strokeLinejoin="round"
     >
+        <title>Toggle Keyboard</title>
         <rect x="2" y="6" width="20" height="12" rx="2" />
 
         {/* Top row keys */}
@@ -72,6 +76,7 @@ const KeyboardIcon = () => (
 
 const MirrorIcon = () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <title>Screen Mirror</title>
         <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
         <line x1="8" y1="21" x2="16" y2="21" />
         <line x1="12" y1="17" x2="12" y2="21" />
@@ -110,48 +115,71 @@ export const ControlBar: React.FC<ControlBarProps> = ({
         <div className="flex items-stretch w-full bg-base-200 border-b border-base-300">
 
             <button
+                type="button"
                 className={`${baseBtn} ${scrollMode ? "text-primary" : ""}`}
                 onPointerDown={(e) => prevent(e, onToggleScroll)}
+                aria-label={scrollMode ? "Switch to Cursor Mode" : "Switch to Scroll Mode"}
+                title={scrollMode ? "Cursor Mode" : "Scroll Mode"}
             >
                 <CursorIcon />
             </button>
 
             <button
+                type="button"
                 className={baseBtn}
                 onPointerDown={(e) => prevent(e, onLeftClick)}
+                aria-label="Left Click"
+                title="Left Click"
             >
                 <MouseIcon side="L" />
             </button>
 
             <button
+                type="button"
                 className={baseBtn}
                 onPointerDown={(e) => prevent(e, onRightClick)}
+                aria-label="Right Click"
+                title="Right Click"
             >
                 <MouseIcon side="R" />
             </button>
 
             <button
+                type="button"
                 className={`${baseBtn} ${isMirroring ? "text-accent" : ""}`}
                 onPointerDown={(e) => prevent(e, onToggleMirror)}
+                aria-label={isMirroring ? "Disable Screen Mirroring" : "Enable Screen Mirroring"}
+                title={isMirroring ? "Disable Mirror" : "Enable Mirror"}
             >
                 <MirrorIcon />
             </button>
 
-            <button className={baseBtn}>
+            <button
+                type="button"
+                className={baseBtn}
+                aria-label="Paste from Clipboard"
+                title="Paste"
+            >
                 <PasteIcon />
             </button>
 
             <button
+                type="button"
                 className={baseBtn}
                 onPointerDown={(e) => prevent(e, onKeyboardToggle)}
+                aria-label="Toggle Keyboard"
+                title="Keyboard"
             >
                 <KeyboardIcon />
             </button>
 
             <button
+                type="button"
                 className={`flex-none px-3 py-[11px] m-1 rounded-md text-xs font-bold 
                            ${getHoldClass()}`}
                 onPointerDown={(e) => prevent(e, onModifierToggle)}
+                aria-label="Toggle Modifier Hold"
+                title="Modifier Hold"
             >
                 HOLD
             </button>
