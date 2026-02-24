@@ -1,11 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useRef } from 'react'
-import { useRemoteConnection } from '../hooks/useRemoteConnection';
-import { useTrackpadGesture } from '../hooks/useTrackpadGesture';
-import { ControlBar } from '../components/Trackpad/ControlBar';
-import { ExtraKeys } from '../components/Trackpad/ExtraKeys';
-import { TouchArea } from '../components/Trackpad/TouchArea';
-import { FloatingMirror } from '../components/Trackpad/FloatingMirror';
+import { useState, useRef, useEffect } from 'react'
+import { useRemoteConnection } from '@/hooks/useRemoteConnection';
+import { useTrackpadGesture } from '@/hooks/useTrackpadGesture';
+import { ControlBar } from '@/components/Trackpad/ControlBar';
+import { ExtraKeys } from '@/components/Trackpad/ExtraKeys';
+import { TouchArea } from '@/components/Trackpad/TouchArea';
+import { FloatingMirror } from '@/components/Trackpad/FloatingMirror';
+
 import { BufferBar } from '@/components/Trackpad/Buffer';
 import { ModifierState } from '@/types';
 
@@ -17,11 +18,13 @@ function TrackpadPage() {
     const [scrollMode, setScrollMode] = useState(false);
     const [modifier, setModifier] = useState<ModifierState>("Release");
     const [buffer, setBuffer] = useState<string[]>([]);
+    const [keyboardOpen, setKeyboardOpen] = useState(false);
+    const [extraKeysVisible, setExtraKeysVisible] = useState(true);
     const [isMirroring, setIsMirroring] = useState(false);
     const bufferText = buffer.join(" + ");
     const hiddenInputRef = useRef<HTMLInputElement>(null);
+    const isComposingRef = useRef(false);
 
-    // Load Client Settings
     const [sensitivity] = useState(() => {
         if (typeof window === 'undefined') return 1.0;
         const s = localStorage.getItem('rein_sensitivity');
@@ -38,13 +41,30 @@ function TrackpadPage() {
     // Pass sensitivity and invertScroll to the gesture hook
     const { isTracking, handlers } = useTrackpadGesture(send, scrollMode, sensitivity, invertScroll);
 
-    const focusInput = () => {
-        hiddenInputRef.current?.focus();
+    // When keyboardOpen changes, focus or blur the hidden input
+    useEffect(() => {
+        if (keyboardOpen) {
+            hiddenInputRef.current?.focus();
+        } else {
+            hiddenInputRef.current?.blur();
+        }
+    }, [keyboardOpen]);
+
+    const toggleKeyboard = () => {
+        setKeyboardOpen(prev => !prev);
+    };
+
+    // Silent focus for ExtraKeys — does NOT open mobile keyboard
+    // ExtraKeys send via callback so they don't actually need input focus,
+    // but keep this in case it's used elsewhere.
+    const focusInputSilent = () => {
+        if (keyboardOpen) {
+            hiddenInputRef.current?.focus();
+        }
     };
 
     const handleClick = (button: 'left' | 'right') => {
         send({ type: 'click', button, press: true });
-        // Release after short delay to simulate click
         setTimeout(() => send({ type: 'click', button, press: false }), 50);
     };
 
@@ -69,6 +89,7 @@ function TrackpadPage() {
             }
             return;
         }
+
         if (key === 'backspace') send({ type: 'key', key: 'backspace' });
         else if (key === 'enter') send({ type: 'key', key: 'enter' });
         else if (key !== 'unidentified' && key.length > 1) {
@@ -110,6 +131,7 @@ function TrackpadPage() {
         }
     };
 
+
     const sendText = (val: string) => {
         if (!val) return;
         const toSend = val.length > 1 ? `${val} ` : val;
@@ -117,6 +139,7 @@ function TrackpadPage() {
     };
 
     const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (isComposingRef.current) return;
         const val = e.target.value;
         if (val) {
             e.target.value = '';
@@ -128,73 +151,95 @@ function TrackpadPage() {
         }
     };
 
+    const handleCompositionStart = () => {
+        isComposingRef.current = true;
+    };
 
-    const handleContainerClick = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) {
-            e.preventDefault();
-            focusInput();
+    const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
+        isComposingRef.current = false;
+        const val = (e.target as HTMLInputElement).value;
+        if (val) {
+            modifier !== "Release" ? handleModifier(val) : sendText(val);
+            (e.target as HTMLInputElement).value = '';
         }
     };
 
     return (
-        <div
-            className="flex flex-col h-full overflow-hidden"
-            onClick={handleContainerClick}
-        >
-            {/* Touch Surface */}
-            <TouchArea
-                isTracking={isTracking}
-                scrollMode={scrollMode}
-                handlers={handlers}
-                status={status}
-            />
+        <div className="flex flex-col h-full min-h-0 bg-base-300 overflow-hidden">
 
-            {/* Floating PiP Mirror — draggable & resizable */}
-            {isMirroring && (
-                <FloatingMirror
-                    addListener={addListener}
-                    send={send}
-                    onClose={() => setIsMirroring(false)}
+            {/* TOUCH AREA */}
+            <div className="flex-1 min-h-0 relative flex flex-col border-b border-base-200">
+                <TouchArea
+                    isTracking={isTracking}
+                    scrollMode={scrollMode}
+                    handlers={handlers}
+                    status={status}
                 />
-            )}
-            {bufferText !== "" && <BufferBar bufferText={bufferText} />}
 
-            {/* Controls */}
-            <ControlBar
-                scrollMode={scrollMode}
-                isMirroring={isMirroring}
-                modifier={modifier}
-                buffer={buffer.join(" + ")}
-                onToggleScroll={() => setScrollMode(!scrollMode)}
-                onToggleMirror={() => setIsMirroring(m => !m)}
-                onRightClick={() => handleClick('right')}
-                onKeyboardToggle={focusInput}
-                onModifierToggle={handleModifierState}
-            />
+                {/* Floating PiP Mirror — draggable & resizable */}
+                {isMirroring && (
+                    <FloatingMirror
+                        addListener={addListener}
+                        send={send}
+                        onClose={() => setIsMirroring(false)}
+                    />
+                )}
 
-            {/* Extra Keys */}
-            <ExtraKeys
-                sendKey={(k) => {
-                    if (modifier !== "Release") handleModifier(k);
-                    else send({ type: 'key', key: k });
-                }}
-                onInputFocus={focusInput}
-            />
+                {bufferText && (
+                    <div className="absolute bottom-4 left-0 right-0 px-4">
+                        <BufferBar bufferText={bufferText} />
+                    </div>
+                )}
+            </div>
 
-            {/* Hidden Input for Mobile Keyboard */}
+            {/* CONTROL BAR */}
+            <div className="shrink-0 border-b border-base-200">
+                <ControlBar
+                    scrollMode={scrollMode}
+                    modifier={modifier}
+                    buffer={bufferText}
+                    keyboardOpen={keyboardOpen}
+                    extraKeysVisible={extraKeysVisible}
+                    isMirroring={isMirroring}
+                    onToggleScroll={() => setScrollMode(!scrollMode)}
+                    onToggleMirror={() => setIsMirroring(m => !m)}
+                    onLeftClick={() => handleClick('left')}
+                    onRightClick={() => handleClick('right')}
+                    onKeyboardToggle={toggleKeyboard}
+                    onModifierToggle={handleModifierState}
+                    onExtraKeysToggle={() => setExtraKeysVisible(prev => !prev)}
+                />
+            </div>
+
+            {/* EXTRA KEYS */}
+            <div
+                className={`shrink-0 overflow-hidden transition-all duration-300
+                ${(!extraKeysVisible || keyboardOpen)
+                        ? "max-h-0 opacity-0 pointer-events-none"
+                        : "max-h-[50vh] opacity-100"
+                    }`}
+            >
+                <ExtraKeys
+                    sendKey={(k) => {
+                        if (modifier !== "Release") handleModifier(k);
+                        else send({ type: 'key', key: k });
+                    }}
+                    onInputFocus={focusInputSilent}
+                />
+            </div>
+
+            {/* HIDDEN INPUT — focused when keyboard is open, works for both mobile (native keyboard) and laptop (physical keyboard) */}
             <input
                 ref={hiddenInputRef}
-                className="opacity-0 absolute bottom-0 pointer-events-none h-0 w-0"
+                className="absolute bottom-0 w-0 h-0 opacity-0 pointer-events-none"
                 onKeyDown={handleKeyDown}
                 onChange={handleInput}
-                onBlur={() => {
-                    setTimeout(() => hiddenInputRef.current?.focus(), 10);
-                }}
+                onCompositionStart={handleCompositionStart}
+                onCompositionEnd={handleCompositionEnd}
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
-                autoFocus // Attempt autofocus on mount
             />
         </div>
-    )
+    );
 }

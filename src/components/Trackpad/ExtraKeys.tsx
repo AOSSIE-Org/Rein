@@ -1,90 +1,95 @@
 import React, { useState } from "react";
+import {
+    FaVolumeMute, FaVolumeDown, FaVolumeUp, FaPlay, FaPause,
+    FaArrowUp, FaArrowDown, FaArrowLeft, FaArrowRight,
+    FaBackspace, FaBackward, FaForward
+} from "react-icons/fa";
+import { MdSpaceBar } from "react-icons/md";
 
 interface ExtraKeysProps {
-	sendKey: (key: string) => void;
-	onInputFocus?: () => void;
+    sendKey: (key: string) => void;
+    onInputFocus?: () => void;
 }
 
-/** All extra keys in one row (must match KeyMap.ts). Play/Pause is a single toggle. */
-const EXTRA_KEYS: { label: string; key: string }[] = [
-	{ label: "Esc", key: "esc" },
-	{ label: "Tab", key: "tab" },
-	{ label: "Ctrl", key: "ctrl" },
-	{ label: "Alt", key: "alt" },
-	{ label: "Shift", key: "shift" },
-	{ label: "Meta", key: "meta" },
-	{ label: "Home", key: "home" },
-	{ label: "End", key: "end" },
-	{ label: "PgUp", key: "pgup" },
-	{ label: "PgDn", key: "pgdn" },
-	{ label: "Ins", key: "insert" },
-	{ label: "Del", key: "del" },
-	{ label: "↑", key: "arrowup" },
-	{ label: "↓", key: "arrowdown" },
-	{ label: "←", key: "arrowleft" },
-	{ label: "→", key: "arrowright" },
-	{ label: "F1", key: "f1" },
-	{ label: "F2", key: "f2" },
-	{ label: "F3", key: "f3" },
-	{ label: "F4", key: "f4" },
-	{ label: "F5", key: "f5" },
-	{ label: "F6", key: "f6" },
-	{ label: "F7", key: "f7" },
-	{ label: "F8", key: "f8" },
-	{ label: "F9", key: "f9" },
-	{ label: "F10", key: "f10" },
-	{ label: "F11", key: "f11" },
-	{ label: "F12", key: "f12" },
-	{ label: "Mute", key: "audiomute" },
-	{ label: "Vol−", key: "audiovoldown" },
-	{ label: "Vol+", key: "audiovolup" },
-	{ label: "Prev", key: "audioprev" },
-	{ label: "Next", key: "audionext" },
-];
+export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey }) => {
+    const [isPlaying, setIsPlaying] = useState(false);
 
-export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey, onInputFocus: _onInputFocus }) => {
-	const [isPlaying, setIsPlaying] = useState(false);
+    const handlePlayPause = () => {
+        sendKey(isPlaying ? "audiopause" : "audioplay");
+        setIsPlaying(!isPlaying);
+    };
 
-	const handleInteract = (e: React.PointerEvent, key: string) => {
-		e.preventDefault();
-		sendKey(key);
-	};
+    const keys = [
+        { icon: <FaVolumeMute />, key: "audiomute", type: "media", label: "Mute" },
+        { icon: <FaVolumeDown />, key: "audiovoldown", type: "media", label: "Vol Down" },
+        { icon: <FaVolumeUp />, key: "audiovolup", type: "media", label: "Vol Up" },
+        { icon: <FaBackward />, key: "audioback", type: "media", label: "Backward" },
+        { icon: isPlaying ? <FaPause /> : <FaPlay />, action: handlePlayPause, type: "media", label: "Play/Pause" },
+        { icon: <FaForward />, key: "audioforward", type: "media", label: "Forward" },
 
-	const handlePlayPause = (e: React.PointerEvent) => {
-		e.preventDefault();
-		if (isPlaying) {
-			sendKey("audiopause");
-		} else {
-			sendKey("audioplay");
-		}
-		setIsPlaying((prev) => !prev);
-	};
+        { label: "Esc", key: "escape", type: "action" },
+        { label: "Tab", key: "tab", type: "action" },
+        { label: "PtrSc", key: "printscreen", type: "action" },
+        { label: "End", key: "end", type: "action" },
+        { label: "PgUp", key: "pageup", type: "action" },
+        { label: "PgDn", key: "pagedown", type: "action" },
 
-	return (
-		<div
-			className="bg-base-300 p-2 shrink-0 overflow-x-auto"
-			style={{ WebkitOverflowScrolling: "touch" }}
-		>
-			<div className="flex gap-2 flex-nowrap items-center min-w-max">
-				{EXTRA_KEYS.map(({ label, key }) => (
-					<button
-						key={key}
-						type="button"
-						className="btn btn-sm btn-neutral min-w-[2.5rem] shrink-0"
-						onPointerDown={(e) => handleInteract(e, key)}
-					>
-						{label}
-					</button>
-				))}
-				<button
-					type="button"
-					className="btn btn-sm btn-neutral min-w-[2.5rem] shrink-0"
-					onPointerDown={handlePlayPause}
-					title={isPlaying ? "Pause" : "Play"}
-				>
-					{isPlaying ? "Pause" : "Play"}
-				</button>
-			</div>
-		</div>
-	);
+        { label: "Meta", key: "meta", type: "mod" },
+        { label: "Alt", key: "alt", type: "mod" },
+        { icon: <MdSpaceBar />, key: "space", type: "action", label: "Space" },
+        { label: "Shift", key: "shift", type: "mod" },
+        { icon: <FaArrowUp />, key: "arrowup", type: "arrow", label: "Up" },
+        { icon: <FaBackspace />, key: "backspace", type: "action", label: "Backspace" },
+
+        { label: "Ctrl", key: "control", type: "mod" },
+        { label: "Menu", key: "menu", type: "mod" },
+        { label: "Del", key: "delete", type: "action" },
+        { icon: <FaArrowLeft />, key: "arrowleft", type: "arrow", label: "Left" },
+        { icon: <FaArrowDown />, key: "arrowdown", type: "arrow", label: "Down" },
+        { icon: <FaArrowRight />, key: "arrowright", type: "arrow", label: "Right" },
+
+        { label: "F1", key: "f1", type: "fn" },
+        { label: "F2", key: "f2", type: "fn" },
+        { label: "F3", key: "f3", type: "fn" },
+        { label: "F4", key: "f4", type: "fn" },
+        { label: "F5", key: "f5", type: "fn" },
+        { label: "F6", key: "f6", type: "fn" },
+
+        { label: "F7", key: "f7", type: "fn" },
+        { label: "F8", key: "f8", type: "fn" },
+        { label: "F9", key: "f9", type: "fn" },
+        { label: "F10", key: "f10", type: "fn" },
+        { label: "F11", key: "f11", type: "fn" },
+        { label: "F12", key: "f12", type: "fn" },
+    ];
+
+    const getBtnClass = (type?: string) => {
+        switch (type) {
+            case "arrow": return "btn-primary";
+            case "mod": return "btn-secondary font-bold";
+            case "fn": return "btn-neutral btn-outline text-xs";
+            case "media": return "btn-accent btn-outline";
+            case "action": return "btn-neutral";
+            default: return "btn-neutral";
+        }
+    };
+
+    return (
+        <div className="grid grid-cols-6 grid-rows-6 gap-1 p-1 w-full bg-base-300">
+            {keys.map((k, i) => (
+                <button
+                    key={i}
+                    className={`btn btn-xs h-10 min-h-0 w-full rounded-md shadow-sm ${getBtnClass(k.type)} flex items-center justify-center p-0`}
+                    onPointerDown={(e) => {
+                        e.preventDefault();
+                        if (k.action) k.action();
+                        else if (k.key) sendKey(k.key);
+                    }}
+                    aria-label={k.label || k.key}
+                >
+                    {k.icon || k.label || k.key}
+                </button>
+            ))}
+        </div>
+    );
 };
