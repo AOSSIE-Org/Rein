@@ -6,33 +6,39 @@ on:
   pull_request:
 
 jobs:
-  build-electron:
-    runs-on: windows-latest
+  build-tauri:
+  runs-on: windows-latest
 
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+  steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
 
-      - name: Install dependencies
-        run: |
-          cd rein-packaging/electron-test
-          npm install
+    - name: Install root dependencies
+      run: npm install
 
-      - name: Build Electron App
-        run: |
-          cd rein-packaging/electron-test
-          npm run build
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
 
-      - name: Upload Electron Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: electron-build
-          path: rein-packaging/electron-test/dist/
+    - name: Install Tauri dependencies
+      run: |
+        cd rein-packaging/tauri-app
+        npm install
+
+    - name: Build Tauri App
+      run: |
+        cd rein-packaging/tauri-app
+        npm run tauri build
+
+    - name: Upload Tauri Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: tauri-build
+        path: rein-packaging/tauri-app/src-tauri/target/release/bundle/
 
   build-tauri:
     runs-on: windows-latest
