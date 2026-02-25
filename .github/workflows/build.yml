@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - explore-packaging
   pull_request:
 
 concurrency:
