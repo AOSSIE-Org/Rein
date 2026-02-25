@@ -79,6 +79,7 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey }) => {
             {keys.map((k, i) => (
                 <button
                     key={i}
+                    type="button"
                     className={`btn btn-xs h-10 min-h-0 w-full rounded-md shadow-sm ${getBtnClass(k.type)} flex items-center justify-center p-0`}
                     onPointerDown={(e) => {
                         e.preventDefault();
@@ -86,6 +87,7 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey }) => {
                         else if (k.key) sendKey(k.key);
                     }}
                     aria-label={k.label || k.key}
+                    title={k.label || k.key}
                 >
                     {k.icon || k.label || k.key}
                 </button>

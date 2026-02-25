@@ -24,6 +24,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-icons": "^5.5.0",
+    "sharp": "^0.34.5",
     "vite-tsconfig-paths": "^6.0.2",
     "winston": "^3.19.0",
     "ws": "^8.18.0"

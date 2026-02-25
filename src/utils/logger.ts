@@ -6,7 +6,7 @@ import fs from 'fs';
 
 // dynamic log path (similar to logPath() requirement)
 const HOMEDIR = os.homedir();
-const LOG_DIR = path.join(HOMEDIR, '.rein'); 
+const LOG_DIR = path.join(HOMEDIR, '.rein');
 const LOG_FILE = path.join(LOG_DIR, 'log.txt');
 // Ensure the log directory exists before Winston tries to open the file
 try {
@@ -55,14 +55,14 @@ const originalConsoleLog = console.log;
 const originalConsoleError = console.error;
 
 const serialize = (a: any): string =>
-    typeof a === 'string' ? a : JSON.stringify(a);
+  typeof a === 'string' ? a : JSON.stringify(a);
 
 console.log = (...args: any[]) => {
-    logger.info(args.map(serialize).join(' '));
+  logger.info(args.map(serialize).join(' '));
 };
 
 console.error = (...args: any[]) => {
-    logger.error(args.map(serialize).join(' '));
+  logger.error(args.map(serialize).join(' '));
 };
 
 export default logger;

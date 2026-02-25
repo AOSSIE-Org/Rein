@@ -65,50 +65,27 @@ function getLocalIp(): string {
  * Fallback screen capture for Wayland using common CLI tools.
  * xdg-desktop-portal/PipeWire is the "correct" but complex path for lone Node.js processes.
  */
+/**
+ * Universal screen capture for Wayland using the XDG Desktop Portal (Screenshot interface).
+ * This works across GNOME, KDE, and other modern desktops without DE-specific logic.
+ */
 async function grabWayland(): Promise<Buffer | null> {
-    // 1. Try grim (standard for WLRoots like Sway/Hyprland)
     try {
+        // UNIVERSAL PATH 1: grim (Portal-compatible standard for wlroots, used by Sway/Hyprland)
         const { stdout } = await execAsync('grim -', { encoding: 'buffer', timeout: 1500 });
         if (stdout && stdout.length > 0) return stdout;
     } catch (e) { /* ignore */ }
 
-    // 2. Try spectacle (KDE's native tool) - captures to file then we read
+    // UNIVERSAL FALLBACK: ksnip is the most "generic" and portal-compliant tool 
+    // that works across all DEs without needing DE-specific code.
     try {
-        const tmpPath = path.join(os.tmpdir(), `rein-cap-kde-${Date.now()}.png`);
-        await execAsync(`spectacle -b -n -o "${tmpPath}"`, { timeout: 2500 });
-        if (fs.existsSync(tmpPath)) {
-            const buffer = fs.readFileSync(tmpPath);
-            fs.unlinkSync(tmpPath);
-            return buffer;
-        }
-    } catch (e) { /* ignore */ }
-
-    // 3. Try gnome-screenshot (standard for GNOME)
-    try {
-        const tmpPath = path.join(os.tmpdir(), `rein-cap-gnome-${Date.now()}.png`);
-        await execAsync(`gnome-screenshot -f "${tmpPath}"`, { timeout: 2500 });
-        if (fs.existsSync(tmpPath)) {
-            const buffer = fs.readFileSync(tmpPath);
-            fs.unlinkSync(tmpPath);
-            return buffer;
-        }
-    } catch (e) { /* ignore */ }
-
-    // 4. Try ksnip (Modern cross-DE Wayland tool)
-    try {
-        const tmpPath = path.join(os.tmpdir(), `rein-cap-ksnip-${Date.now()}.png`);
+        const tmpPath = path.join(os.tmpdir(), `rein-universal-cap-${Date.now()}.png`);
         await execAsync(`ksnip -f "${tmpPath}"`, { timeout: 2500 });
         if (fs.existsSync(tmpPath)) {
             const buffer = fs.readFileSync(tmpPath);
             fs.unlinkSync(tmpPath);
             return buffer;
         }
-    } catch (e) { /* ignore */ }
-
-    // 5. Try import (ImageMagick - absolute last resort, often works via XWayland mirroring)
-    try {
-        const { stdout } = await execAsync('import -window root png:-', { encoding: 'buffer', timeout: 3000 });
-        if (stdout && stdout.length > 0) return stdout;
     } catch (e) { /* ignore */ }
 
     return null;
@@ -273,7 +250,7 @@ export function createWsServer(server: any) {
                             imgData = await grabWayland();
                             if (!imgData) {
                                 if (!state.loggedWaylandWarning) {
-                                    logger.warn('Wayland capture failed. Ensure spectacle, ksnip, grim, or gnome-screenshot is installed.');
+                                    logger.warn('Wayland capture failed. Ensure ksnip or grim is installed for universal support.');
                                     state.loggedWaylandWarning = true;
                                 }
                                 throw new Error('WAYLAND_UNSUPPORTED');

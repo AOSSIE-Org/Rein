@@ -177,7 +177,7 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
                             </span>
                             <span className="text-[9px] text-neutral-500 mt-1 max-w-[200px] leading-tight">
                                 {mirrorError === 'WAYLAND_UNSUPPORTED'
-                                    ? "Mirroring failed. Install 'spectacle' (KDE), 'gnome-screenshot' (GNOME), or 'ksnip' (Generic) for Wayland support."
+                                    ? "Mirroring failed. Ensure 'ksnip' or 'grim' is installed for universal Wayland support."
                                     : mirrorError}
                             </span>
                         </div>
