@@ -1,5 +1,5 @@
-import { ModifierState } from "@/types";
-import React from "react";
+import type { ModifierState } from "@/types";
+import type React from "react";
 
 interface ControlBarProps {
 	scrollMode: boolean;
@@ -30,11 +30,10 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 	const getModifierButtonClass = () => {
 		switch (modifier) {
 			case "Active":
-				if (buffer.length > 0) return "btn-success"
+				if (buffer.length > 0) return "btn-success";
 				else return "btn-warning";
 			case "Hold":
 				return "btn-warning";
-			case "Release":
 			default:
 				return "btn-secondary";
 		}
@@ -43,7 +42,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 	const getModifierLabel = () => {
 		switch (modifier) {
 			case "Active":
-				if (buffer.length > 0) return "Press"
+				if (buffer.length > 0) return "Press";
 				else return "Release";
 			case "Hold":
 				return "Release";
@@ -55,42 +54,43 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 	return (
 		<div className="bg-base-200 p-2 grid grid-cols-5 gap-2 shrink-0">
 			<button
+				type="button"
 				className={`btn btn-sm ${scrollMode ? "btn-primary" : "btn-outline"}`}
 				onPointerDown={(e) => handleInteraction(e, onToggleScroll)}
 			>
 				{scrollMode ? "Scroll" : "Cursor"}
 			</button>
-			<button
-				className="btn btn-sm btn-outline"
-			>
+			<button type="button" className="btn btn-sm btn-outline">
 				Copy
 			</button>
-			<button
-				className="btn btn-sm btn-outline"
-			>
+			<button type="button" className="btn btn-sm btn-outline">
 				Paste
 			</button>
-			{/* 
+
 			<button
+				type="button"
 				className="btn btn-sm btn-outline"
 				onPointerDown={(e) => handleInteraction(e, onLeftClick)}
 			>
 				L-Click
 			</button>
-			*/}
+
 			<button
+				type="button"
 				className="btn btn-sm btn-outline"
 				onPointerDown={(e) => handleInteraction(e, onRightClick)}
 			>
 				R-Click
 			</button>
 			<button
+				type="button"
 				className={`btn btn-sm ${getModifierButtonClass()}`}
 				onPointerDown={(e) => handleInteraction(e, onModifierToggle)}
 			>
 				{getModifierLabel()}
 			</button>
 			<button
+				type="button"
 				className="btn btn-sm btn-secondary"
 				onPointerDown={(e) => handleInteraction(e, onKeyboardToggle)}
 			>
