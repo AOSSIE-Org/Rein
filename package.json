@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "@nut-tree-fork/nut-js": "^4.2.6",
-    "@tailwindcss/postcss": "^4.1.18",
     "@tanstack/react-devtools": "^0.7.0",
     "@tanstack/react-router": "^1.132.0",
     "@tanstack/react-router-devtools": "^1.132.0",
@@ -28,6 +27,7 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.1",
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/devtools-vite": "^0.3.11",
     "@testing-library/dom": "^10.4.0",
@@ -38,11 +38,11 @@
     "@types/react-dom": "^19.2.0",
     "@types/ws": "^8.5.14",
     "@vitejs/plugin-react": "^5.0.4",
-    "autoprefixer": "^10.4.23",
+    "autoprefixer": "^10.4.24",
     "daisyui": "^5.5.14",
     "jsdom": "^27.0.0",
     "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.18",
+    "tailwindcss": "^4.2.1",
     "tsx": "^4.19.0",
     "typescript": "^5.7.2",
     "vite": "^7.1.7",
