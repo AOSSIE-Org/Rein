@@ -2,70 +2,77 @@ name: Build Desktop Apps
 
 on:
   push:
-    branches:
-      - main
-      - explore-packaging
+    branches: ["main", "explore-packaging"]
   pull_request:
 
 jobs:
   build-electron:
-    runs-on: windows-latest
+    name: Electron Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
 
     steps:
-      - name: Checkout repo
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install dependencies
-        run: |
-          cd rein-packaging/electron-test
-          npm install
+      - name: Install Dependencies
+        working-directory: rein-packaging/electron-test
+        run: npm install
 
       - name: Build Electron App
-        run: |
-          cd rein-packaging/electron-test
-          npm run build
+        working-directory: rein-packaging/electron-test
+        run: npm run build
 
       - name: Upload Electron Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: electron-build
+          name: electron-${{ matrix.os }}
           path: rein-packaging/electron-test/dist/
+          if-no-files-found: error
 
   build-tauri:
-    runs-on: windows-latest
+    name: Tauri Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
 
     steps:
-      - name: Checkout repo
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install root dependencies
-        run: npm install
-
-      - name: Install Rust
+      - name: Install Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Tauri dependencies
+      - name: Remove conflicting root PostCSS config
         run: |
-          cd rein-packaging/tauri-app
-          npm install
+          if [ -f postcss.config.js ]; then rm postcss.config.js; fi
+
+      - name: Install Dependencies
+        working-directory: rein-packaging/tauri-app
+        run: npm install
 
       - name: Build Tauri App
-        run: |
-          cd rein-packaging/tauri-app
-          npm run tauri build
+        working-directory: rein-packaging/tauri-app
+        run: npm run tauri build
 
       - name: Upload Tauri Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tauri-build
+          name: tauri-${{ matrix.os }}
           path: rein-packaging/tauri-app/src-tauri/target/release/bundle/
+          if-no-files-found: error
