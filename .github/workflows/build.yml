@@ -1,4 +1,4 @@
-name: Build (Electron + Tauri)
+name: Build Desktop Apps
 
 on:
   push:
@@ -7,108 +7,73 @@ on:
       - explore-packaging
   pull_request:
 
-concurrency:
-  group: build-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   build-electron:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
 
-    defaults:
-      run:
-        working-directory: rein-packaging/electron-test
+    runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          cd rein-packaging/electron-test
+          npm install
 
-      - name: Build Electron app
-        run: npm run build
+      - name: Build Electron App
+        run: |
+          cd rein-packaging/electron-test
+          npm run build
 
-      - name: Upload Electron Artifact (Windows)
+      - name: Upload Electron Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: electron-windows-build
+          name: electron-${{ matrix.os }}
           path: rein-packaging/electron-test/dist/
-          retention-days: 7
 
   build-tauri:
     strategy:
-      fail-fast: false
       matrix:
-        platform: [windows-latest, ubuntu-latest, macos-latest]
+        os: [windows-latest, ubuntu-latest, macos-latest]
 
-    runs-on: ${{ matrix.platform }}
-
-    defaults:
-      run:
-        working-directory: rein-packaging/tauri-app
+    runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
-      - name: Install frontend dependencies
-        run: npm install
-
-      - name: Setup Rust
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Linux dependencies
-        if: matrix.platform == 'ubuntu-latest'
+      - name: Install root dependencies
+        run: npm install
+
+      - name: Install Tauri dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libgtk-3-dev \
-            libglib2.0-dev \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            build-essential \
-            curl \
-            wget \
-            file \
-            libssl-dev \
-            pkg-config
+          cd rein-packaging/tauri-app
+          npm install
 
-      - name: Build Tauri app
-        run: npm run tauri build
+      - name: Build Tauri App
+        run: |
+          cd rein-packaging/tauri-app
+          npm run tauri build
 
-      - name: Upload Tauri Artifact (Windows)
-        if: matrix.platform == 'windows-latest'
+      - name: Upload Tauri Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tauri-windows-build
+          name: tauri-${{ matrix.os }}
           path: rein-packaging/tauri-app/src-tauri/target/release/bundle/
-          retention-days: 7
-
-      - name: Upload Tauri Artifact (Linux)
-        if: matrix.platform == 'ubuntu-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: tauri-linux-build
-          path: rein-packaging/tauri-app/src-tauri/target/release/bundle/
-          retention-days: 7
-
-      - name: Upload Tauri Artifact (macOS)
-        if: matrix.platform == 'macos-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: tauri-macos-build
-          path: rein-packaging/tauri-app/src-tauri/target/release/bundle/
-          retention-days: 7
