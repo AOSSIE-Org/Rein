@@ -3,7 +3,6 @@ name: Build (Electron + Tauri)
 on:
   push:
     branches:
-      - main
       - explore-packaging
   pull_request:
 
