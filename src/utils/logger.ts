@@ -52,8 +52,6 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 // Optional: Intercept standard console.log and redirect to winston
-const _originalConsoleLog = console.log
-const _originalConsoleError = console.error
 
 const serialize = (a: unknown): string =>
 	typeof a === "string" ? a : JSON.stringify(a)

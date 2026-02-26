@@ -94,7 +94,7 @@ function SettingsPage() {
 					socket.close()
 				}
 			} catch (e) {
-				console.error(e)
+				// Removed debug logging
 			}
 		}
 
@@ -131,8 +131,8 @@ function SettingsPage() {
 
 		QRCode.toDataURL(shareUrl)
 			.then(setQrData)
-			.catch((e) => console.error("QR Error:", e))
-	}, [ip, shareUrl])
+			.catch(() => {})
+	}, [ip, authToken, shareUrl])
 
 	// Effect: Auto-detect LAN IP from Server (only if on localhost)
 	useEffect(() => {
@@ -155,7 +155,7 @@ function SettingsPage() {
 					socket.close()
 				}
 			} catch (e) {
-				console.error(e)
+				// Removed debug logging
 			}
 		}
 
@@ -189,9 +189,7 @@ function SettingsPage() {
 								max="3.0"
 								step="0.1"
 								value={sensitivity}
-								onChange={(e) =>
-									setSensitivity(Number.parseFloat(e.target.value))
-								}
+								onChange={(e) => setSensitivity(Number.parseFloat(e.target.value))}
 								className="range range-primary range-sm w-full"
 							/>
 

@@ -1,12 +1,11 @@
-import type { ModifierState } from "@/types"
 import type React from "react"
+import type { ModifierState } from "@/types"
 
 interface ControlBarProps {
 	scrollMode: boolean
 	modifier: ModifierState
 	buffer: string
 	onToggleScroll: () => void
-	onLeftClick: () => void
 	onRightClick: () => void
 	onKeyboardToggle: () => void
 	onModifierToggle: () => void
@@ -17,7 +16,6 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 	modifier,
 	buffer,
 	onToggleScroll,
-	onLeftClick,
 	onRightClick,
 	onKeyboardToggle,
 	onModifierToggle,
@@ -27,7 +25,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 		action()
 	}
 
-	const getModifierButtonClass = () => {
+const getModifierButtonClass = () => {
 		switch (modifier) {
 			case "Active":
 				if (buffer.length > 0) return "btn-success"
@@ -39,7 +37,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 		}
 	}
 
-	const getModifierLabel = () => {
+const getModifierLabel = () => {
 		switch (modifier) {
 			case "Active":
 				if (buffer.length > 0) return "Press"
@@ -59,22 +57,13 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 				onPointerDown={(e) => handleInteraction(e, onToggleScroll)}
 			>
 				{scrollMode ? "Scroll" : "Cursor"}
-			</button>
-			<button type="button" className="btn btn-sm btn-outline">
+</button>
+<button type="button" className="btn btn-sm btn-outline">
 				Copy
 			</button>
 			<button type="button" className="btn btn-sm btn-outline">
 				Paste
 			</button>
-
-			<button
-				type="button"
-				className="btn btn-sm btn-outline"
-				onPointerDown={(e) => handleInteraction(e, onLeftClick)}
-			>
-				L-Click
-			</button>
-
 			<button
 				type="button"
 				className="btn btn-sm btn-outline"

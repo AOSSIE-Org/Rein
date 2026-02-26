@@ -279,8 +279,7 @@ export function createWsServer(server: unknown) {
 			})
 
 			ws.on("error", (error: Error) => {
-				console.error("WebSocket error:", error)
-				logger.error(`WebSocket error: ${error.message}`)
+				logger.error("WebSocket error:", error)
 			})
 		},
 	)
