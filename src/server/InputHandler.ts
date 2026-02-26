@@ -20,9 +20,15 @@ export class InputHandler {
 	private pendingScroll: InputMessage | null = null
 	private moveTimer: ReturnType<typeof setTimeout> | null = null
 	private scrollTimer: ReturnType<typeof setTimeout> | null = null
+	private throttleMs: number
 
-	constructor() {
+	constructor(throttleMs = 8) {
 		mouse.config.mouseSpeed = 1000
+		this.throttleMs = throttleMs
+	}
+
+	setThrottleMs(ms: number) {
+		this.throttleMs = ms
 	}
 
 	private isFiniteNumber(value: unknown): value is number {
@@ -55,10 +61,10 @@ export class InputHandler {
 			msg.delta = 0
 		}
 
-		// Throttling: Limit high-frequency events to ~125fps (8ms)
+		// Throttling: Limit high-frequency events (configurable via inputThrottleMs)
 		if (msg.type === "move") {
 			const now = Date.now()
-			if (now - this.lastMoveTime < 8) {
+			if (now - this.lastMoveTime < this.throttleMs) {
 				this.pendingMove = msg
 				if (!this.moveTimer) {
 					this.moveTimer = setTimeout(() => {
@@ -70,14 +76,14 @@ export class InputHandler {
 								console.error("Error processing pending move event:", err)
 							})
 						}
-					}, 8)
+					}, this.throttleMs)
 				}
 				return
 			}
 			this.lastMoveTime = now
 		} else if (msg.type === "scroll") {
 			const now = Date.now()
-			if (now - this.lastScrollTime < 8) {
+			if (now - this.lastScrollTime < this.throttleMs) {
 				this.pendingScroll = msg
 				if (!this.scrollTimer) {
 					this.scrollTimer = setTimeout(() => {
@@ -89,7 +95,7 @@ export class InputHandler {
 								console.error("Error processing pending move event:", err)
 							})
 						}
-					}, 8)
+					}, this.throttleMs)
 				}
 				return
 			}

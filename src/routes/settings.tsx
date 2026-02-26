@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router"
 import QRCode from "qrcode"
 import { useEffect, useState } from "react"
-import { APP_CONFIG, CONFIG, THEMES } from "../config"
+import { APP_CONFIG, THEMES } from "../config"
+import serverConfig from "../server-config.json"
 
 export const Route = createFileRoute("/settings")({
 	component: SettingsPage,
@@ -9,8 +10,10 @@ export const Route = createFileRoute("/settings")({
 
 function SettingsPage() {
 	const [ip, setIp] = useState("")
-	const [frontendPort, setFrontendPort] = useState(String(CONFIG.FRONTEND_PORT))
-	const [originalPort] = useState(String(CONFIG.FRONTEND_PORT))
+	const [frontendPort, setFrontendPort] = useState(
+		String(serverConfig.frontendPort),
+	)
+	const [originalPort] = useState(String(serverConfig.frontendPort))
 
 	const serverConfigChanged = frontendPort !== originalPort
 
@@ -64,7 +67,7 @@ function SettingsPage() {
 		const defaultIp =
 			typeof window !== "undefined" ? window.location.hostname : "localhost"
 		setIp(defaultIp)
-		setFrontendPort(String(CONFIG.FRONTEND_PORT))
+		setFrontendPort(String(serverConfig.frontendPort))
 	}, [])
 
 	// Auto-generate token on settings page load (localhost only)
@@ -273,7 +276,7 @@ function SettingsPage() {
 							<input
 								id="port-input"
 								type="text"
-								placeholder={String(CONFIG.FRONTEND_PORT)}
+								placeholder={String(serverConfig.frontendPort)}
 								className="input input-bordered w-full rounded-md"
 								value={frontendPort}
 								onChange={(e) => setFrontendPort(e.target.value)}

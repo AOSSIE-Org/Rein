@@ -33,8 +33,26 @@ function isLocalhost(request: IncomingMessage): boolean {
 
 // server: any is used to support Vite's dynamic httpServer types (http, https, http2)
 export function createWsServer(server: unknown) {
+	const configPath = "./src/server-config.json"
+	let serverConfig: Record<string, unknown> = {}
+	if (fs.existsSync(configPath)) {
+		try {
+			serverConfig = JSON.parse(fs.readFileSync(configPath, "utf-8")) as Record<
+				string,
+				unknown
+			>
+		} catch (e) {
+			logger.warn(`Invalid server-config.json, using defaults: ${String(e)}`)
+		}
+	}
+	const inputThrottleMs =
+		typeof serverConfig.inputThrottleMs === "number" &&
+		serverConfig.inputThrottleMs > 0
+			? serverConfig.inputThrottleMs
+			: 8
+
 	const wss = new WebSocketServer({ noServer: true })
-	const inputHandler = new InputHandler()
+	const inputHandler = new InputHandler(inputThrottleMs)
 	const LAN_IP = getLocalIp()
 	const MAX_PAYLOAD_SIZE = 10 * 1024 // 10KB limit
 
@@ -104,24 +122,12 @@ export function createWsServer(server: unknown) {
 
 			ws.send(JSON.stringify({ type: "connected", serverIp: LAN_IP }))
 
-			let lastRaw = ""
-			let lastTime = 0
-			const DUPLICATE_WINDOW_MS = 100
+			let lastTokenTouch = 0
 
 			ws.on("message", async (data: WebSocket.RawData) => {
 				try {
 					const raw = data.toString()
 					const now = Date.now()
-
-					// Prevent rapid identical message spam
-					if (raw === lastRaw && now - lastTime < DUPLICATE_WINDOW_MS) {
-						return
-					}
-
-					lastRaw = raw
-					lastTime = now
-
-					logger.info(`Received message (${raw.length} bytes)`)
 
 					if (raw.length > MAX_PAYLOAD_SIZE) {
 						logger.warn("Payload too large, rejecting message.")
@@ -130,9 +136,12 @@ export function createWsServer(server: unknown) {
 
 					const msg = JSON.parse(raw)
 
-					// PERFORMANCE: Only touch if it's an actual command (not ping/ip)
+					// Throttle token touch to once per second — avoids crypto comparison on every event
 					if (token && msg.type !== "get-ip" && msg.type !== "generate-token") {
-						touchToken(token)
+						if (now - lastTokenTouch > 1000) {
+							lastTokenTouch = now
+							touchToken(token)
+						}
 					}
 
 					if (msg.type === "get-ip") {
@@ -185,7 +194,12 @@ export function createWsServer(server: unknown) {
 								return
 							}
 
-							const SERVER_CONFIG_KEYS = ["host", "frontendPort", "address"]
+							const SERVER_CONFIG_KEYS = [
+								"host",
+								"frontendPort",
+								"address",
+								"inputThrottleMs",
+							]
 							const filtered: Record<string, unknown> = {}
 
 							for (const key of SERVER_CONFIG_KEYS) {
@@ -209,6 +223,19 @@ export function createWsServer(server: unknown) {
 										return
 									}
 									filtered[key] = port
+								} else if (key === "inputThrottleMs") {
+									const ms = Number(msg.config[key])
+									if (!Number.isFinite(ms) || ms < 1 || ms > 1000) {
+										ws.send(
+											JSON.stringify({
+												type: "config-updated",
+												success: false,
+												error: "Invalid inputThrottleMs (must be 1–1000)",
+											}),
+										)
+										return
+									}
+									filtered[key] = ms
 								} else if (
 									typeof msg.config[key] === "string" &&
 									msg.config[key].length <= 255
@@ -234,6 +261,11 @@ export function createWsServer(server: unknown) {
 								: {}
 							const newConfig = { ...current, ...filtered }
 							fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2))
+
+							// Propagate inputThrottleMs immediately to live subsystems
+							if (typeof filtered.inputThrottleMs === "number") {
+								inputHandler.setThrottleMs(filtered.inputThrottleMs)
+							}
 
 							logger.info("Server configuration updated")
 							ws.send(JSON.stringify({ type: "config-updated", success: true }))
