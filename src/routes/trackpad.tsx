@@ -20,7 +20,6 @@ function TrackpadPage() {
 	const hiddenInputRef = useRef<HTMLInputElement>(null)
 	const [keyboardOpen, setKeyboardOpen] = useState(false)
 	const [extraKeysVisible, setExtraKeysVisible] = useState(true)
-	const isComposingRef = useRef(false)
 
 	// Load Client Settings
 	const [sensitivity] = useState(() => {
