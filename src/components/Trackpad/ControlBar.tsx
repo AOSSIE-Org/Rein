@@ -132,73 +132,98 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 	onRightClick,
 	onKeyboardToggle,
 	onModifierToggle,
+	buffer,
 }) => {
-	const prevent = (e: React.PointerEvent, cb: () => void) => {
+	const handleInteraction = (e: React.PointerEvent, action: () => void) => {
 		e.preventDefault()
-		cb()
+		action()
 	}
 
-	const getHoldClass = () => {
-		if (modifier === "Active") return "bg-success text-white"
-		if (modifier === "Hold") return "bg-warning text-white"
-		return "bg-transparent text-base-content"
+	const getModifierButtonClass = () => {
+		switch (modifier) {
+			case "Active":
+				if (buffer.length > 0) return "btn-success"
+				return "btn-warning"
+			case "Hold":
+				return "btn-warning"
+			default:
+				return "btn-secondary"
+		}
 	}
 
-	const baseBtn =
-		"flex-1 min-w-0 flex items-center justify-center py-[11px] " +
-		"select-none touch-none overflow-hidden box-border cursor-pointer " +
-		"border-0 outline-none bg-transparent text-[#c8d0e8]"
+	const getModifierLabel = () => {
+		switch (modifier) {
+			case "Active":
+				if (buffer.length > 0) return "Press"
+				return "Release"
+			case "Hold":
+				return "Release"
+			case "Release":
+				return "Hold"
+		}
+	}
+
+	const ModifierButton = () => (
+		<button
+			type="button"
+			className={`flex items-center justify-center w-[48px] h-[36px] transition-all duration-100 ${
+				modifier === "Hold"
+					? "!bg-neutral-900 hover:!bg-neutral-800 active:!bg-neutral-800"
+					: "btn " + getModifierButtonClass()
+			}`}
+			onPointerDown={(e) => handleInteraction(e, onModifierToggle)}
+		>
+			{getModifierLabel() === "Release" ? (
+				<span className="text-red-600 text-[26px] font-extrabold leading-none">
+					✕
+				</span>
+			) : (
+				<span className="text-xs font-bold">{getModifierLabel()}</span>
+			)}
+		</button>
+	)
+
+	const baseClasses =
+		"flex-1 flex items-center justify-center px-3 py-[11px] bg-base-100 hover:bg-base-300 active:scale-[0.98] transition-all duration-100"
 
 	return (
 		<div className="flex items-stretch w-full bg-base-200 border-b border-base-300">
 			<button
 				type="button"
-				className={`${baseBtn} ${scrollMode ? "text-primary" : ""}`}
-				onPointerDown={(e) => prevent(e, onToggleScroll)}
+				className={`${baseClasses} ${scrollMode ? "text-primary" : ""}`}
+				onPointerDown={(e) => handleInteraction(e, onToggleScroll)}
 			>
 				<CursorIcon />
 			</button>
-
 			<button
 				type="button"
-				className={baseBtn}
-				onPointerDown={(e) => prevent(e, onLeftClick)}
+				className={baseClasses}
+				onPointerDown={(e) => handleInteraction(e, onLeftClick)}
 			>
 				<MouseIcon side="L" />
 			</button>
-
 			<button
 				type="button"
-				className={baseBtn}
-				onPointerDown={(e) => prevent(e, onRightClick)}
+				className={baseClasses}
+				onPointerDown={(e) => handleInteraction(e, onRightClick)}
 			>
 				<MouseIcon side="R" />
 			</button>
-
-			<button type="button" className={baseBtn}>
+			<button type="button" className={baseClasses}>
 				<CopyIcon />
 			</button>
-
-			<button type="button" className={baseBtn}>
+			<button type="button" className={baseClasses}>
 				<PasteIcon />
 			</button>
-
 			<button
 				type="button"
-				className={baseBtn}
-				onPointerDown={(e) => prevent(e, onKeyboardToggle)}
+				className={baseClasses}
+				onPointerDown={(e) => handleInteraction(e, onKeyboardToggle)}
 			>
 				<KeyboardIcon />
 			</button>
 
-			<button
-				type="button"
-				className={`flex-none px-3 py-[11px] m-1 rounded-md text-xs font-bold 
-                           ${getHoldClass()}`}
-				onPointerDown={(e) => prevent(e, onModifierToggle)}
-			>
-				HOLD
-			</button>
+			<ModifierButton />
 		</div>
 	)
 }
