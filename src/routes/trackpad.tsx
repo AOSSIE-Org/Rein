@@ -31,7 +31,10 @@ function TrackpadPage() {
 
 		try {
 			const s = localStorage.getItem("rein_invert")
-			return s ? JSON.parse(s) : false
+			if (!s) return false
+
+			const parsed = JSON.parse(s)
+			return typeof parsed === "boolean" ? parsed : false
 		} catch {
 			return false
 		}

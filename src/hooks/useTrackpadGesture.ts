@@ -25,7 +25,7 @@ export const useTrackpadGesture = (
 	send: (msg: unknown) => void,
 	scrollMode: boolean,
 	sensitivity = 1.5,
-	invertScroll = false,
+	invertScroll: boolean = false,
 	axisThreshold = 2.5,
 ) => {
 	const [isTracking, setIsTracking] = useState(false)
