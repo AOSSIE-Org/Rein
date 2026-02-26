@@ -1,1 +1,1 @@
-export type ModifierState = "Active" | "Release" | "Hold";
+export type ModifierState = "Active" | "Release" | "Hold"

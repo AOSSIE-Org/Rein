@@ -2,6 +2,7 @@ name: Bug Report
 description: Report a bug or unexpected behavior in Rein
 title: "[Bug]: "
 labels: ["bug", "triage"]
+
 body:
   - type: textarea
     id: description
@@ -67,19 +68,25 @@ body:
       label: Rein Version
       description: Version of Rein (check in Settings or package.json)
       placeholder: e.g., 1.0.0
+    validations:
+      required: false
 
   - type: textarea
     id: logs
     attributes:
-      label: Console Logs / Error Messages
-      description: Any relevant logs from browser console or terminal
+      label: Console Logs / Error Messages (Optional)
+      description: Add logs from the file or web console. Leave empty if not applicable.
       render: shell
+    validations:
+      required: false
 
   - type: textarea
     id: screenshots
     attributes:
-      label: Screenshots / Recordings
-      description: If applicable, add screenshots or recordings to help explain the problem.
+      label: Screenshots / Recordings (Optional)
+      description: Add screenshots or recordings if helpful.
+    validations:
+      required: false
 
   - type: checkboxes
     id: checklist

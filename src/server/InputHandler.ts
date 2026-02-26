@@ -2,15 +2,15 @@ import { mouse, Point, Button, keyboard, Key } from '@nut-tree-fork/nut-js';
 import { KEY_MAP } from './KeyMap';
 import { getCursorController } from './cursor-controller';
 export interface InputMessage {
-    type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo';
-    dx?: number;
-    dy?: number;
-    button?: 'left' | 'right' | 'middle';
-    press?: boolean;
-    key?: string;
-    keys?: string[];
-    text?: string;
-    delta?: number;
+	type: "move" | "click" | "scroll" | "key" | "text" | "zoom" | "combo"
+	dx?: number
+	dy?: number
+	button?: "left" | "right" | "middle"
+	press?: boolean
+	key?: string
+	keys?: string[]
+	text?: string
+	delta?: number
 }
 
 export class InputHandler {

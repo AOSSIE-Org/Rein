@@ -21,8 +21,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run Lint
-        run: npm run lint || echo "Linting skipped (command not found)"
+      - name: Run Biome Check
+        run: npx @biomejs/biome ci .
 
       - name: Run Build
         run: npm run build
