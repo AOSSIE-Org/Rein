@@ -3,6 +3,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
+		"predev": "biome format . --write",
 		"dev": "vite dev --host --open",
 		"start": "vite preview --host --open",
 		"build": "vite build",
