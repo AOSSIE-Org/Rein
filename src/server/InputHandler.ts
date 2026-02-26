@@ -1,6 +1,6 @@
 import { mouse, Point, Button, keyboard, Key } from '@nut-tree-fork/nut-js';
 import { KEY_MAP } from './KeyMap';
-
+import { getCursorController } from './cursor-controller';
 export interface InputMessage {
     type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo';
     dx?: number;
@@ -20,7 +20,7 @@ export class InputHandler {
     private pendingScroll: InputMessage | null = null;
     private moveTimer: ReturnType<typeof setTimeout> | null = null;
     private scrollTimer: ReturnType<typeof setTimeout> | null = null;
-
+    private cursorController = getCursorController();
     constructor() {
         mouse.config.mouseSpeed = 1000;
     }
@@ -91,10 +91,11 @@ export class InputHandler {
                 ) {
                     const currentPos = await mouse.getPosition();
 
-                    await mouse.setPosition(new Point(
-                        Math.round(currentPos.x + msg.dx),
-                        Math.round(currentPos.y + msg.dy)
-                    ));
+                   const targetX = Math.round(currentPos.x + msg.dx);
+   const targetY = Math.round(currentPos.y + msg.dy);
+
+   const result = await this.cursorController.moveToAbsolute(targetX, targetY);
+   console.log(`[Input] ${result.message}`);
                 }
                 break;
 
