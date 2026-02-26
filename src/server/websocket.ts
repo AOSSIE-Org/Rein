@@ -122,7 +122,6 @@ export function createWsServer(server: unknown) {
 					lastRaw = raw
 					lastTime = now
 
-
 					if (raw.length > MAX_PAYLOAD_SIZE) {
 						logger.warn("Payload too large, rejecting message.")
 						return
@@ -270,7 +269,8 @@ export function createWsServer(server: unknown) {
 					await inputHandler.handleMessage(msg as InputMessage)
 				} catch (err: unknown) {
 					logger.error(
-						`Error processing message: ${err instanceof Error ? err.message : String(err)
+						`Error processing message: ${
+							err instanceof Error ? err.message : String(err)
 						}`,
 					)
 				}
