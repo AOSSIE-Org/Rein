@@ -27,6 +27,19 @@ export class InputHandler {
 		this.throttleMs = throttleMs
 	}
 
+	dispose() {
+		if (this.moveTimer) {
+			clearTimeout(this.moveTimer)
+			this.moveTimer = null
+		}
+		if (this.scrollTimer) {
+			clearTimeout(this.scrollTimer)
+			this.scrollTimer = null
+		}
+		this.pendingMove = null
+		this.pendingScroll = null
+	}
+
 	setThrottleMs(ms: number) {
 		this.throttleMs = ms
 	}
