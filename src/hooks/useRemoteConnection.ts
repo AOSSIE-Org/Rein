@@ -3,8 +3,9 @@ import { useCallback, useEffect, useRef, useState } from "react"
 export const useRemoteConnection = () => {
 	const wsRef = useRef<WebSocket | null>(null)
 	const [status, setStatus] = useState<
-		"connecting" | "connected" | "disconnected"
+		"connecting" | "connected" | "disconnected" | "waiting-approval"
 	>("disconnected")
+	const [pairingRequestId, setPairingRequestId] = useState<string | null>(null)
 
 	useEffect(() => {
 		let isMounted = true
@@ -28,6 +29,7 @@ export const useRemoteConnection = () => {
 		}
 
 		let reconnectTimer: NodeJS.Timeout
+		let pairingCheckTimer: NodeJS.Timeout
 
 		const connect = () => {
 			if (!isMounted) return
@@ -37,6 +39,7 @@ export const useRemoteConnection = () => {
 				wsRef.current.onopen = null
 				wsRef.current.onclose = null
 				wsRef.current.onerror = null
+				wsRef.current.onmessage = null
 				wsRef.current.close()
 				wsRef.current = null
 			}
@@ -45,12 +48,62 @@ export const useRemoteConnection = () => {
 			const socket = new WebSocket(wsUrl)
 
 			socket.onopen = () => {
-				if (isMounted) setStatus("connected")
+				if (isMounted) {
+					// If no token, request pairing
+					if (!token && !pairingRequestId) {
+						setStatus("waiting-approval")
+						const deviceName =
+							typeof navigator !== "undefined"
+								? navigator.userAgent.split("/")[0]
+								: "Unknown Device"
+						socket.send(
+							JSON.stringify({
+								type: "request-pairing",
+								deviceName,
+								userAgent: navigator.userAgent,
+							}),
+						)
+					} else {
+						setStatus("connected")
+					}
+				}
 			}
+
+			socket.onmessage = (event) => {
+				try {
+					const data = JSON.parse(event.data)
+					if (
+						data.type === "pairing-requested" &&
+						data.requestId &&
+						isMounted
+					) {
+						setPairingRequestId(data.requestId)
+					} else if (data.type === "pairing-approved" && data.token && isMounted) {
+						// Pairing was approved, save token and reconnect
+						localStorage.setItem("rein_auth_token", data.token)
+						setPairingRequestId(null)
+						socket.close()
+						// Reconnect with new token
+						const newWsUrl = `${protocol}//${host}/ws?token=${encodeURIComponent(data.token)}`
+						wsUrl = newWsUrl
+						setTimeout(() => connect(), 500)
+					} else if (data.type === "pairing-rejected" && isMounted) {
+						setStatus("disconnected")
+						setPairingRequestId(null)
+						socket.close()
+					}
+				} catch {
+					// Ignore parse errors
+				}
+			}
+
 			socket.onclose = () => {
 				if (isMounted) {
 					setStatus("disconnected")
-					reconnectTimer = setTimeout(connect, 3000)
+					if (!pairingRequestId) {
+						// Only reconnect if not waiting for pairing approval
+						reconnectTimer = setTimeout(connect, 3000)
+					}
 				}
 			}
 			socket.onerror = () => {
@@ -68,11 +121,13 @@ export const useRemoteConnection = () => {
 			isMounted = false
 			clearTimeout(initialTimer)
 			clearTimeout(reconnectTimer)
+			clearTimeout(pairingCheckTimer)
 			if (wsRef.current) {
 				// Nullify handlers to prevent cascading error/close events
 				wsRef.current.onopen = null
 				wsRef.current.onclose = null
 				wsRef.current.onerror = null
+				wsRef.current.onmessage = null
 				wsRef.current.close()
 				wsRef.current = null
 			}
@@ -96,5 +151,5 @@ export const useRemoteConnection = () => {
 		}
 	}, [])
 
-	return { status, send, sendCombo }
+	return { status, send, sendCombo, pairingRequestId }
 }

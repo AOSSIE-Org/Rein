@@ -10,12 +10,22 @@ interface TokenEntry {
 	lastUsed: number
 }
 
+interface PairingRequest {
+	requestId: string
+	deviceName: string
+	userAgent: string
+	createdAt: number
+	expiresAt: number
+}
+
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const TOKENS_FILE = path.resolve(__dirname, "../tokens.json")
 const EXPIRY_MS = 10 * 24 * 60 * 60 * 1000 // 10 days
+const PAIRING_REQUEST_EXPIRY_MS = 5 * 60 * 1000 // 5 minutes
 
 let tokens: TokenEntry[] = []
+let pairingRequests: PairingRequest[] = []
 let lastSaveTime = 0
 let isSaving = false
 const SAVE_THROTTLE_MS = 60 * 1000 // 1 minute
@@ -126,6 +136,55 @@ export function hasTokens(): boolean {
 /** Generate a cryptographically random token. */
 export function generateToken(): string {
 	return crypto.randomUUID()
+}
+
+/** Create a pairing request that requires desktop approval. */
+export function createPairingRequest(
+	deviceName: string,
+	userAgent: string,
+): string {
+	const requestId = crypto.randomUUID()
+	const now = Date.now()
+	pairingRequests.push({
+		requestId,
+		deviceName,
+		userAgent,
+		createdAt: now,
+		expiresAt: now + PAIRING_REQUEST_EXPIRY_MS,
+	})
+	return requestId
+}
+
+/** Get all pending pairing requests that haven't expired. */
+export function getPendingPairingRequests(): PairingRequest[] {
+	const now = Date.now()
+	pairingRequests = pairingRequests.filter((r) => r.expiresAt > now)
+	return pairingRequests
+}
+
+/** Approve a pairing request and return a token. */
+export function approvePairingRequest(requestId: string): string | null {
+	const index = pairingRequests.findIndex((r) => r.requestId === requestId)
+	if (index === -1) return null
+
+	const request = pairingRequests[index]
+	pairingRequests.splice(index, 1)
+
+	const token = generateToken()
+	const now = Date.now()
+	tokens.push({ token, createdAt: now, lastUsed: now })
+	save(true)
+
+	return token
+}
+
+/** Reject a pairing request. */
+export function rejectPairingRequest(requestId: string): boolean {
+	const index = pairingRequests.findIndex((r) => r.requestId === requestId)
+	if (index === -1) return false
+
+	pairingRequests.splice(index, 1)
+	return true
 }
 
 // Load persisted tokens on startup

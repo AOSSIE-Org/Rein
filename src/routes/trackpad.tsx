@@ -193,6 +193,13 @@ function TrackpadPage() {
 					handlers={handlers}
 					status={status}
 				/>
+				{status === "waiting-approval" && (
+					<div className="absolute inset-0 flex items-center justify-center bg-yellow-200 bg-opacity-75">
+						<p className="text-center text-sm font-semibold">
+							Waiting for desktop approval...
+						</p>
+					</div>
+				)}
 				{bufferText !== "" && <BufferBar bufferText={bufferText} />}
 			</div>
 

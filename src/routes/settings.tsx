@@ -55,6 +55,17 @@ function SettingsPage() {
 		return localStorage.getItem("rein_auth_token") || ""
 	})
 
+	const [pendingPairings, setPendingPairings] = useState<
+		Array<{
+			requestId: string
+			deviceName: string
+			userAgent: string
+			createdAt: number
+			expiresAt: number
+		}>
+	>([])
+	const [wsConnection, setWsConnection] = useState<WebSocket | null>(null)
+
 	// Derive URLs once at the top
 	const appPort = String(frontendPort)
 	const protocol =
@@ -166,6 +177,78 @@ function SettingsPage() {
 			if (socket.readyState === WebSocket.OPEN) socket.close()
 		}
 	}, [])
+
+	// Load pending pairings and listen for new requests (localhost only)
+	useEffect(() => {
+		if (typeof window === "undefined") return
+		if (window.location.hostname !== "localhost") return
+
+		let isMounted = true
+
+		const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
+		const wsUrl = `${protocol}//${window.location.host}/ws`
+		const socket = new WebSocket(wsUrl)
+
+		socket.onopen = () => {
+			if (isMounted) {
+				setWsConnection(socket)
+				// Load pending pairings
+				socket.send(JSON.stringify({ type: "get-pending-pairings" }))
+			}
+		}
+
+		socket.onmessage = (event) => {
+			try {
+				const data = JSON.parse(event.data)
+				if (data.type === "pending-pairings" && Array.isArray(data.requests)) {
+					if (isMounted) {
+						setPendingPairings(data.requests)
+					}
+				}
+			} catch (e) {
+				console.error("Error parsing pending pairings:", e)
+			}
+		}
+
+		return () => {
+			isMounted = false
+			if (socket.readyState === WebSocket.OPEN) {
+				socket.close()
+			}
+		}
+	}, [])
+
+	const handleApprovePairing = (requestId: string) => {
+		if (!wsConnection || wsConnection.readyState !== WebSocket.OPEN) {
+			alert("Not connected to server")
+			return
+		}
+
+		wsConnection.send(
+			JSON.stringify({ type: "approve-pairing", requestId }),
+		)
+
+		// Remove from pending list locally
+		setPendingPairings((prev) =>
+			prev.filter((p) => p.requestId !== requestId),
+		)
+	}
+
+	const handleRejectPairing = (requestId: string) => {
+		if (!wsConnection || wsConnection.readyState !== WebSocket.OPEN) {
+			alert("Not connected to server")
+			return
+		}
+
+		wsConnection.send(
+			JSON.stringify({ type: "reject-pairing", requestId }),
+		)
+
+		// Remove from pending list locally
+		setPendingPairings((prev) =>
+			prev.filter((p) => p.requestId !== requestId),
+		)
+	}
 
 	return (
 		<div className="h-full overflow-y-auto w-full">
@@ -347,6 +430,78 @@ function SettingsPage() {
 						>
 							Save Config
 						</button>
+
+						<div className="divider" />
+
+						<h2 className="text-xl font-semibold">Device Pairing</h2>
+
+						{pendingPairings.length === 0 ? (
+							<div className="alert alert-info text-xs">
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									fill="none"
+									viewBox="0 0 24 24"
+									className="stroke-current shrink-0 w-6 h-6"
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth="2"
+										d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+									/>
+								</svg>
+								<span>No pending device pairing requests</span>
+							</div>
+						) : (
+							<div className="space-y-3">
+								<p className="text-sm opacity-70">
+									{pendingPairings.length} device(s) waiting for approval
+								</p>
+								{pendingPairings.map((pairing) => (
+									<div
+										key={pairing.requestId}
+										className="card bg-base-300 border border-base-400"
+									>
+										<div className="card-body p-4">
+											<div className="flex items-start justify-between gap-3">
+												<div className="flex-1 min-w-0">
+													<h3 className="font-semibold text-sm truncate">
+														{pairing.deviceName}
+													</h3>
+													<p className="text-xs opacity-60 truncate">
+														{pairing.userAgent}
+													</p>
+													<p className="text-xs opacity-50 mt-1">
+														Requested{" "}
+														{new Date(pairing.createdAt).toLocaleTimeString()}
+													</p>
+												</div>
+												<div className="flex gap-2">
+													<button
+														type="button"
+														className="btn btn-success btn-xs rounded-md"
+														onClick={() =>
+															handleApprovePairing(pairing.requestId)
+														}
+													>
+														Approve
+													</button>
+													<button
+														type="button"
+														className="btn btn-error btn-xs rounded-md"
+														onClick={() =>
+															handleRejectPairing(pairing.requestId)
+														}
+													>
+														Reject
+													</button>
+												</div>
+											</div>
+										</div>
+									</div>
+								))}
+							</div>
+						)}
 					</div>
 
 					{/* Right Column: QR Code & Connection Info */}

@@ -16,6 +16,10 @@ import {
 	isKnownToken,
 	storeToken,
 	touchToken,
+	createPairingRequest,
+	getPendingPairingRequests,
+	approvePairingRequest,
+	rejectPairingRequest,
 } from "./tokenStore"
 
 function getLocalIp(): string {
@@ -40,6 +44,9 @@ function isLocalhost(request: IncomingMessage): boolean {
 export function createWsServer(server: CompatibleServer) {
 	const configPath = "./src/server-config.json"
 	let serverConfig: Record<string, unknown> = {}
+
+	// keep track of sockets waiting for pairing approval
+	const pendingPairingSockets = new Map<string, WebSocket>()
 	if (fs.existsSync(configPath)) {
 		try {
 			serverConfig = JSON.parse(fs.readFileSync(configPath, "utf-8")) as Record<
@@ -85,20 +92,23 @@ export function createWsServer(server: CompatibleServer) {
 				return
 			}
 
-			// Remote connections require a token
-			if (!token) {
-				logger.warn("Unauthorized connection attempt: No token provided")
-				socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n")
-				socket.destroy()
-				return
-			}
+// Remote connections normally require a token, but we allow a
+		// temporary unauthenticated websocket so that a client can send a
+		// pairing request. Actual input messages will still be blocked later.
+		let tokenValid = false
 
+		if (token) {
 			// Validate against known tokens
-			if (!isKnownToken(token)) {
+			if (isKnownToken(token)) {
+				tokenValid = true
+			} else {
 				logger.warn("Unauthorized connection attempt: Invalid token")
-				socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n")
-				socket.destroy()
-				return
+				// continue anyway; connections without valid token can still
+				// request pairing but cannot send input events
+			}
+		} else if (!local) {
+			// no token on remote; allow upgrade for pairing flow
+			logger.info("Remote connection without token, allowing for pairing")
 			}
 
 			logger.info("Remote connection authenticated successfully")
@@ -118,11 +128,13 @@ export function createWsServer(server: CompatibleServer) {
 			isLocal: boolean,
 		) => {
 			// Localhost: only store token if it's already known (trusted scan)
-			// Remote: token is already validated in the upgrade handler
+			// Remote: token may or may not be valid; messages will be checked later
 			logger.info(`Client connected from ${request.socket.remoteAddress}`)
 
-			if (token && (isKnownToken(token) || !isLocal)) {
-				storeToken(token)
+			// determine whether this connection has a valid token for input
+			const authorized = token !== null && isKnownToken(token)
+			if (authorized) {
+				storeToken(token!)
 			}
 
 			ws.send(JSON.stringify({ type: "connected", serverIp: LAN_IP }))
@@ -182,30 +194,118 @@ export function createWsServer(server: CompatibleServer) {
 						return
 					}
 
-					if (msg.type === "update-config") {
-						try {
-							if (
-								!msg.config ||
-								typeof msg.config !== "object" ||
-								Array.isArray(msg.config)
-							) {
-								ws.send(
-									JSON.stringify({
-										type: "config-updated",
-										success: false,
-										error: "Invalid config payload",
-									}),
-								)
-								return
-							}
+					if (msg.type === "request-pairing") {
+						// Mobile device requests pairing
+						if (isLocal) {
+							logger.warn("Localhost cannot request pairing")
+							ws.send(
+								JSON.stringify({
+									type: "pairing-error",
+									error: "Localhost cannot request pairing",
+								}),
+							)
+							return
+						}
 
-							const SERVER_CONFIG_KEYS = [
-								"host",
-								"frontendPort",
-								"address",
-								"inputThrottleMs",
-							]
-							const filtered: Record<string, unknown> = {}
+						const deviceName = msg.deviceName || "Unknown Device"
+						const userAgent = msg.userAgent || "Unknown"
+
+						const requestId = createPairingRequest(deviceName, userAgent)
+						logger.info(`Pairing request created: ${requestId} from ${deviceName}`)
+
+				// remember this socket so we can notify when approved/rejected
+				pendingPairingSockets.set(requestId, ws)
+
+							)
+							return
+						}
+
+						const pendingRequests = getPendingPairingRequests()
+						ws.send(
+							JSON.stringify({
+								type: "pending-pairings",
+								requests: pendingRequests,
+							}),
+						)
+						return
+					}
+
+					if (msg.type === "approve-pairing") {
+						// Only localhost can approve pairings
+						if (!isLocal) {
+							logger.warn("Non-localhost attempted to approve pairing")
+							ws.send(
+								JSON.stringify({
+									type: "auth-error",
+									error: "Only localhost can approve pairings",
+								}),
+							)
+							return
+						}
+
+						const requestId = msg.requestId
+						if (!requestId || typeof requestId !== "string") {
+							ws.send(
+								JSON.stringify({
+									type: "pairing-error",
+									error: "Invalid requestId",
+								}),
+							)
+							return
+						}
+
+						const approvedToken = approvePairingRequest(requestId)
+						if (!approvedToken) {
+							ws.send(
+								JSON.stringify({
+									type: "pairing-error",
+									error: "Pairing request not found or expired",
+								}),
+							)
+							return
+						}
+
+						logger.info(`Pairing approved: ${requestId}`)
+					// notify original device if still connected
+					const pendingSocket = pendingPairingSockets.get(requestId)
+					if (pendingSocket && pendingSocket.readyState === WebSocket.OPEN) {
+						pendingSocket.send(
+							JSON.stringify({
+								type: "pairing-approved",
+								requestId,
+								token: approvedToken,
+								message: "Device pairing approved",
+							}),
+						)
+					}
+					pendingPairingSockets.delete(requestId)
+
+
+						const rejected = rejectPairingRequest(requestId)
+						if (!rejected) {
+							ws.send(
+								JSON.stringify({
+									type: "pairing-error",
+									error: "Pairing request not found or already expired",
+								}),
+							)
+							return
+						}
+
+						logger.info(`Pairing rejected: ${requestId}`)
+					// notify original device as well
+					const pendingSocket = pendingPairingSockets.get(requestId)
+					if (pendingSocket && pendingSocket.readyState === WebSocket.OPEN) {
+						pendingSocket.send(
+							JSON.stringify({
+								type: "pairing-rejected",
+								requestId,
+								message: "Device pairing rejected",
+							}),
+						)
+					}
+					pendingPairingSockets.delete(requestId)
+
 
 							for (const key of SERVER_CONFIG_KEYS) {
 								if (!(key in msg.config)) continue
@@ -301,7 +401,12 @@ export function createWsServer(server: CompatibleServer) {
 						return
 					}
 
-					await inputHandler.handleMessage(msg as InputMessage)
+					// enforce authorization for input events
+				if (!authorized) {
+					logger.warn("Client attempted input without valid token")
+					return
+				}
+				await inputHandler.handleMessage(msg as InputMessage)
 				} catch (err: unknown) {
 					logger.error(
 						`Error processing message: ${
@@ -313,6 +418,13 @@ export function createWsServer(server: CompatibleServer) {
 
 			ws.on("close", () => {
 				logger.info("Client disconnected")
+				// remove from pending pairing map if present
+				for (const [reqId, sock] of pendingPairingSockets.entries()) {
+					if (sock === ws) {
+						pendingPairingSockets.delete(reqId)
+						break
+					}
+				}
 			})
 
 			ws.on("error", (error: Error) => {
