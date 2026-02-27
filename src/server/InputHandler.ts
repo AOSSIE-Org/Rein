@@ -21,11 +21,17 @@ export class InputHandler {
 	private pendingScroll: InputMessage | null = null;
 	private moveTimer: ReturnType<typeof setTimeout> | null = null;
 	private scrollTimer: ReturnType<typeof setTimeout> | null = null;
+	private throttleMs: number;
 	private ydotoolCursor: YdotoolCursor;
 
-	constructor() {
+	constructor(throttleMs = 8) {
 		mouse.config.mouseSpeed = 1000;
+		this.throttleMs = throttleMs;
 		this.ydotoolCursor = new YdotoolCursor();
+	}
+
+	setThrottleMs(ms: number) {
+		this.throttleMs = ms;
 	}
 
 	async handleMessage(msg: InputMessage) {
@@ -46,7 +52,7 @@ export class InputHandler {
 		// Throttling: Limit high-frequency events to ~125fps (8ms)
 		if (msg.type === "move") {
 			const now = Date.now();
-			if (now - this.lastMoveTime < 8) {
+			if (now - this.lastMoveTime < this.throttleMs) {
 				this.pendingMove = msg;
 				if (!this.moveTimer) {
 					this.moveTimer = setTimeout(() => {
@@ -58,14 +64,14 @@ export class InputHandler {
 								console.error("Error processing pending move event:", err);
 							});
 						}
-					}, 8);
+					}, this.throttleMs);
 				}
 				return;
 			}
 			this.lastMoveTime = now;
 		} else if (msg.type === "scroll") {
 			const now = Date.now();
-			if (now - this.lastScrollTime < 8) {
+			if (now - this.lastScrollTime < this.throttleMs) {
 				this.pendingScroll = msg;
 				if (!this.scrollTimer) {
 					this.scrollTimer = setTimeout(() => {
@@ -77,7 +83,7 @@ export class InputHandler {
 								console.error("Error processing pending move event:", err);
 							});
 						}
-					}, 8);
+					}, this.throttleMs);
 				}
 				return;
 			}
