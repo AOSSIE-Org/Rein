@@ -7,6 +7,7 @@ import { ExtraKeys } from "../components/Trackpad/ExtraKeys"
 import { TouchArea } from "../components/Trackpad/TouchArea"
 import { useRemoteConnection } from "../hooks/useRemoteConnection"
 import { useTrackpadGesture } from "../hooks/useTrackpadGesture"
+import { ScreenMirror } from "../components/Trackpad/ScreenMirror"
 
 export const Route = createFileRoute("/trackpad")({
 	component: TrackpadPage,
@@ -192,6 +193,11 @@ function TrackpadPage() {
 					scrollMode={scrollMode}
 					handlers={handlers}
 					status={status}
+				/>
+				<ScreenMirror
+					isTracking={isTracking}
+					scrollMode={scrollMode}
+					handlers={handlers}
 				/>
 				{bufferText !== "" && <BufferBar bufferText={bufferText} />}
 			</div>
