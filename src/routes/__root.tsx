@@ -5,13 +5,17 @@ import {
 	Scripts,
 	createRootRoute,
 } from "@tanstack/react-router"
-// import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { APP_CONFIG, THEMES } from "../config"
 import "../styles.css"
+import {
+	ConnectionProvider,
+	useConnection,
+} from "../contexts/ConnectionProvider"
+import { useCaptureProvider } from "../hooks/useCaptureProvider"
 
 export const Route = createRootRoute({
-	component: RootComponent,
+	component: AppWithConnection,
 	errorComponent: (props) => {
 		return (
 			<RootDocument>
@@ -22,13 +26,43 @@ export const Route = createRootRoute({
 	notFoundComponent: () => <div>Not Found</div>,
 })
 
+function AppWithConnection() {
+	return (
+		<ConnectionProvider>
+			<RootComponent />
+		</ConnectionProvider>
+	)
+}
+
 function RootComponent() {
 	return (
 		<RootDocument>
+			<DesktopCaptureProvider />
 			<Outlet />
 			{/* <TanStackRouterDevtools position="bottom-right" /> */}
 		</RootDocument>
 	)
+}
+
+function DesktopCaptureProvider() {
+	const { wsRef, status } = useConnection()
+	const { startSharing } = useCaptureProvider(wsRef)
+	const hasStartedRef = useRef(false)
+
+	useEffect(() => {
+		if (status !== "connected" || hasStartedRef.current) return
+
+		// Mobile detection: avoid auto-start on mobile
+		const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+		const canShare = !!navigator.mediaDevices?.getDisplayMedia
+
+		if (!isMobile && canShare) {
+			hasStartedRef.current = true
+			startSharing()
+		}
+	}, [status, startSharing])
+
+	return null
 }
 
 function ThemeInit() {

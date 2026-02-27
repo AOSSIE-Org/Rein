@@ -2,7 +2,7 @@ import fs from "node:fs"
 import type { IncomingMessage } from "node:http"
 import type { Socket } from "node:net"
 import os from "node:os"
-import { type WebSocket, WebSocketServer } from "ws"
+import { WebSocket, WebSocketServer } from "ws"
 import logger from "../utils/logger"
 import { InputHandler, type InputMessage } from "./InputHandler"
 import type { Server as HttpServer } from "node:http"
@@ -34,6 +34,11 @@ function isLocalhost(request: IncomingMessage): boolean {
 	const addr = request.socket.remoteAddress
 	if (!addr) return false
 	return addr === "127.0.0.1" || addr === "::1" || addr === "::ffff:127.0.0.1"
+}
+
+interface ExtWebSocket extends WebSocket {
+	isConsumer?: boolean
+	isProvider?: boolean
 }
 
 // server: any is used to support Vite's dynamic httpServer types (http, https, http2)
@@ -125,12 +130,39 @@ export function createWsServer(server: CompatibleServer) {
 				storeToken(token)
 			}
 
+			const consumers = new Set<WebSocket>()
+
 			ws.send(JSON.stringify({ type: "connected", serverIp: LAN_IP }))
 
 			let lastTokenTouch = 0
 
-			ws.on("message", async (data: WebSocket.RawData) => {
+			const startMirror = () => {
+				;(ws as ExtWebSocket).isConsumer = true
+				consumers.add(ws)
+				logger.info("Client registered as Screen Consumer")
+			}
+
+			const stopMirror = () => {
+				;(ws as ExtWebSocket).isConsumer = false
+				consumers.delete(ws)
+				logger.info("Client unregistered as Screen Consumer")
+			}
+
+			ws.on("message", async (data: WebSocket.RawData, isBinary: boolean) => {
 				try {
+					if (isBinary) {
+						// Relay frames from Providers to Consumers
+						if ((ws as ExtWebSocket).isProvider) {
+							for (const client of consumers) {
+								if (client !== ws && client.readyState === WebSocket.OPEN) {
+									// Backpressure: Skip if client buffer is getting full (> 1MB)
+									if (client.bufferedAmount > 1024 * 1024) continue
+									client.send(data, { binary: true })
+								}
+							}
+						}
+						return
+					}
 					const raw = data.toString()
 					const now = Date.now()
 
@@ -179,6 +211,28 @@ export function createWsServer(server: CompatibleServer) {
 						ws.send(
 							JSON.stringify({ type: "token-generated", token: tokenToReturn }),
 						)
+						return
+					}
+
+					if (msg.type === "start-mirror") {
+						startMirror()
+						return
+					}
+
+					if (msg.type === "stop-mirror") {
+						stopMirror()
+						return
+					}
+
+					if (msg.type === "stop-provider") {
+						;(ws as ExtWebSocket).isProvider = false
+						logger.info("Client unregistered as Screen Provider")
+						return
+					}
+
+					if (msg.type === "start-provider") {
+						;(ws as ExtWebSocket).isProvider = true
+						logger.info("Client registered as Screen Provider")
 						return
 					}
 
@@ -312,7 +366,8 @@ export function createWsServer(server: CompatibleServer) {
 			})
 
 			ws.on("close", () => {
-				logger.info("Client disconnected")
+				stopMirror()
+				logger.info("WebSocket connection closed")
 			})
 
 			ws.on("error", (error: Error) => {
