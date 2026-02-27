@@ -1,101 +1,105 @@
-import { Button, Key, keyboard, mouse, Point } from "@nut-tree-fork/nut-js";
-import { YdotoolCursor } from "./input/YdotoolCursor";
-import { KEY_MAP } from "./KeyMap";
+import { Button, Key, Point, keyboard, mouse } from "@nut-tree-fork/nut-js"
+import { KEY_MAP } from "./KeyMap"
 
 export interface InputMessage {
-	type: "move" | "click" | "scroll" | "key" | "text" | "zoom" | "combo";
-	dx?: number;
-	dy?: number;
-	button?: "left" | "right" | "middle";
-	press?: boolean;
-	key?: string;
-	keys?: string[];
-	text?: string;
-	delta?: number;
+	type: "move" | "click" | "scroll" | "key" | "text" | "zoom" | "combo"
+	dx?: number
+	dy?: number
+	button?: "left" | "right" | "middle"
+	press?: boolean
+	key?: string
+	keys?: string[]
+	text?: string
+	delta?: number
 }
 
 export class InputHandler {
-	private lastMoveTime = 0;
-	private lastScrollTime = 0;
-	private pendingMove: InputMessage | null = null;
-	private pendingScroll: InputMessage | null = null;
-	private moveTimer: ReturnType<typeof setTimeout> | null = null;
-	private scrollTimer: ReturnType<typeof setTimeout> | null = null;
-	private throttleMs: number;
-	private ydotoolCursor: YdotoolCursor;
-	private isProcessingMove = false;
+	private lastMoveTime = 0
+	private lastScrollTime = 0
+	private pendingMove: InputMessage | null = null
+	private pendingScroll: InputMessage | null = null
+	private moveTimer: ReturnType<typeof setTimeout> | null = null
+	private scrollTimer: ReturnType<typeof setTimeout> | null = null
+	private throttleMs: number
 
 	constructor(throttleMs = 8) {
-		mouse.config.mouseSpeed = 1000;
-		this.throttleMs = throttleMs;
-		this.ydotoolCursor = new YdotoolCursor();
+		mouse.config.mouseSpeed = 1000
+		this.throttleMs = throttleMs
 	}
 
 	setThrottleMs(ms: number) {
-		if (!Number.isFinite(ms) || ms < 0) {
-			console.warn(`[InputHandler] Invalid throttleMs value: ${ms}, ignoring`);
-			return;
-		}
-		this.throttleMs = ms;
+		this.throttleMs = ms
+	}
+
+	private isFiniteNumber(value: unknown): value is number {
+		return typeof value === "number" && Number.isFinite(value)
+	}
+
+	private clamp(value: number, min: number, max: number): number {
+		return Math.max(min, Math.min(max, value))
 	}
 
 	async handleMessage(msg: InputMessage) {
-		// Validation: Text length sanitation
-		if (msg.text && msg.text.length > 500) {
-			msg.text = msg.text.substring(0, 500);
+		if (msg.text && typeof msg.text === "string" && msg.text.length > 500) {
+			msg.text = msg.text.substring(0, 500)
 		}
 
-		// Validation: Sane bounds for coordinates
-		const MAX_COORD = 2000;
-		if (typeof msg.dx === "number" && Number.isFinite(msg.dx)) {
-			msg.dx = Math.max(-MAX_COORD, Math.min(MAX_COORD, msg.dx));
+		const MAX_COORD = 2000
+		if (this.isFiniteNumber(msg.dx)) {
+			msg.dx = this.clamp(msg.dx, -MAX_COORD, MAX_COORD)
+		} else {
+			msg.dx = 0
 		}
-		if (typeof msg.dy === "number" && Number.isFinite(msg.dy)) {
-			msg.dy = Math.max(-MAX_COORD, Math.min(MAX_COORD, msg.dy));
+		if (this.isFiniteNumber(msg.dy)) {
+			msg.dy = this.clamp(msg.dy, -MAX_COORD, MAX_COORD)
+		} else {
+			msg.dy = 0
+		}
+		if (this.isFiniteNumber(msg.delta)) {
+			msg.delta = this.clamp(msg.delta, -MAX_COORD, MAX_COORD)
+		} else {
+			msg.delta = 0
 		}
 
-		// Throttling: Limit high-frequency events to ~125fps (8ms)
+		// Throttling: Limit high-frequency events (configurable via inputThrottleMs)
 		if (msg.type === "move") {
-			const now = Date.now();
-			if (this.isProcessingMove || now - this.lastMoveTime < this.throttleMs) {
-				this.pendingMove = msg;
+			const now = Date.now()
+			if (now - this.lastMoveTime < this.throttleMs) {
+				this.pendingMove = msg
 				if (!this.moveTimer) {
-					this.moveTimer = setTimeout(async () => {
-						this.moveTimer = null;
+					this.moveTimer = setTimeout(() => {
+						this.moveTimer = null
 						if (this.pendingMove) {
-							const pending = this.pendingMove;
-							this.pendingMove = null;
-							this.isProcessingMove = true;
-							try {
-								await this.handleMessage(pending);
-							} finally {
-								this.lastMoveTime = Date.now();
-								this.isProcessingMove = false;
-							}
+							const pending = this.pendingMove
+							this.pendingMove = null
+							this.handleMessage(pending).catch((err) => {
+								console.error("Error processing pending move event:", err)
+							})
 						}
-					}, this.throttleMs);
+					}, this.throttleMs)
 				}
-				return;
+				return
 			}
+			this.lastMoveTime = now
 		} else if (msg.type === "scroll") {
-			const now = Date.now();
+			const now = Date.now()
 			if (now - this.lastScrollTime < this.throttleMs) {
-				this.pendingScroll = msg;
+				this.pendingScroll = msg
 				if (!this.scrollTimer) {
 					this.scrollTimer = setTimeout(() => {
-						this.scrollTimer = null;
+						this.scrollTimer = null
 						if (this.pendingScroll) {
-							const pending = this.pendingScroll;
-							this.pendingScroll = null;
+							const pending = this.pendingScroll
+							this.pendingScroll = null
 							this.handleMessage(pending).catch((err) => {
-								console.error("Error processing pending move event:", err);
-							});
+								console.error("Error processing pending move event:", err)
+							})
 						}
-					}, this.throttleMs);
+					}, this.throttleMs)
 				}
-				return;
+				return
 			}
-			this.lastScrollTime = now;
+			this.lastScrollTime = now
 		}
 
 		switch (msg.type) {
@@ -106,182 +110,168 @@ export class InputHandler {
 					Number.isFinite(msg.dx) &&
 					Number.isFinite(msg.dy)
 				) {
-					this.isProcessingMove = true;
-					try {
-						if (this.ydotoolCursor.isAvailable()) {
-							console.log(
-								`[InputHandler] Using ydotool for move: dx=${msg.dx}, dy=${msg.dy}`,
-							);
-							const ok = await this.ydotoolCursor.move(msg.dx, msg.dy);
-							if (!ok) {
-								console.warn(
-									"[InputHandler] ydotool move failed, falling back to nut.js",
-								);
-								const currentPos = await mouse.getPosition();
-								await mouse.setPosition(
-									new Point(
-										Math.round(currentPos.x + msg.dx),
-										Math.round(currentPos.y + msg.dy),
-									),
-								);
-							}
-						} else {
-							console.log(
-								`[InputHandler] Using nut.js for move: dx=${msg.dx}, dy=${msg.dy}`,
-							);
-							const currentPos = await mouse.getPosition();
-							await mouse.setPosition(
-								new Point(
-									Math.round(currentPos.x + msg.dx),
-									Math.round(currentPos.y + msg.dy),
-								),
-							);
-						}
-					} finally {
-						this.lastMoveTime = Date.now();
-						this.isProcessingMove = false;
-					}
-				}
-				break;
+					const currentPos = await mouse.getPosition()
 
-			case "click":
-				if (msg.button) {
+					await mouse.setPosition(
+						new Point(
+							Math.round(currentPos.x + msg.dx),
+							Math.round(currentPos.y + msg.dy),
+						),
+					)
+				}
+				break
+
+			case "click": {
+				const VALID_BUTTONS = ["left", "right", "middle"]
+				if (msg.button && VALID_BUTTONS.includes(msg.button)) {
 					const btn =
 						msg.button === "left"
 							? Button.LEFT
 							: msg.button === "right"
 								? Button.RIGHT
-								: Button.MIDDLE;
+								: Button.MIDDLE
 
 					if (msg.press) {
-						await mouse.pressButton(btn);
+						await mouse.pressButton(btn)
 					} else {
-						await mouse.releaseButton(btn);
+						await mouse.releaseButton(btn)
 					}
 				}
-				break;
+				break
+			}
 
 			case "scroll": {
-				const promises: Promise<void>[] = [];
+				const MAX_SCROLL = 100
+				const promises: Promise<void>[] = []
 
 				// Vertical scroll
-				if (typeof msg.dy === "number" && Math.round(msg.dy) !== 0) {
-					const amount = Math.round(msg.dy);
+				if (this.isFiniteNumber(msg.dy) && Math.round(msg.dy) !== 0) {
+					const amount = this.clamp(Math.round(msg.dy), -MAX_SCROLL, MAX_SCROLL)
 					if (amount > 0) {
-						promises.push(mouse.scrollDown(amount).then(() => {}));
-					} else {
-						promises.push(mouse.scrollUp(-amount).then(() => {}));
+						promises.push(mouse.scrollDown(amount).then(() => {}))
+					} else if (amount < 0) {
+						promises.push(mouse.scrollUp(-amount).then(() => {}))
 					}
 				}
 
 				// Horizontal scroll
-				if (typeof msg.dx === "number" && Math.round(msg.dx) !== 0) {
-					const amount = Math.round(msg.dx);
+				if (this.isFiniteNumber(msg.dx) && Math.round(msg.dx) !== 0) {
+					const amount = this.clamp(Math.round(msg.dx), -MAX_SCROLL, MAX_SCROLL)
 					if (amount > 0) {
-						promises.push(mouse.scrollRight(amount).then(() => {}));
-					} else {
-						promises.push(mouse.scrollLeft(-amount).then(() => {}));
+						promises.push(mouse.scrollRight(amount).then(() => {}))
+					} else if (amount < 0) {
+						promises.push(mouse.scrollLeft(-amount).then(() => {}))
 					}
 				}
 
 				if (promises.length) {
-					await Promise.all(promises);
+					await Promise.all(promises)
 				}
-				break;
+				break
 			}
 
 			case "zoom":
-				if (msg.delta !== undefined && msg.delta !== 0) {
-					const sensitivityFactor = 0.5;
-					const MAX_ZOOM_STEP = 5;
+				if (this.isFiniteNumber(msg.delta) && msg.delta !== 0) {
+					const sensitivityFactor = 0.5
+					const MAX_ZOOM_STEP = 5
 
 					const scaledDelta =
 						Math.sign(msg.delta) *
-						Math.min(Math.abs(msg.delta) * sensitivityFactor, MAX_ZOOM_STEP);
+						Math.min(Math.abs(msg.delta) * sensitivityFactor, MAX_ZOOM_STEP)
 
-					const amount = Math.round(-scaledDelta);
+					const amount = Math.round(-scaledDelta)
 
 					if (amount !== 0) {
-						await keyboard.pressKey(Key.LeftControl);
+						await keyboard.pressKey(Key.LeftControl)
 						try {
 							if (amount > 0) {
-								await mouse.scrollDown(amount);
+								await mouse.scrollDown(amount)
 							} else {
-								await mouse.scrollUp(-amount);
+								await mouse.scrollUp(-amount)
 							}
 						} finally {
-							await keyboard.releaseKey(Key.LeftControl);
+							await keyboard.releaseKey(Key.LeftControl)
 						}
 					}
 				}
-				break;
+				break
 
 			case "key":
-				if (msg.key) {
-					console.log(`Processing key: ${msg.key}`);
-					const nutKey = KEY_MAP[msg.key.toLowerCase()];
+				if (msg.key && typeof msg.key === "string" && msg.key.length <= 50) {
+					console.log(`Processing key: ${msg.key}`)
+					const nutKey = KEY_MAP[msg.key.toLowerCase()]
 
 					if (nutKey !== undefined) {
-						await keyboard.type(nutKey);
+						await keyboard.pressKey(nutKey)
+						await keyboard.releaseKey(nutKey)
+					} else if (msg.key === " " || msg.key?.toLowerCase() === "space") {
+						const spaceKey = KEY_MAP.space
+						await keyboard.pressKey(spaceKey)
+						await keyboard.releaseKey(spaceKey)
 					} else if (msg.key.length === 1) {
-						await keyboard.type(msg.key);
+						await keyboard.type(msg.key)
 					} else {
-						console.log(`Unmapped key: ${msg.key}`);
+						console.log(`Unmapped key: ${msg.key}`)
 					}
 				}
-				break;
+				break
 
 			case "combo":
-				if (msg.keys && msg.keys.length > 0) {
-					const nutKeys: (Key | string)[] = [];
+				if (
+					msg.keys &&
+					Array.isArray(msg.keys) &&
+					msg.keys.length > 0 &&
+					msg.keys.length <= 10
+				) {
+					const nutKeys: (Key | string)[] = []
 
 					for (const k of msg.keys) {
-						const lowerKey = k.toLowerCase();
-						const nutKey = KEY_MAP[lowerKey];
+						const lowerKey = k.toLowerCase()
+						const nutKey = KEY_MAP[lowerKey]
 
 						if (nutKey !== undefined) {
-							nutKeys.push(nutKey);
+							nutKeys.push(nutKey)
 						} else if (lowerKey.length === 1) {
-							nutKeys.push(lowerKey);
+							nutKeys.push(lowerKey)
 						} else {
-							console.warn(`Unknown key in combo: ${k}`);
+							console.warn(`Unknown key in combo: ${k}`)
 						}
 					}
 
 					if (nutKeys.length === 0) {
-						console.error("No valid keys in combo");
-						return;
+						console.error("No valid keys in combo")
+						return
 					}
 
-					console.log(`Pressing keys:`, nutKeys);
-					const pressedKeys: Key[] = [];
+					console.log("Pressing keys:", nutKeys)
+					const pressedKeys: Key[] = []
 
 					try {
 						for (const k of nutKeys) {
 							if (typeof k === "string") {
-								await keyboard.type(k);
+								await keyboard.type(k)
 							} else {
-								await keyboard.pressKey(k);
-								pressedKeys.push(k);
+								await keyboard.pressKey(k)
+								pressedKeys.push(k)
 							}
 						}
 
-						await new Promise((resolve) => setTimeout(resolve, 10));
+						await new Promise((resolve) => setTimeout(resolve, 10))
 					} finally {
 						for (const k of pressedKeys.reverse()) {
-							await keyboard.releaseKey(k);
+							await keyboard.releaseKey(k)
 						}
 					}
 
-					console.log(`Combo complete: ${msg.keys.join("+")}`);
+					console.log(`Combo complete: ${msg.keys.join("+")}`)
 				}
-				break;
+				break
 
 			case "text":
-				if (msg.text) {
-					await keyboard.type(msg.text);
+				if (msg.text && typeof msg.text === "string") {
+					await keyboard.type(msg.text)
 				}
-				break;
+				break
 		}
 	}
 }

@@ -7,7 +7,7 @@
 
 # Rein
 
-A cross-platform, LAN-based remote control. It allows touchscreen devices to act as a trackpad and keyboard for a desktop system through a locally served web interface.
+A cross-platform, LAN-based remote control based in **KISS principle**. It allows touchscreen devices to act as a trackpad and keyboard for a desktop system through a locally served web interface.
 
 ## Tech Stack
 
