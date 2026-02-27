@@ -1,4 +1,5 @@
 import { useRef, useState } from "react"
+import type { InputMessage } from "../server/InputHandler"
 import {
 	PINCH_THRESHOLD,
 	TOUCH_MOVE_THRESHOLD,
@@ -22,7 +23,7 @@ const getTouchDistance = (a: TrackedTouch, b: TrackedTouch): number => {
 }
 
 export const useTrackpadGesture = (
-	send: (msg: unknown) => void,
+	send: (msg: InputMessage) => void,
 	scrollMode: boolean,
 	sensitivity = 1.5,
 	invertScroll = false,

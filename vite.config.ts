@@ -6,6 +6,7 @@ import { nitro } from "nitro/vite"
 import { defineConfig } from "vite"
 import viteTsConfigPaths from "vite-tsconfig-paths"
 import serverConfig from "./src/server-config.json"
+
 import { createWsServer } from "./src/server/websocket"
 
 const config = defineConfig({

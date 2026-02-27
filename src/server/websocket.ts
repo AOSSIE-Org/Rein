@@ -1,14 +1,12 @@
 import fs from "node:fs"
-import type { IncomingMessage } from "node:http"
+import type { IncomingMessage, Server } from "node:http"
+import type { Http2Server } from "node:http2"
+import type { Server as HttpsServer } from "node:https"
 import type { Socket } from "node:net"
 import os from "node:os"
-import { type WebSocket, WebSocketServer } from "ws"
+import { WebSocket, WebSocketServer } from "ws"
 import logger from "../utils/logger"
 import { InputHandler, type InputMessage } from "./InputHandler"
-import type { Server as HttpServer } from "node:http"
-import type { Server as HttpsServer } from "node:https"
-
-type CompatibleServer = HttpServer | HttpsServer
 
 import {
 	generateToken,
@@ -18,10 +16,17 @@ import {
 	touchToken,
 } from "./tokenStore"
 
+interface ExtWebSocket extends WebSocket {
+	isConsumer?: boolean
+	isProvider?: boolean
+}
+
 function getLocalIp(): string {
 	const nets = os.networkInterfaces()
 	for (const name of Object.keys(nets)) {
-		for (const net of nets[name] ?? []) {
+		const netInterface = nets[name]
+		if (!netInterface) continue
+		for (const net of netInterface) {
 			if (net.family === "IPv4" && !net.internal) {
 				return net.address
 			}
@@ -36,8 +41,8 @@ function isLocalhost(request: IncomingMessage): boolean {
 	return addr === "127.0.0.1" || addr === "::1" || addr === "::ffff:127.0.0.1"
 }
 
-// server: any is used to support Vite's dynamic httpServer types (http, https, http2)
-export function createWsServer(server: CompatibleServer) {
+// supports Vite's dynamic httpServer types (http, https, http2)
+export function createWsServer(server: Server | HttpsServer | Http2Server) {
 	const configPath = "./src/server-config.json"
 	let serverConfig: Record<string, unknown> = {}
 	if (fs.existsSync(configPath)) {
@@ -129,8 +134,39 @@ export function createWsServer(server: CompatibleServer) {
 
 			let lastTokenTouch = 0
 
-			ws.on("message", async (data: WebSocket.RawData) => {
+			const startMirror = () => {
+				;(ws as ExtWebSocket).isConsumer = true
+				logger.info("Client registered as Screen Consumer")
+				// Notify potential providers that a consumer has joined
+				for (const client of wss.clients) {
+					if (client !== ws && client.readyState === WebSocket.OPEN) {
+						client.send(JSON.stringify({ type: "consumer-joined" }))
+					}
+				}
+			}
+
+			const stopMirror = () => {
+				;(ws as ExtWebSocket).isConsumer = false
+				logger.info("Client unregistered as Screen Consumer")
+			}
+
+			ws.on("message", async (data: WebSocket.RawData, isBinary: boolean) => {
 				try {
+					if (isBinary) {
+						// Relay frames from Providers to Consumers
+						if ((ws as ExtWebSocket).isProvider) {
+							for (const client of wss.clients) {
+								if (
+									client !== ws &&
+									(client as ExtWebSocket).isConsumer &&
+									client.readyState === WebSocket.OPEN
+								) {
+									client.send(data, { binary: true })
+								}
+							}
+						}
+						return
+					}
 					const raw = data.toString()
 					const now = Date.now()
 
@@ -140,6 +176,9 @@ export function createWsServer(server: CompatibleServer) {
 					}
 
 					const msg = JSON.parse(raw)
+					if (msg.type !== "get-ip" && msg.type !== "ping") {
+						logger.info(`Msg: ${msg.type} from ${request.socket.remoteAddress}`)
+					}
 
 					// Throttle token touch to once per second — avoids crypto comparison on every event
 					if (token && msg.type !== "get-ip" && msg.type !== "generate-token") {
@@ -179,6 +218,33 @@ export function createWsServer(server: CompatibleServer) {
 						ws.send(
 							JSON.stringify({ type: "token-generated", token: tokenToReturn }),
 						)
+						return
+					}
+
+					if (msg.type === "start-mirror") {
+						startMirror()
+						return
+					}
+
+					if (msg.type === "stop-mirror") {
+						stopMirror()
+						return
+					}
+
+					if (msg.type === "webrtc-signal") {
+						// Relay WebRTC signals (SDP/ICE) to other clients
+						// This facilitates P2P negotiation between Provider and Consumer
+						for (const client of wss.clients) {
+							if (client !== ws && client.readyState === WebSocket.OPEN) {
+								client.send(raw)
+							}
+						}
+						return
+					}
+
+					if (msg.type === "start-provider") {
+						;(ws as ExtWebSocket).isProvider = true
+						logger.info("Client registered as Screen Provider")
 						return
 					}
 
@@ -303,15 +369,13 @@ export function createWsServer(server: CompatibleServer) {
 
 					await inputHandler.handleMessage(msg as InputMessage)
 				} catch (err: unknown) {
-					logger.error(
-						`Error processing message: ${
-							err instanceof Error ? err.message : String(err)
-						}`,
-					)
+					const errorMessage = err instanceof Error ? err.message : String(err)
+					logger.error(`Error processing message: ${errorMessage}`)
 				}
 			})
 
 			ws.on("close", () => {
+				stopMirror()
 				logger.info("Client disconnected")
 			})
 

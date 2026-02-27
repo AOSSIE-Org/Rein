@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import QRCode from "qrcode"
 import { useEffect, useState } from "react"
 import { APP_CONFIG, THEMES } from "../config"
+import { useConnection } from "../contexts/ConnectionProvider"
 import serverConfig from "../server-config.json"
 
 export const Route = createFileRoute("/settings")({
@@ -47,9 +48,12 @@ function SettingsPage() {
 		}
 	})
 
+	// Local state for UI
 	const [qrData, setQrData] = useState("")
 
-	// Load initial state (IP is not stored in localStorage; only sensitivity, invert, theme are client settings)
+	const { wsRef, status: wsStatus } = useConnection()
+
+	// Load initial state (IP is not stored in localStorage)
 	const [authToken, setAuthToken] = useState(() => {
 		if (typeof window === "undefined") return ""
 		return localStorage.getItem("rein_auth_token") || ""
@@ -70,49 +74,7 @@ function SettingsPage() {
 		setFrontendPort(String(serverConfig.frontendPort))
 	}, [])
 
-	// Auto-generate token on settings page load (localhost only)
-	useEffect(() => {
-		if (typeof window === "undefined") return
-
-		let isMounted = true
-
-		const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-		const wsUrl = `${protocol}//${window.location.host}/ws`
-		const socket = new WebSocket(wsUrl)
-
-		socket.onopen = () => {
-			if (socket.readyState === WebSocket.OPEN) {
-				socket.send(JSON.stringify({ type: "generate-token" }))
-			}
-		}
-
-		socket.onmessage = (event) => {
-			try {
-				const data = JSON.parse(event.data)
-				if (data.type === "token-generated" && data.token) {
-					if (isMounted) {
-						setAuthToken(data.token)
-						localStorage.setItem("rein_auth_token", data.token)
-					}
-					socket.close()
-				}
-			} catch (e) {
-				console.error(e)
-			}
-		}
-
-		return () => {
-			isMounted = false
-			if (
-				socket.readyState === WebSocket.OPEN ||
-				socket.readyState === WebSocket.CONNECTING
-			) {
-				socket.close()
-			}
-		}
-	}, [])
-
-	// Effect: Update LocalStorage when settings change
+	// EFFECT: Update LocalStorage when settings change
 	useEffect(() => {
 		localStorage.setItem("rein_sensitivity", String(sensitivity))
 	}, [sensitivity])
@@ -121,7 +83,7 @@ function SettingsPage() {
 		localStorage.setItem("rein_invert", JSON.stringify(invertScroll))
 	}, [invertScroll])
 
-	// Effect: Theme
+	// EFFECT: Theme
 	useEffect(() => {
 		if (typeof window === "undefined") return
 		localStorage.setItem(APP_CONFIG.THEME_STORAGE_KEY, theme)
@@ -137,35 +99,58 @@ function SettingsPage() {
 			.catch((e) => console.error("QR Error:", e))
 	}, [ip, shareUrl])
 
-	// Effect: Auto-detect LAN IP from Server (only if on localhost)
+	// Auto-generate token on settings page load (localhost only)
 	useEffect(() => {
-		if (typeof window === "undefined") return
-		if (window.location.hostname !== "localhost") return
+		if (wsStatus !== "connected" || !wsRef.current) return
 
-		const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-		const wsUrl = `${protocol}//${window.location.host}/ws`
-		const socket = new WebSocket(wsUrl)
+		const socket = wsRef.current
 
-		socket.onopen = () => {
-			socket.send(JSON.stringify({ type: "get-ip" }))
+		const onMessage = (event: MessageEvent) => {
+			try {
+				const data = JSON.parse(event.data)
+				if (data.type === "token-generated" && data.token) {
+					setAuthToken(data.token)
+					localStorage.setItem("rein_auth_token", data.token)
+				}
+			} catch (e) {
+				// Handled elsewhere
+			}
 		}
 
-		socket.onmessage = (event) => {
+		socket.send(JSON.stringify({ type: "generate-token" }))
+		socket.addEventListener("message", onMessage)
+
+		return () => {
+			socket.removeEventListener("message", onMessage)
+		}
+	}, [wsStatus, wsRef])
+
+	// Effect: Auto-detect LAN IP from Server (only if on localhost)
+	useEffect(() => {
+		if (wsStatus !== "connected" || !wsRef.current) return
+		const hostname = window.location.hostname
+		if (hostname !== "localhost" && hostname !== "127.0.0.1") return
+
+		const socket = wsRef.current
+
+		const onMessage = (event: MessageEvent) => {
 			try {
 				const data = JSON.parse(event.data)
 				if (data.type === "server-ip" && data.ip) {
 					setIp(data.ip)
-					socket.close()
 				}
 			} catch (e) {
-				console.error(e)
+				// Handled elsewhere
 			}
 		}
 
+		socket.send(JSON.stringify({ type: "get-ip" }))
+		socket.addEventListener("message", onMessage)
+
 		return () => {
-			if (socket.readyState === WebSocket.OPEN) socket.close()
+			socket.removeEventListener("message", onMessage)
 		}
-	}, [])
+	}, [wsStatus, wsRef])
 
 	return (
 		<div className="h-full overflow-y-auto w-full">
@@ -206,27 +191,22 @@ function SettingsPage() {
 						</div>
 
 						<div className="form-control w-full">
-							<label
-								className="label cursor-pointer"
-								htmlFor="invert-scroll-toggle"
-							>
+							<label className="label cursor-pointer">
 								<span className="label-text font-medium">Invert Scroll</span>
 								<input
-									id="invert-scroll-toggle"
 									type="checkbox"
 									className="toggle toggle-primary"
 									checked={invertScroll}
 									onChange={(e) => setInvertScroll(e.target.checked)}
 								/>
 							</label>
-
-							<label className="label" htmlFor="invert-scroll-toggle">
+							<div className="label">
 								<span className="label-text-alt opacity-50">
 									{invertScroll
 										? "Traditional scrolling enabled"
 										: "Natural scrolling"}
 								</span>
-							</label>
+							</div>
 						</div>
 
 						<div className="form-control w-full">
@@ -244,15 +224,16 @@ function SettingsPage() {
 							</select>
 						</div>
 
-						<div className="divider" />
+						<h2 className="text-xl font-semibold">Network</h2>
 
-						<h2 className="text-xl font-semibold">Server Settings</h2>
+						<h3 className="text-sm font-bold uppercase opacity-40 pt-4">
+							Advanced Connection
+						</h3>
 
 						<div className="form-control w-full">
 							<label className="label mb-3" htmlFor="server-ip-input">
 								<span className="label-text">Server IP (for Remote)</span>
 							</label>
-
 							<input
 								id="server-ip-input"
 								type="text"
@@ -261,12 +242,11 @@ function SettingsPage() {
 								value={ip}
 								onChange={(e) => setIp(e.target.value)}
 							/>
-
-							<label className="label" htmlFor="server-ip-input">
+							<div className="label">
 								<span className="label-text-alt opacity-50">
 									This Computer's LAN IP
 								</span>
-							</label>
+							</div>
 						</div>
 
 						<div className="form-control w-full">

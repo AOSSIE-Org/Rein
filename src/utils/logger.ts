@@ -1,8 +1,7 @@
-// src/utils/logger.ts
-
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+// src/utils/logger.ts
 import winston from "winston"
 
 // dynamic log path (similar to logPath() requirement)
@@ -14,8 +13,9 @@ try {
 	fs.mkdirSync(LOG_DIR, { recursive: true })
 } catch (err: unknown) {
 	// If we can't create the log dir, fall back to stderr only — don't crash.
+	const errorMessage = err instanceof Error ? err.message : String(err)
 	process.stderr.write(
-		`[logger] Failed to create log directory ${LOG_DIR}: ${err instanceof Error ? err.message : String(err)}\n`,
+		`[logger] Failed to create log directory ${LOG_DIR}: ${errorMessage}\n`,
 	)
 }
 
@@ -52,8 +52,8 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 // Optional: Intercept standard console.log and redirect to winston
-const _originalConsoleLog = console.log
-const _originalConsoleError = console.error
+const originalConsoleLog = console.log
+const originalConsoleError = console.error
 
 const serialize = (a: unknown): string =>
 	typeof a === "string" ? a : JSON.stringify(a)

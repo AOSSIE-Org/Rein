@@ -5,9 +5,10 @@ import {
 	Scripts,
 	createRootRoute,
 } from "@tanstack/react-router"
-// import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { useEffect } from "react"
 import { APP_CONFIG, THEMES } from "../config"
+import { ConnectionProvider } from "../contexts/ConnectionProvider"
+import { WebRTCProvider } from "../hooks/useWebRTCProvider"
 import "../styles.css"
 
 export const Route = createRootRoute({
@@ -24,10 +25,19 @@ export const Route = createRootRoute({
 
 function RootComponent() {
 	return (
-		<RootDocument>
-			<Outlet />
-			{/* <TanStackRouterDevtools position="bottom-right" /> */}
-		</RootDocument>
+		<ConnectionProvider>
+			<AppWithConnection />
+		</ConnectionProvider>
+	)
+}
+
+function AppWithConnection() {
+	return (
+		<WebRTCProvider>
+			<RootDocument>
+				<Outlet />
+			</RootDocument>
+		</WebRTCProvider>
 	)
 }
 

@@ -1,4 +1,5 @@
 import { Button, Key, Point, keyboard, mouse } from "@nut-tree-fork/nut-js"
+import logger from "../utils/logger"
 import { KEY_MAP } from "./KeyMap"
 
 export interface InputMessage {
@@ -73,7 +74,7 @@ export class InputHandler {
 							const pending = this.pendingMove
 							this.pendingMove = null
 							this.handleMessage(pending).catch((err) => {
-								console.error("Error processing pending move event:", err)
+								logger.error("Error processing pending move event: %O", err)
 							})
 						}
 					}, this.throttleMs)
@@ -92,7 +93,7 @@ export class InputHandler {
 							const pending = this.pendingScroll
 							this.pendingScroll = null
 							this.handleMessage(pending).catch((err) => {
-								console.error("Error processing pending move event:", err)
+								logger.error("Error processing pending move event: %O", err)
 							})
 						}
 					}, this.throttleMs)
@@ -198,20 +199,15 @@ export class InputHandler {
 
 			case "key":
 				if (msg.key && typeof msg.key === "string" && msg.key.length <= 50) {
-					console.log(`Processing key: ${msg.key}`)
+					logger.info(`Processing key: ${msg.key}`)
 					const nutKey = KEY_MAP[msg.key.toLowerCase()]
 
 					if (nutKey !== undefined) {
-						await keyboard.pressKey(nutKey)
-						await keyboard.releaseKey(nutKey)
-					} else if (msg.key === " " || msg.key?.toLowerCase() === "space") {
-						const spaceKey = KEY_MAP.space
-						await keyboard.pressKey(spaceKey)
-						await keyboard.releaseKey(spaceKey)
+						await keyboard.type(nutKey)
 					} else if (msg.key.length === 1) {
 						await keyboard.type(msg.key)
 					} else {
-						console.log(`Unmapped key: ${msg.key}`)
+						logger.info(`Unmapped key: ${msg.key}`)
 					}
 				}
 				break
@@ -234,16 +230,16 @@ export class InputHandler {
 						} else if (lowerKey.length === 1) {
 							nutKeys.push(lowerKey)
 						} else {
-							console.warn(`Unknown key in combo: ${k}`)
+							logger.warn(`Unknown key in combo: ${k}`)
 						}
 					}
 
 					if (nutKeys.length === 0) {
-						console.error("No valid keys in combo")
+						logger.error("No valid keys in combo")
 						return
 					}
 
-					console.log("Pressing keys:", nutKeys)
+					logger.info(`Pressing keys: ${nutKeys.join(", ")}`)
 					const pressedKeys: Key[] = []
 
 					try {
@@ -263,7 +259,7 @@ export class InputHandler {
 						}
 					}
 
-					console.log(`Combo complete: ${msg.keys.join("+")}`)
+					logger.info(`Combo complete: ${msg.keys.join("+")}`)
 				}
 				break
 

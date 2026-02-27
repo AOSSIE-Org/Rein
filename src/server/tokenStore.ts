@@ -23,10 +23,12 @@ const SAVE_THROTTLE_MS = 60 * 1000 // 1 minute
 function validateTokens(data: unknown): TokenEntry[] {
 	if (!Array.isArray(data)) return []
 	return data.filter(
-		(t) =>
-			typeof t.token === "string" &&
-			typeof t.lastUsed === "number" &&
-			typeof t.createdAt === "number",
+		(t): t is TokenEntry =>
+			t !== null &&
+			typeof t === "object" &&
+			typeof (t as Record<string, unknown>).token === "string" &&
+			typeof (t as Record<string, unknown>).lastUsed === "number" &&
+			typeof (t as Record<string, unknown>).createdAt === "number",
 	)
 }
 

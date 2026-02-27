@@ -4,7 +4,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useRef, useState, useEffect } from "react"
 import { ControlBar } from "../components/Trackpad/ControlBar"
 import { ExtraKeys } from "../components/Trackpad/ExtraKeys"
-import { TouchArea } from "../components/Trackpad/TouchArea"
+import { ScreenMirror } from "../components/Trackpad/ScreenMirror"
 import { useRemoteConnection } from "../hooks/useRemoteConnection"
 import { useTrackpadGesture } from "../hooks/useTrackpadGesture"
 
@@ -18,6 +18,8 @@ function TrackpadPage() {
 	const [buffer, setBuffer] = useState<string[]>([])
 	const bufferText = buffer.join(" + ")
 	const hiddenInputRef = useRef<HTMLInputElement>(null)
+	const isComposingRef = useRef(false)
+	const prevCompositionDataRef = useRef("")
 	const [keyboardOpen, setKeyboardOpen] = useState(false)
 	const [extraKeysVisible, setExtraKeysVisible] = useState(true)
 
@@ -34,7 +36,7 @@ function TrackpadPage() {
 		return s ? JSON.parse(s) : false
 	})
 
-	const { status, send, sendCombo } = useRemoteConnection()
+	const { send, sendCombo } = useRemoteConnection()
 	// Pass sensitivity and invertScroll to the gesture hook
 	const { isTracking, handlers } = useTrackpadGesture(
 		send,
@@ -66,87 +68,100 @@ function TrackpadPage() {
 		setTimeout(() => send({ type: "click", button, press: false }), 50)
 	}
 
-	const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const nativeEvent = e.nativeEvent as InputEvent
-		const inputType = nativeEvent.inputType
-		const data = nativeEvent.data
-		const val = e.target.value
+	const processCompositionDiff = (currentData: string, prevData: string) => {
+		if (currentData === prevData) return
 
-		// Synchronous Reset: Reset the input immediately to prevent buffer accumulation
-		const resetInput = () => {
-			if (hiddenInputRef.current) {
-				hiddenInputRef.current.value = " "
-				hiddenInputRef.current.setSelectionRange(1, 1)
-			}
+		// Find common prefix length
+		let commonLen = 0
+		while (
+			commonLen < prevData.length &&
+			commonLen < currentData.length &&
+			prevData[commonLen] === currentData[commonLen]
+		) {
+			commonLen++
 		}
 
-		// 1. Explicit Backspace Detection
-		if (inputType === "deleteContentBackward" || val.length === 0) {
+		// Send backspaces for removed/changed characters
+		const deletions = prevData.length - commonLen
+		for (let i = 0; i < deletions; i++) {
 			send({ type: "key", key: "backspace" })
-			resetInput()
-			return
 		}
 
-		// 2. Explicit New Line / Enter
-		if (inputType === "insertLineBreak" || inputType === "insertParagraph") {
-			send({ type: "key", key: "enter" })
-			resetInput()
-			return
-		}
-
-		// 3. Handle Text Insertion
-		const textToSend = data || (val.length > 1 ? val.slice(1) : null)
-
-		if (textToSend) {
+		// Send new characters individually
+		const newChars = currentData.slice(commonLen)
+		for (const char of newChars) {
 			if (modifier !== "Release") {
-				handleModifier(textToSend)
+				handleModifier(char)
 			} else {
-				// Map space character to the 'space' key command specifically
-				if (textToSend === " ") {
-					send({ type: "key", key: "space" })
-				} else {
-					send({ type: "text", text: textToSend })
-				}
+				send({ type: "text", text: char })
 			}
 		}
+	}
 
-		resetInput()
+	const handleCompositionStart = () => {
+		isComposingRef.current = true
+		prevCompositionDataRef.current = ""
+	}
+
+	const handleCompositionUpdate = (
+		e: React.CompositionEvent<HTMLInputElement>,
+	) => {
+		const currentData = e.data || ""
+		processCompositionDiff(currentData, prevCompositionDataRef.current)
+		prevCompositionDataRef.current = currentData
+	}
+
+	const handleCompositionEnd = (
+		e: React.CompositionEvent<HTMLInputElement>,
+	) => {
+		// Fallback to target value if data is empty (some mobile browsers)
+		const currentData = e.data || e.currentTarget.value || ""
+		processCompositionDiff(currentData, prevCompositionDataRef.current)
+		prevCompositionDataRef.current = ""
+
+		// Clear input to prevent buffer accumulation
+		if (hiddenInputRef.current) {
+			hiddenInputRef.current.value = ""
+		}
+
+		// Delay flag reset so the onChange firing after compositionend is suppressed
+		setTimeout(() => {
+			isComposingRef.current = false
+		}, 0)
 	}
 
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+		// Skip during IME composition — composition handlers manage input
+		if (e.nativeEvent.isComposing || isComposingRef.current) return
+
 		const key = e.key.toLowerCase()
 
-		// 1. Enter key fallback
-		if (key === "enter") {
-			send({ type: "key", key: "enter" })
-			if (hiddenInputRef.current) {
-				hiddenInputRef.current.value = " "
-			}
-			return
-		}
-
-		// 2. Modifier Logic
 		if (modifier !== "Release") {
+			if (key === "backspace") {
+				e.preventDefault()
+				setBuffer((prev) => prev.slice(0, -1))
+				return
+			}
 			if (key === "escape") {
 				e.preventDefault()
 				setModifier("Release")
 				setBuffer([])
 				return
 			}
-			if (key.length > 1 && key !== "unidentified" && key !== "backspace") {
+			if (key !== "unidentified" && key.length > 1) {
 				e.preventDefault()
 				handleModifier(key)
-				return
 			}
+			return
 		}
 
-		// 3. Special keys (Arrows, Tab, etc.)
-		if (
-			key.length > 1 &&
-			key !== "unidentified" &&
-			key !== "backspace" &&
-			key !== "process"
-		) {
+		if (key === "backspace") {
+			e.preventDefault()
+			send({ type: "key", key: "backspace" })
+		} else if (key === "enter") {
+			e.preventDefault()
+			send({ type: "key", key: "enter" })
+		} else if (key !== "unidentified" && key.length > 1) {
 			send({ type: "key", key })
 		}
 	}
@@ -154,8 +169,11 @@ function TrackpadPage() {
 	const handleModifierState = () => {
 		switch (modifier) {
 			case "Active":
-				if (buffer.length > 0) setModifier("Hold")
-				else setModifier("Release")
+				if (buffer.length > 0) {
+					setModifier("Hold")
+				} else {
+					setModifier("Release")
+				}
 				break
 			case "Hold":
 				setModifier("Release")
@@ -169,29 +187,44 @@ function TrackpadPage() {
 	}
 
 	const handleModifier = (key: string) => {
-		console.log(
-			`handleModifier called with key: ${key}, current modifier: ${modifier}, buffer:`,
-			buffer,
-		)
 		if (modifier === "Hold") {
 			const comboKeys = [...buffer, key]
-			console.log("Sending combo:", comboKeys)
 			sendCombo(comboKeys)
-		} else if (modifier === "Active") {
+			return
+		}
+		if (modifier === "Active") {
 			setBuffer((prev) => [...prev, key])
+			return
+		}
+	}
+
+	const sendText = (val: string) => {
+		if (!val) return
+		const toSend = val.length > 1 ? `${val} ` : val
+		send({ type: "text", text: toSend })
+	}
+
+	const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+		if (isComposingRef.current) return // Skip during IME composition
+		const val = e.target.value
+		if (val) {
+			e.target.value = ""
+			if (modifier !== "Release") {
+				handleModifier(val)
+			} else {
+				sendText(val)
+			}
 		}
 	}
 
 	return (
 		<div className="flex flex-col h-full min-h-0 bg-base-300 overflow-hidden">
-			{/* TOUCH AREA */}
+			{/* TOUCH AREA / SCREEN MIRROR */}
 			<div className="flex-1 min-h-0 relative flex flex-col border-b border-base-200">
-				{/* Touch Surface */}
-				<TouchArea
+				<ScreenMirror
 					isTracking={isTracking}
 					scrollMode={scrollMode}
 					handlers={handlers}
-					status={status}
 				/>
 				{bufferText !== "" && <BufferBar bufferText={bufferText} />}
 			</div>
@@ -235,15 +268,20 @@ function TrackpadPage() {
 			<input
 				ref={hiddenInputRef}
 				className="opacity-0 absolute bottom-0 pointer-events-none h-0 w-0"
-				defaultValue=" "
 				onKeyDown={handleKeyDown}
 				onChange={handleInput}
+				onCompositionStart={handleCompositionStart}
+				onCompositionUpdate={handleCompositionUpdate}
+				onCompositionEnd={handleCompositionEnd}
+				onBlur={() => {
+					if (keyboardOpen) {
+						setTimeout(() => hiddenInputRef.current?.focus(), 10)
+					}
+				}}
 				autoComplete="off"
 				autoCorrect="off"
 				autoCapitalize="off"
 				spellCheck={false}
-				inputMode="text"
-				enterKeyHint="enter"
 			/>
 		</div>
 	)
