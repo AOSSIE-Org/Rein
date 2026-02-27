@@ -1,5 +1,6 @@
 import { Button, Key, Point, keyboard, mouse } from "@nut-tree-fork/nut-js"
 import { KEY_MAP } from "./KeyMap"
+import logger from "../utils/logger"
 
 export interface InputMessage {
 	type: "move" | "click" | "scroll" | "key" | "text" | "zoom" | "combo"
@@ -211,7 +212,7 @@ export class InputHandler {
 
 			case "key":
 				if (msg.key && typeof msg.key === "string" && msg.key.length <= 50) {
-					console.log(`Processing key: ${msg.key}`)
+					logger.debug(`Processing key: ${msg.key}`)
 					const nutKey = KEY_MAP[msg.key.toLowerCase()]
 
 					if (nutKey !== undefined) {
@@ -224,7 +225,7 @@ export class InputHandler {
 					} else if (msg.key.length === 1) {
 						await keyboard.type(msg.key)
 					} else {
-						console.log(`Unmapped key: ${msg.key}`)
+						logger.warn(`Unmapped key: ${msg.key}`)
 					}
 				}
 				break
@@ -247,16 +248,16 @@ export class InputHandler {
 						} else if (lowerKey.length === 1) {
 							nutKeys.push(lowerKey)
 						} else {
-							console.warn(`Unknown key in combo: ${k}`)
+							logger.warn(`Unknown key in combo: ${k}`)
 						}
 					}
 
 					if (nutKeys.length === 0) {
-						console.error("No valid keys in combo")
+						logger.error("No valid keys in combo")
 						return
 					}
 
-					console.log("Pressing keys:", nutKeys)
+					logger.debug("Pressing keys:", nutKeys)
 					const pressedKeys: Key[] = []
 
 					try {
@@ -276,7 +277,7 @@ export class InputHandler {
 						}
 					}
 
-					console.log(`Combo complete: ${msg.keys.join("+")}`)
+					logger.debug(`Combo complete: ${msg.keys.join("+")}`)
 				}
 				break
 
