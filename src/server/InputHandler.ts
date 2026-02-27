@@ -1,5 +1,6 @@
 import { Button, Key, Point, keyboard, mouse } from "@nut-tree-fork/nut-js"
 import { KEY_MAP } from "./KeyMap"
+import { moveRelative } from "./ydotool"
 
 export interface InputMessage {
 	type: "move" | "click" | "scroll" | "key" | "text" | "zoom" | "combo"
@@ -110,14 +111,20 @@ export class InputHandler {
 					Number.isFinite(msg.dx) &&
 					Number.isFinite(msg.dy)
 				) {
-					const currentPos = await mouse.getPosition()
+					// Attempt ydotool relative movement first
+					const success = await moveRelative(msg.dx, msg.dy)
 
-					await mouse.setPosition(
-						new Point(
-							Math.round(currentPos.x + msg.dx),
-							Math.round(currentPos.y + msg.dy),
-						),
-					)
+					// Fallback to absolute positioning if ydotool is unavailable or fails
+					if (!success) {
+						const currentPos = await mouse.getPosition()
+
+						await mouse.setPosition(
+							new Point(
+								Math.round(currentPos.x + msg.dx),
+								Math.round(currentPos.y + msg.dy),
+							),
+						)
+					}
 				}
 				break
 
