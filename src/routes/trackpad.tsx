@@ -66,6 +66,14 @@ function TrackpadPage() {
 		setTimeout(() => send({ type: "click", button, press: false }), 50)
 	}
 
+	const handleCopy = () => {
+		sendCombo(["ctrl", "c"])
+	}
+
+	const handlePaste = () => {
+		sendCombo(["ctrl", "v"])
+	}
+
 	const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const nativeEvent = e.nativeEvent as InputEvent
 		const inputType = nativeEvent.inputType
@@ -198,7 +206,7 @@ function TrackpadPage() {
 
 			{/* CONTROL BAR */}
 			<div className="shrink-0 border-b border-base-200">
-				<ControlBar
+			<ControlBar
 					scrollMode={scrollMode}
 					modifier={modifier}
 					buffer={buffer.join(" + ")}
@@ -209,6 +217,8 @@ function TrackpadPage() {
 					onRightClick={() => handleClick("right")}
 					onKeyboardToggle={toggleKeyboard}
 					onModifierToggle={handleModifierState}
+					onCopy={handleCopy}
+					onPaste={handlePaste}
 					onExtraKeysToggle={() => setExtraKeysVisible((prev) => !prev)}
 				/>
 			</div>

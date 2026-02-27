@@ -18,6 +18,8 @@ interface ControlBarProps {
 	onRightClick: () => void
 	onKeyboardToggle: () => void
 	onModifierToggle: () => void
+	onCopy: () => void
+	onPaste: () => void
 	keyboardOpen: boolean
 	extraKeysVisible: boolean
 	onExtraKeysToggle: () => void
@@ -31,6 +33,8 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 	onRightClick,
 	onKeyboardToggle,
 	onModifierToggle,
+	onCopy,
+	onPaste,
 	buffer,
 }) => {
 	const handleInteraction = (e: React.PointerEvent, action: () => void) => {
@@ -101,11 +105,19 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 				<Mouse size={18} className="rotate-180" />
 			</button>
 
-			<button type="button" className={baseButton}>
+			<button
+				type="button"
+				className={baseButton}
+				onPointerDown={(e) => handleInteraction(e, onCopy)}
+			>
 				<Copy size={18} />
 			</button>
 
-			<button type="button" className={baseButton}>
+			<button
+				type="button"
+				className={baseButton}
+				onPointerDown={(e) => handleInteraction(e, onPaste)}
+			>
 				<ClipboardPaste size={18} />
 			</button>
 
