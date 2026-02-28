@@ -165,8 +165,10 @@ export class InputHandler {
 				} catch (err) {
 					console.warn("Error while copying:", err)
 				} finally {
-					await keyboard.releaseKey(Key.C)
-					await keyboard.releaseKey(this.modifier)
+					await Promise.allSettled([
+						keyboard.releaseKey(Key.C),
+						keyboard.releaseKey(this.modifier),
+					])
 				}
 				break
 			}
@@ -176,8 +178,10 @@ export class InputHandler {
 				} catch (err) {
 					console.warn("Error while pasting:", err)
 				} finally {
-					await keyboard.releaseKey(Key.V)
-					await keyboard.releaseKey(this.modifier)
+					await Promise.allSettled([
+						keyboard.releaseKey(Key.C),
+						keyboard.releaseKey(this.modifier),
+					])
 				}
 				break
 			}
