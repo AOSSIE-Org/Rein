@@ -11,7 +11,8 @@ export const useRemoteConnection = () => {
 
 	useEffect(() => {
 		const unsubscribe = subscribe("clipboard-sync", (msg: unknown) => {
-			const m = msg as { type: string; text: string }
+			if (!msg || typeof msg !== "object") return
+			const m = msg as { type?: unknown; text?: unknown }
 			if (typeof m.text !== "string") return
 
 			const text = m.text
