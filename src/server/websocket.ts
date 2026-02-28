@@ -341,6 +341,8 @@ export function createWsServer(server: CompatibleServer) {
 						"text",
 						"zoom",
 						"combo",
+						"copy",
+						"paste",
 					]
 					if (!msg.type || !VALID_INPUT_TYPES.includes(msg.type)) {
 						logger.warn(`Unknown message type: ${msg.type}`)

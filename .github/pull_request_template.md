@@ -34,6 +34,8 @@ Fixes #(issue number)
 
 - [ ] Sensitivity: Verified changes in cursor speed/sensitivity settings.
 
+- [ ] Copy and Paste: Verified both Copy and Paste functionality.
+
 - [ ] Invert Scrolling: Verified scroll direction toggles correctly.
 
 ### Advanced Input
