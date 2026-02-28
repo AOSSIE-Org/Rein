@@ -46,6 +46,9 @@ function getLocalIp(): string {
     "tun",
     "tap",
     "tailscale",
+	"utun",
+	"awdl",
+	"llw",
   ];
 
   const ignoredPrefixes = [
