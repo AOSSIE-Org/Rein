@@ -13,16 +13,70 @@ import {
 	touchToken,
 } from "./tokenStore"
 
+function isPrivateIPv4(ip: string): boolean {
+  if (ip.startsWith("192.168.")) return true;
+  if (ip.startsWith("10.")) return true;
+
+  if (ip.startsWith("172.")) {
+    const parts = ip.split(".");
+    if (parts.length < 2) return false;
+
+    const second = Number(parts[1]);
+    if (Number.isNaN(second)) return false;
+
+    return second >= 16 && second <= 31;
+  }
+
+  return false;
+}
+
+function isIPv4(net: os.NetworkInterfaceInfo): boolean {
+  return net.family === "IPv4" || (net.family as unknown) === 4;
+}
+
 function getLocalIp(): string {
-	const nets = os.networkInterfaces()
-	for (const name of Object.keys(nets)) {
-		for (const net of nets[name] ?? []) {
-			if (net.family === "IPv4" && !net.internal) {
-				return net.address
-			}
-		}
-	}
-	return "localhost"
+  const nets = os.networkInterfaces();
+
+  const ignoredSubstrings = [
+    "docker",
+    "veth",
+    "vmnet",
+    "vboxnet",
+    "virbr",
+    "tun",
+    "tap",
+    "tailscale",
+  ];
+
+  const ignoredPrefixes = [
+    "br-",
+    "wg",
+  ];
+
+  for (const [name, interfaces] of Object.entries(nets)) {
+    if (!interfaces) continue;
+
+    const lowerName = name.toLowerCase();
+
+    const shouldSkip =
+      ignoredSubstrings.some(s => lowerName.includes(s)) ||
+      ignoredPrefixes.some(p => lowerName.startsWith(p));
+
+    if (shouldSkip) continue;
+
+    for (const net of interfaces) {
+      if (
+        isIPv4(net) &&
+        !net.internal &&
+        isPrivateIPv4(net.address)
+      ) {
+        // NOTE: returns first valid match in OS enumeration order.
+        return net.address;
+      }
+    }
+  }
+
+  return "localhost";
 }
 
 function isLocalhost(request: IncomingMessage): boolean {
