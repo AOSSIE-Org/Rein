@@ -75,7 +75,7 @@ export function useCaptureProvider(wsRef: React.RefObject<WebSocket | null>) {
 			const stream = await navigator.mediaDevices.getDisplayMedia({
 				video: {
 					displaySurface: "monitor",
-					frameRate: { ideal: 30 },
+					// frameRate: { ideal: 30 },
 				},
 			})
 
