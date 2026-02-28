@@ -1,27 +1,32 @@
-import { useEffect, useRef, useState } from 'react';
-import { TOUCH_MOVE_THRESHOLD, TOUCH_TIMEOUT, PINCH_THRESHOLD, calculateAccelerationMult } from '../utils/math';
+import { useRef, useState } from "react"
+import {
+	PINCH_THRESHOLD,
+	TOUCH_MOVE_THRESHOLD,
+	TOUCH_TIMEOUT,
+	calculateAccelerationMult,
+} from "../utils/math"
 
 interface TrackedTouch {
-    identifier: number;
-    pageX: number;
-    pageY: number;
-    pageXStart: number;
-    pageYStart: number;
-    timeStamp: number;
+	identifier: number
+	pageX: number
+	pageY: number
+	pageXStart: number
+	pageYStart: number
+	timeStamp: number
 }
 
 const getTouchDistance = (a: TrackedTouch, b: TrackedTouch): number => {
-    const dx = a.pageX - b.pageX;
-    const dy = a.pageY - b.pageY;
-    return Math.sqrt(dx * dx + dy * dy);
-};
+	const dx = a.pageX - b.pageX
+	const dy = a.pageY - b.pageY
+	return Math.sqrt(dx * dx + dy * dy)
+}
 
 export const useTrackpadGesture = (
-    send: (msg: any) => void,
-    scrollMode: boolean,
-    sensitivity: number = 1.5,
-    invertScroll: boolean = false,
-    axisThreshold: number = 2.5 
+	send: (msg: unknown) => void,
+	scrollMode: boolean,
+	sensitivity = 1.5,
+	invertScroll = false,
+	axisThreshold = 2.5,
 ) => {
     const [isTracking, setIsTracking] = useState(false);
     

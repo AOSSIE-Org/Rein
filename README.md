@@ -7,7 +7,7 @@
 
 # Rein
 
-A cross-platform, LAN-based remote control. It allows touchscreen devices to act as a trackpad and keyboard for a desktop system through a locally served web interface.
+A cross-platform, LAN-based remote control based in **KISS principle**. It allows touchscreen devices to act as a trackpad and keyboard for a desktop system through a locally served web interface.
 
 ## Tech Stack
 
@@ -19,6 +19,8 @@ A cross-platform, LAN-based remote control. It allows touchscreen devices to act
 ## Development Setup
 
 This project behaves like a standard Node.js application and can run on Windows, macOS, or Linux. 
+
+> **Note:** For Linux Wayland users, `ydotool` is required for input simulation for now.
 
 ### Quick Start
 
