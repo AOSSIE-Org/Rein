@@ -152,6 +152,14 @@ function TrackpadPage() {
 		}
 	}
 
+	const handleCopy = () => {
+		send({ type: "copy" })
+	}
+
+	const handlePaste = async () => {
+		send({ type: "paste" })
+	}
+
 	const handleModifierState = () => {
 		switch (modifier) {
 			case "Active":
@@ -205,6 +213,8 @@ function TrackpadPage() {
 			{/* CONTROL BAR */}
 			<div className="shrink-0 border-b border-base-200">
 				<ControlBar
+					onCopy={handleCopy}
+					onPaste={handlePaste}
 					scrollMode={scrollMode}
 					modifier={modifier}
 					buffer={buffer.join(" + ")}

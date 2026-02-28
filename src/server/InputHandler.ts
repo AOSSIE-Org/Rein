@@ -1,9 +1,19 @@
 import { Button, Key, Point, keyboard, mouse } from "@nut-tree-fork/nut-js"
 import { KEY_MAP } from "./KeyMap"
 import { moveRelative } from "./ydotool"
+import os from "node:os"
 
 export interface InputMessage {
-	type: "move" | "click" | "scroll" | "key" | "text" | "zoom" | "combo"
+	type:
+		| "move"
+		| "paste"
+		| "copy"
+		| "click"
+		| "scroll"
+		| "key"
+		| "text"
+		| "zoom"
+		| "combo"
 	dx?: number
 	dy?: number
 	button?: "left" | "right" | "middle"
@@ -22,9 +32,11 @@ export class InputHandler {
 	private moveTimer: ReturnType<typeof setTimeout> | null = null
 	private scrollTimer: ReturnType<typeof setTimeout> | null = null
 	private throttleMs: number
+	private modifier: Key
 
 	constructor(throttleMs = 8) {
 		mouse.config.mouseSpeed = 1000
+		this.modifier = os.platform() === "darwin" ? Key.LeftSuper : Key.LeftControl
 		this.throttleMs = throttleMs
 	}
 
@@ -143,6 +155,33 @@ export class InputHandler {
 					} else {
 						await mouse.releaseButton(btn)
 					}
+				}
+				break
+			}
+
+			case "copy": {
+				try {
+					await keyboard.pressKey(this.modifier, Key.C)
+				} catch (err) {
+					console.warn("Error while copying:", err)
+				} finally {
+					await Promise.allSettled([
+						keyboard.releaseKey(Key.C),
+						keyboard.releaseKey(this.modifier),
+					])
+				}
+				break
+			}
+			case "paste": {
+				try {
+					await keyboard.pressKey(this.modifier, Key.V)
+				} catch (err) {
+					console.warn("Error while pasting:", err)
+				} finally {
+					await Promise.allSettled([
+						keyboard.releaseKey(Key.V),
+						keyboard.releaseKey(this.modifier),
+					])
 				}
 				break
 			}
