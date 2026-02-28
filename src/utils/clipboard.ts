@@ -33,7 +33,8 @@ export const writeToClipboard = async (text: string): Promise<void> => {
 		} else {
 			fallbackWriteClipboard(text)
 		}
-	} catch {
+	} catch (err) {
+		console.warn("Clipboard API write failed, using fallback:", err)
 		fallbackWriteClipboard(text)
 	}
 }

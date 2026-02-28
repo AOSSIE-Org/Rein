@@ -134,21 +134,17 @@ export function createWsServer(server: CompatibleServer) {
 				storeToken(token)
 			}
 
-			const consumers = new Set<WebSocket>()
-
 			ws.send(JSON.stringify({ type: "connected", serverIp: LAN_IP }))
 
 			let lastTokenTouch = 0
 
 			const startMirror = () => {
 				;(ws as ExtWebSocket).isConsumer = true
-				consumers.add(ws)
 				logger.info("Client registered as Screen Consumer")
 			}
 
 			const stopMirror = () => {
 				;(ws as ExtWebSocket).isConsumer = false
-				consumers.delete(ws)
 				logger.info("Client unregistered as Screen Consumer")
 			}
 
@@ -157,10 +153,12 @@ export function createWsServer(server: CompatibleServer) {
 					if (isBinary) {
 						// Relay frames from Providers to Consumers
 						if ((ws as ExtWebSocket).isProvider) {
-							for (const client of consumers) {
-								if (client !== ws && client.readyState === WebSocket.OPEN) {
-									// Backpressure: Skip if client buffer is getting full (> 1MB)
-									if (client.bufferedAmount > 1024 * 1024) continue
+							for (const client of wss.clients) {
+								if (
+									client !== ws &&
+									(client as ExtWebSocket).isConsumer &&
+									client.readyState === WebSocket.OPEN
+								) {
 									client.send(data, { binary: true })
 								}
 							}
@@ -225,12 +223,6 @@ export function createWsServer(server: CompatibleServer) {
 
 					if (msg.type === "stop-mirror") {
 						stopMirror()
-						return
-					}
-
-					if (msg.type === "stop-provider") {
-						;(ws as ExtWebSocket).isProvider = false
-						logger.info("Client unregistered as Screen Provider")
 						return
 					}
 
@@ -373,7 +365,7 @@ export function createWsServer(server: CompatibleServer) {
 
 			ws.on("close", () => {
 				stopMirror()
-				logger.info("WebSocket connection closed")
+				logger.info("Client disconnected")
 			})
 
 			ws.on("error", (error: Error) => {

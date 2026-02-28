@@ -162,12 +162,14 @@ function TrackpadPage() {
 			if (window.isSecureContext) {
 				text = await navigator.clipboard.readText()
 			}
+			// If text is empty, server will use its own clipboard as fallback
 			send({
 				type: "paste",
 				content: text,
 			})
 		} catch {
-			console.error("Failed to read phone clipboard")
+			// Fallback: let server use its clipboard
+			send({ type: "paste", content: "" })
 		}
 	}
 

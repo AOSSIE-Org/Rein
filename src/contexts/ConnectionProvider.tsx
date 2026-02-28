@@ -100,7 +100,7 @@ export function ConnectionProvider({
 			}
 		}
 
-		socket.onmessage = (event) => {
+		socket.onmessage = async (event) => {
 			if (!isMountedRef.current) return
 
 			// Handle binary data separately (frames)
@@ -113,6 +113,20 @@ export function ConnectionProvider({
 				const msg = JSON.parse(event.data)
 				if (msg.type === "connected") {
 					setPlatform(msg.platform || null)
+				}
+				if (msg.type === "clipboard-content") {
+					if (typeof msg.content === "string") {
+						try {
+							const { writeToClipboard } = await import("@/utils/clipboard")
+							await writeToClipboard(msg.content)
+						} catch (err) {
+							console.error("Failed to write to clipboard:", err)
+						}
+					}
+				}
+
+				if (msg.type === "clipboard-error") {
+					console.error(msg.error)
 				}
 				const typeSubscribers = subscribersRef.current[msg.type]
 				if (typeSubscribers) {

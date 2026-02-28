@@ -10,7 +10,7 @@ import {
 	FaArrowDown,
 	FaArrowLeft,
 	FaArrowRight,
-	FaBackspace,
+	FaLevelDownAlt,
 	FaBackward,
 	FaForward,
 } from "react-icons/fa"
@@ -71,10 +71,10 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey }) => {
 		{ label: "Shift", key: "shift", type: "mod" },
 		{ icon: <FaArrowUp />, key: "arrowup", type: "arrow", label: "Up" },
 		{
-			icon: <FaBackspace />,
-			key: "backspace",
+			icon: <FaLevelDownAlt style={{ transform: "rotate(90deg)" }} />,
+			key: "enter",
 			type: "action",
-			label: "Backspace",
+			label: "Enter",
 		},
 
 		{ label: "Ctrl", key: "control", type: "mod" },

@@ -2,6 +2,7 @@ import { Button, Key, Point, keyboard, mouse } from "@nut-tree-fork/nut-js"
 import { KEY_MAP } from "./KeyMap"
 import { clipboard } from "@nut-tree-fork/nut-js"
 import os from "node:os"
+import { moveRelative } from "./ydotool"
 
 export interface InputMessage {
 	type:
@@ -126,14 +127,20 @@ export class InputHandler {
 					Number.isFinite(msg.dx) &&
 					Number.isFinite(msg.dy)
 				) {
-					const currentPos = await mouse.getPosition()
+					// Attempt ydotool relative movement first
+					const success = await moveRelative(msg.dx, msg.dy)
 
-					await mouse.setPosition(
-						new Point(
-							Math.round(currentPos.x + msg.dx),
-							Math.round(currentPos.y + msg.dy),
-						),
-					)
+					// Fallback to absolute positioning if ydotool is unavailable or fails
+					if (!success) {
+						const currentPos = await mouse.getPosition()
+
+						await mouse.setPosition(
+							new Point(
+								Math.round(currentPos.x + msg.dx),
+								Math.round(currentPos.y + msg.dy),
+							),
+						)
+					}
 				}
 				break
 
@@ -233,6 +240,9 @@ export class InputHandler {
 				break
 			case "copy": {
 				try {
+					await keyboard.pressKey(this.modifier, Key.C)
+					await keyboard.releaseKey(Key.C)
+					await keyboard.releaseKey(this.modifier)
 					const content = await clipboard.getContent()
 					const MAX_CLIPBOARD_SEND = 10000
 					const safeContent =
@@ -251,15 +261,22 @@ export class InputHandler {
 				}
 				break
 			}
-
 			case "paste": {
-				console.log("This isnt working ")
-				if (msg.content && typeof msg.content === "string") {
-					await clipboard.setContent(msg.content)
+				try {
+					const MAX_CLIPBOARD_PASTE = 10000
+					if (msg.content && typeof msg.content === "string") {
+						await clipboard.setContent(
+							msg.content.substring(0, MAX_CLIPBOARD_PASTE),
+						)
+					}
+					await keyboard.pressKey(this.modifier, Key.V)
+					await keyboard.releaseKey(this.modifier, Key.V)
+				} catch (err) {
+					this.sendToClient({
+						type: "clipboard-error",
+						error: "Paste operation failed",
+					})
 				}
-
-				await keyboard.pressKey(this.modifier, Key.V)
-				await keyboard.releaseKey(this.modifier, Key.V)
 				break
 			}
 			case "combo":
