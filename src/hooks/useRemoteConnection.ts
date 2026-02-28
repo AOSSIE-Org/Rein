@@ -14,7 +14,7 @@ export const useRemoteConnection = () => {
 			const m = msg as { type: string; text: string }
 			if (typeof m.text !== "string") return
 
-			const text = m.text.trim()
+			const text = m.text
 			clipboardRef.current = text
 
 			// Try writing to mobile browser clipboard (works on HTTPS or localhost)
