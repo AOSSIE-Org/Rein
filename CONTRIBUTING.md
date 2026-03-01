@@ -133,11 +133,11 @@ We use Vitest for testing and Biome for formatting/linting:
 # Run tests
 npm run test
 
-# Format code
-npm run format
+# Format & Lint code
+npm run check
 
-# Lint code
-npm run lint
+# Auto-fix formatting & linting issues
+npm run check:fix
 ```
 
 ### 4. Commit Your Changes
@@ -177,7 +177,7 @@ git push origin feature/your-feature-name
 
 ### Before Submitting
 
-- [ ] Your code follows the project's style guidelines (`npm run format`, `npm run lint`)
+- [ ] Your code follows the project's style guidelines (`npm run check`)
 - [ ] You've tested your changes thoroughly (`npm run test`)
 - [ ] You've updated relevant documentation
 - [ ] Your commits are clean and well-organized
@@ -238,7 +238,7 @@ The project uses [Biome](https://biomejs.dev/) for formatting and linting.
 
 ### General Guidelines
 
-- Run `npm run format` and `npm run lint` before committing your code.
+- Run `npm run check` (or `npm run check:fix` to auto-fix) before committing your code.
 - Use meaningful variable and function names.
 - Keep functions small and focused.
 - Add comments for complex logic.
