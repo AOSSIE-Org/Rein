@@ -113,7 +113,7 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey }) => {
 			case "fn":
 				return "btn-neutral btn-outline text-xs"
 			case "media":
-				return "btn-accent btn-outline"
+				return "btn-accent"
 			case "action":
 				return "btn-neutral"
 			default:
@@ -122,7 +122,7 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey }) => {
 	}
 
 	return (
-		<div className="grid grid-cols-6 grid-rows-6 gap-1 p-1 w-full bg-base-300">
+		<div className="grid grid-cols-6 grid-rows-6 gap-1 p-1 w-full bg-base-100">
 			{keys.map((k, i) => (
 				<button
 					type="button"
@@ -141,3 +141,6 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey }) => {
 		</div>
 	)
 }
+
+
+

@@ -6,3 +6,7 @@
     dracula --default --prefersdark,
     cupcake;
 }
+
+[data-theme="cupcake"] .rein-logo {
+  filter: brightness(0);
+}
