@@ -112,6 +112,7 @@ function Navbar() {
 						height={32}
 						width={32}
 						alt="Rein logo"
+						className="rein-logo"
 					/>
 					Rein
 				</Link>
