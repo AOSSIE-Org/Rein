@@ -3,18 +3,14 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"predev": "biome format . --write",
+		"predev": "biome check . --write",
 		"dev": "vite dev --host --open",
 		"start": "vite preview --host --open",
 		"build": "vite build",
 		"preview": "vite preview",
 		"test": "vitest run",
-		"format": "biome format . --write --verbose",
-		"format:check": "biome format . --verbose",
-		"lint": "biome lint . --verbose",
-		"lint:fix": "biome lint . --apply --verbose",
-		"check": "biome check . --verbose",
-		"check:fix": "biome check . --apply --verbose"
+		"check": "biome check .",
+		"check:fix": "biome check . --write"
 	},
 	"dependencies": {
 		"@nut-tree-fork/nut-js": "^4.2.6",
