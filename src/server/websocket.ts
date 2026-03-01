@@ -1,12 +1,12 @@
 import fs from "node:fs"
 import type { IncomingMessage } from "node:http"
 import type { Socket } from "node:net"
-import os from "node:os"
 import { WebSocket, WebSocketServer } from "ws"
 import logger from "../utils/logger"
 import { InputHandler, type InputMessage } from "./InputHandler"
 import type { Server as HttpServer } from "node:http"
 import type { Server as HttpsServer } from "node:https"
+import dgram from "node:dgram"
 
 type CompatibleServer = HttpServer | HttpsServer
 
@@ -18,16 +18,28 @@ import {
 	touchToken,
 } from "./tokenStore"
 
-function getLocalIp(): string {
-	const nets = os.networkInterfaces()
-	for (const name of Object.keys(nets)) {
-		for (const net of nets[name] ?? []) {
-			if (net.family === "IPv4" && !net.internal) {
-				return net.address
-			}
-		}
-	}
-	return "localhost"
+async function getLocalIp(): Promise<string> {
+       return new Promise((resolve) => {
+               const socket = dgram.createSocket("udp4")
+
+               socket.connect(1, "10.255.255.255")
+
+               socket.on("connect", () => {
+                       const addr = socket.address()
+                       socket.close()
+
+                       if (typeof addr === "object") {
+                               resolve(addr.address)
+                       } else {
+                               resolve("127.0.0.1")
+                       }
+               })
+
+               socket.on("error", () => {
+                       socket.close()
+                       resolve("127.0.0.1")
+               })
+       })
 }
 
 function isLocalhost(request: IncomingMessage): boolean {
@@ -63,8 +75,17 @@ export function createWsServer(server: CompatibleServer) {
 
 	const wss = new WebSocketServer({ noServer: true })
 	const inputHandler = new InputHandler(inputThrottleMs)
-	const LAN_IP = getLocalIp()
+	let LAN_IP = "127.0.0.1"
 	const MAX_PAYLOAD_SIZE = 10 * 1024 // 10KB limit
+
+	getLocalIp()
+		.then((ip) => {
+			LAN_IP = ip
+			logger.info(`Resolved LAN IP: ${LAN_IP}`)
+		})
+		.catch(() => {
+			logger.warn("Failed to resolve LAN IP, using localhost")
+		})
 
 	logger.info("WebSocket server initialized")
 
