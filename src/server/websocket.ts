@@ -1,12 +1,12 @@
 import fs from "node:fs"
 import type { IncomingMessage } from "node:http"
 import type { Socket } from "node:net"
-import os from "node:os"
 import { WebSocket, WebSocketServer } from "ws"
 import logger from "../utils/logger"
 import { InputHandler, type InputMessage } from "./InputHandler"
 import type { Server as HttpServer } from "node:http"
 import type { Server as HttpsServer } from "node:https"
+import dgram from "node:dgram"
 
 type CompatibleServer = HttpServer | HttpsServer
 
@@ -18,16 +18,36 @@ import {
 	touchToken,
 } from "./tokenStore"
 
-function getLocalIp(): string {
-	const nets = os.networkInterfaces()
-	for (const name of Object.keys(nets)) {
-		for (const net of nets[name] ?? []) {
-			if (net.family === "IPv4" && !net.internal) {
-				return net.address
+async function getLocalIp(): Promise<string> {
+	return new Promise((resolve) => {
+		const socket = dgram.createSocket("udp4")
+
+		const timeout = setTimeout(() => {
+			socket.close()
+			resolve("127.0.0.1")
+		}, 1000)
+
+		socket.connect(1, "10.255.255.255")
+
+		socket.on("connect", () => {
+			clearTimeout(timeout)
+
+			const addr = socket.address()
+			socket.close()
+
+			if (typeof addr === "object") {
+				resolve(addr.address)
+			} else {
+				resolve("127.0.0.1")
 			}
-		}
-	}
-	return "localhost"
+		})
+
+		socket.on("error", () => {
+			clearTimeout(timeout)
+			socket.close()
+			resolve("127.0.0.1")
+		})
+	})
 }
 
 function isLocalhost(request: IncomingMessage): boolean {
@@ -42,7 +62,7 @@ interface ExtWebSocket extends WebSocket {
 }
 
 // server: any is used to support Vite's dynamic httpServer types (http, https, http2)
-export function createWsServer(server: CompatibleServer) {
+export async function createWsServer(server: CompatibleServer) {
 	const configPath = "./src/server-config.json"
 	let serverConfig: Record<string, unknown> = {}
 	if (fs.existsSync(configPath)) {
@@ -63,9 +83,10 @@ export function createWsServer(server: CompatibleServer) {
 
 	const wss = new WebSocketServer({ noServer: true })
 	const inputHandler = new InputHandler(inputThrottleMs)
-	const LAN_IP = getLocalIp()
 	const MAX_PAYLOAD_SIZE = 10 * 1024 // 10KB limit
 
+	let LAN_IP = await getLocalIp()
+	logger.info(`Resolved LAN IP: ${LAN_IP}`)
 	logger.info("WebSocket server initialized")
 
 	server.on(
