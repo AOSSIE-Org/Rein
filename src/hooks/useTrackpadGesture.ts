@@ -23,6 +23,7 @@ export const useTrackpadGesture = (
     invertScroll: boolean = false,
     axisThreshold: number = 2.5 
 ) => {
+    const SCROLL_SENSITIVITY_MULTIPLIER = 0.6;
     const [isTracking, setIsTracking] = useState(false);
     
     // Refs for tracking state (avoids re-renders during rapid movement)
@@ -57,11 +58,11 @@ export const useTrackpadGesture = (
                 send({ type: 'zoom', delta: delta * sensitivity * invertMult });
             } else {
                 lastPinchDist.current = dist;
-                send({ 
-                    type: 'scroll', 
-                    dx: -sumX * sensitivity * invertMult, 
-                    dy: -sumY * sensitivity * invertMult 
-                });
+              send({ 
+    type: 'scroll', 
+    dx: -sumX * sensitivity * SCROLL_SENSITIVITY_MULTIPLIER * invertMult, 
+    dy: -sumY * sensitivity * SCROLL_SENSITIVITY_MULTIPLIER * invertMult 
+});
             }
         } else if (scrollMode || ongoingTouches.current.length === 2) {
             let scrollDx = sumX;
@@ -75,11 +76,13 @@ export const useTrackpadGesture = (
                     scrollDx = 0;
                 }
             }
-            send({ 
-                type: 'scroll', 
-                dx: Math.round(-scrollDx * sensitivity * 10 * invertMult) / 10, 
-                dy: Math.round(-scrollDy * sensitivity * 10 * invertMult) / 10 
-            });
+           const SCROLL_SENSITIVITY_MULTIPLIER = 0.6;
+
+        send({ 
+             type: 'scroll', 
+             dx: Math.round(-scrollDx * sensitivity * SCROLL_SENSITIVITY_MULTIPLIER * 10 * invertMult) / 10, 
+             dy: Math.round(-scrollDy * sensitivity * SCROLL_SENSITIVITY_MULTIPLIER * 10 * invertMult) / 10 
+         });
         } else if (ongoingTouches.current.length === 1) {
             send({ 
                 type: 'move', 
