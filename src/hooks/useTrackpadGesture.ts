@@ -21,13 +21,16 @@ const getTouchDistance = (a: TrackedTouch, b: TrackedTouch): number => {
 	return Math.sqrt(dx * dx + dy * dy)
 }
 
+const SCROLL_SENSITIVITY_RATIO = 0.45
+
 export const useTrackpadGesture = (
 	send: (msg: unknown) => void,
 	scrollMode: boolean,
-	sensitivity = 1.5,
+	cursorSensitivity = 1.5,
 	invertScroll = false,
 	axisThreshold = 2.5,
 ) => {
+	const scrollSensitivity = cursorSensitivity * SCROLL_SENSITIVITY_RATIO
 	const [isTracking, setIsTracking] = useState(false)
 
 	// Refs for tracking state (avoids re-renders during rapid movement)
@@ -40,20 +43,45 @@ export const useTrackpadGesture = (
 	const lastPinchDist = useRef<number | null>(null)
 	const pinching = useRef(false)
 
+	// Subpixel positional tracking mapping precisely to integer pixel grids sent over WS
+	const absoluteCursor = useRef({ x: 0, y: 0 })
+	const lastSentRounded = useRef({ x: 0, y: 0 })
+
+	const absoluteScroll = useRef({ x: 0, y: 0 })
+	const lastSentScrollRounded = useRef({ x: 0, y: 0 })
+
 	// Helpers
 	const findTouchIndex = (id: number) =>
 		ongoingTouches.current.findIndex((t) => t.identifier === id)
 
 	const processMovement = (sumX: number, sumY: number) => {
-		if (dragging.current) {
-			send({
-				type: "move",
-				dx: Math.round(sumX * sensitivity * 10) / 10,
-				dy: Math.round(sumY * sensitivity * 10) / 10,
-			})
+		const invertMult = invertScroll ? -1 : 1
+
+		if (dragging.current || ongoingTouches.current.length === 1) {
+			const rawDx = sumX * cursorSensitivity
+			const rawDy = sumY * cursorSensitivity
+
+			// Accumulate absolute subpixels smoothly over consecutive movement loops
+			absoluteCursor.current.x += rawDx
+			absoluteCursor.current.y += rawDy
+
+			// Translate absolute state down to nearest integer pixel
+			const absX = Math.round(absoluteCursor.current.x)
+			const absY = Math.round(absoluteCursor.current.y)
+
+			// Delta between current integer grid state and previously sent grid state
+			const dx = absX - lastSentRounded.current.x
+			const dy = absY - lastSentRounded.current.y
+
+			// Send exact integer deltas across network, preserving subpixels indefinitely
+			if (dx !== 0 || dy !== 0) {
+				lastSentRounded.current.x = absX
+				lastSentRounded.current.y = absY
+				send({ type: "move", dx, dy })
+			}
 			return
 		}
-		const invertMult = invertScroll ? -1 : 1
+
 		if (!scrollMode && ongoingTouches.current.length === 2) {
 			const dist = getTouchDistance(
 				ongoingTouches.current[0],
@@ -64,14 +92,26 @@ export const useTrackpadGesture = (
 			if (pinching.current || Math.abs(delta) > PINCH_THRESHOLD) {
 				pinching.current = true
 				lastPinchDist.current = dist
-				send({ type: "zoom", delta: delta * sensitivity * invertMult })
+				send({ type: "zoom", delta: delta * scrollSensitivity * invertMult })
 			} else {
 				lastPinchDist.current = dist
-				send({
-					type: "scroll",
-					dx: -sumX * sensitivity * invertMult,
-					dy: -sumY * sensitivity * invertMult,
-				})
+				const rawDx = -sumX * scrollSensitivity * invertMult
+				const rawDy = -sumY * scrollSensitivity * invertMult
+
+				absoluteScroll.current.x += rawDx
+				absoluteScroll.current.y += rawDy
+
+				const absX = Math.round(absoluteScroll.current.x)
+				const absY = Math.round(absoluteScroll.current.y)
+
+				const dx = absX - lastSentScrollRounded.current.x
+				const dy = absY - lastSentScrollRounded.current.y
+
+				if (dx !== 0 || dy !== 0) {
+					lastSentScrollRounded.current.x = absX
+					lastSentScrollRounded.current.y = absY
+					send({ type: "scroll", dx, dy })
+				}
 			}
 		} else if (scrollMode || ongoingTouches.current.length === 2) {
 			let scrollDx = sumX
@@ -85,17 +125,24 @@ export const useTrackpadGesture = (
 					scrollDx = 0
 				}
 			}
-			send({
-				type: "scroll",
-				dx: Math.round(-scrollDx * sensitivity * 10 * invertMult) / 10,
-				dy: Math.round(-scrollDy * sensitivity * 10 * invertMult) / 10,
-			})
-		} else if (ongoingTouches.current.length === 1) {
-			send({
-				type: "move",
-				dx: Math.round(sumX * sensitivity * 10) / 10,
-				dy: Math.round(sumY * sensitivity * 10) / 10,
-			})
+
+			const rawDx = -scrollDx * scrollSensitivity * invertMult
+			const rawDy = -scrollDy * scrollSensitivity * invertMult
+
+			absoluteScroll.current.x += rawDx
+			absoluteScroll.current.y += rawDy
+
+			const absX = Math.round(absoluteScroll.current.x)
+			const absY = Math.round(absoluteScroll.current.y)
+
+			const dx = absX - lastSentScrollRounded.current.x
+			const dy = absY - lastSentScrollRounded.current.y
+
+			if (dx !== 0 || dy !== 0) {
+				lastSentScrollRounded.current.x = absX
+				lastSentScrollRounded.current.y = absY
+				send({ type: "scroll", dx, dy })
+			}
 		}
 	}
 
@@ -105,6 +152,12 @@ export const useTrackpadGesture = (
 	}
 
 	const handleTouchStart = (e: React.TouchEvent) => {
+		// Start absolute positions cleanly from 0, representing start of single gesture delta
+		absoluteCursor.current = { x: 0, y: 0 }
+		lastSentRounded.current = { x: 0, y: 0 }
+		absoluteScroll.current = { x: 0, y: 0 }
+		lastSentScrollRounded.current = { x: 0, y: 0 }
+
 		if (ongoingTouches.current.length === 0) {
 			startTimeStamp.current = e.timeStamp
 			moved.current = false

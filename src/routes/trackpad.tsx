@@ -36,11 +36,12 @@ function TrackpadPage() {
 	})
 
 	const { status, send, sendCombo } = useRemoteConnection()
-	// Pass sensitivity and invertScroll to the gesture hook
+	// Pass sensitivity to the gesture hook
+	// Scroll sensitivity is now derived internally using a defined SCROLL_SENSITIVITY_RATIO
 	const { isTracking, handlers } = useTrackpadGesture(
 		send,
 		scrollMode,
-		sensitivity,
+		sensitivity, // cursorSensitivity
 		invertScroll,
 	)
 
