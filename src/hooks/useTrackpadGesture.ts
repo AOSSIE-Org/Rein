@@ -41,6 +41,7 @@ export const useTrackpadGesture = (
   const dragging = useRef(false);
   const draggingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastPinchDist = useRef<number | null>(null);
+  const initialPinchStartDist = useRef<number | null>(null);
   const pinching = useRef(false);
 
   // Subpixel positional tracking mapping precisely to integer pixel grids sent over WS
@@ -92,21 +93,40 @@ export const useTrackpadGesture = (
         ongoingTouches.current[0],
         ongoingTouches.current[1],
       );
-      const delta =
-        lastPinchDist.current !== null ? dist - lastPinchDist.current : 0;
-      if (pinching.current || Math.abs(delta) > PINCH_THRESHOLD) {
-        pinching.current = true;
+
+      if (pinching.current) {
+        // Already activated — use per-frame delta for zoom magnitude
+        const frameDelta =
+          lastPinchDist.current !== null ? dist - lastPinchDist.current : 0;
         lastPinchDist.current = dist;
-        send({ type: "zoom", delta: delta * scrollSensitivity * invertMult });
+        send({
+          type: "zoom",
+          delta: frameDelta * scrollSensitivity * invertMult,
+        });
       } else {
-        lastPinchDist.current = dist;
-        const rawDx = -sumX * scrollSensitivity * invertMult;
-        const rawDy = -sumY * scrollSensitivity * invertMult;
+        // Not yet activated — check cumulative distance from gesture start
+        const cumulativeDelta =
+          initialPinchStartDist.current !== null
+            ? dist - initialPinchStartDist.current
+            : 0;
+        if (Math.abs(cumulativeDelta) > PINCH_THRESHOLD) {
+          // Threshold crossed — activate and emit the full cumulative zoom
+          pinching.current = true;
+          lastPinchDist.current = dist;
+          send({
+            type: "zoom",
+            delta: cumulativeDelta * scrollSensitivity * invertMult,
+          });
+        } else {
+          // Below threshold — treat as scroll, do NOT update lastPinchDist
+          const rawDx = -sumX * scrollSensitivity * invertMult;
+          const rawDy = -sumY * scrollSensitivity * invertMult;
 
-        absoluteScroll.current.x += rawDx;
-        absoluteScroll.current.y += rawDy;
+          absoluteScroll.current.x += rawDx;
+          absoluteScroll.current.y += rawDy;
 
-        emitQuantizedMove("scroll", absoluteScroll, lastSentScrollRounded);
+          emitQuantizedMove("scroll", absoluteScroll, lastSentScrollRounded);
+        }
       }
     } else if (scrollMode || ongoingTouches.current.length === 2) {
       let scrollDx = sumX;
@@ -168,10 +188,12 @@ export const useTrackpadGesture = (
     }
 
     if (ongoingTouches.current.length === 2) {
-      lastPinchDist.current = getTouchDistance(
+      const startDist = getTouchDistance(
         ongoingTouches.current[0],
         ongoingTouches.current[1],
       );
+      lastPinchDist.current = startDist;
+      initialPinchStartDist.current = startDist;
       pinching.current = false;
     }
 
@@ -253,6 +275,7 @@ export const useTrackpadGesture = (
 
     if (ongoingTouches.current.length < 2) {
       lastPinchDist.current = null;
+      initialPinchStartDist.current = null;
       pinching.current = false;
     }
 
