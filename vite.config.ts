@@ -18,14 +18,14 @@ const config = defineConfig({
 		{
 			name: "websocket-server",
 			async configureServer(server) {
-    			if (server.httpServer) {
-        			await createWsServer(server.httpServer as any)
-    			}
+				const httpServer = server.httpServer
+				if (!httpServer) return
+				await createWsServer(httpServer)
 			},
 			async configurePreviewServer(server) {
-    			if (server.httpServer) {
-        			await createWsServer(server.httpServer as any)
-    			}
+				const httpServer = server.httpServer
+				if (!httpServer) return
+				await createWsServer(httpServer)
 			},
 		},
 		devtools(),

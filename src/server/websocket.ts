@@ -4,11 +4,7 @@ import type { Socket } from "node:net"
 import { WebSocket, WebSocketServer } from "ws"
 import logger from "../utils/logger"
 import { InputHandler, type InputMessage } from "./InputHandler"
-import type { Server as HttpServer } from "node:http"
-import type { Server as HttpsServer } from "node:https"
 import dgram from "node:dgram"
-
-type CompatibleServer = HttpServer | HttpsServer
 
 import {
 	generateToken,
@@ -62,7 +58,9 @@ interface ExtWebSocket extends WebSocket {
 }
 
 // server: any is used to support Vite's dynamic httpServer types (http, https, http2)
-export async function createWsServer(server: CompatibleServer) {
+export async function createWsServer(
+	server: NonNullable<import("vite").ViteDevServer["httpServer"]>,
+) {
 	const configPath = "./src/server-config.json"
 	let serverConfig: Record<string, unknown> = {}
 	if (fs.existsSync(configPath)) {
