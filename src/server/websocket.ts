@@ -124,8 +124,12 @@ export function createWsServer(server: CompatibleServer) {
 		) => {
 			// Localhost: only store token if it's already known (trusted scan)
 			// Remote: token is already validated in the upgrade handler
-			logger.debug(`Client connected from ${request.socket.remoteAddress}`)
+			ws.on("close", () => {
+				stopMirror()
+				logger.info("Client disconnected")
+			})
 
+	
 			if (token && (isKnownToken(token) || !isLocal)) {
 				storeToken(token)
 			}
@@ -370,3 +374,4 @@ export function createWsServer(server: CompatibleServer) {
 		},
 	)
 }
+
