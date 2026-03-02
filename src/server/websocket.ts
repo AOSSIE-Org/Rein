@@ -84,12 +84,19 @@ export async function createWsServer(
 	const MAX_PAYLOAD_SIZE = 10 * 1024 // 10KB limit
 
 	let LAN_IP = "127.0.0.1"
+
 	try {
-  		LAN_IP = await getLocalIp()
+  	LAN_IP = await getLocalIp()
 	} catch (error) {
-  	logger.warn(`Failed to resolve LAN IP, using localhost: ${String(error)}`)
+	logger.warn(`Failed to resolve LAN IP, using localhost: ${String(error)}`)
 	}
+
+	if (LAN_IP === "127.0.0.1") {
+	logger.warn("LAN IP resolution fell back to localhost (127.0.0.1)")
+	} else {
 	logger.info(`Resolved LAN IP: ${LAN_IP}`)
+	}
+
 	logger.info("WebSocket server initialized")
 
 	server.on(
