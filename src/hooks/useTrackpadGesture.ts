@@ -188,12 +188,18 @@ export const useTrackpadGesture = (
     }
 
     if (ongoingTouches.current.length === 2) {
+      // Exactly 2 fingers — seed fresh pinch baseline
       const startDist = getTouchDistance(
         ongoingTouches.current[0],
         ongoingTouches.current[1],
       );
       lastPinchDist.current = startDist;
       initialPinchStartDist.current = startDist;
+      pinching.current = false;
+    } else {
+      // 1, 3+ fingers — clear stale pinch state to prevent jump on next 2-touch
+      lastPinchDist.current = null;
+      initialPinchStartDist.current = null;
       pinching.current = false;
     }
 
@@ -273,7 +279,17 @@ export const useTrackpadGesture = (
       }
     }
 
-    if (ongoingTouches.current.length < 2) {
+    if (ongoingTouches.current.length === 2) {
+      // Reseed when returning to exactly 2 touches (e.g. 3 → 2)
+      const startDist = getTouchDistance(
+        ongoingTouches.current[0],
+        ongoingTouches.current[1],
+      );
+      lastPinchDist.current = startDist;
+      initialPinchStartDist.current = startDist;
+      pinching.current = false;
+    } else {
+      // 0, 1, or 3+ touches — clear all pinch state
       lastPinchDist.current = null;
       initialPinchStartDist.current = null;
       pinching.current = false;
