@@ -179,13 +179,8 @@ function TrackpadPage() {
 	}
 
 	const handleModifier = (key: string) => {
-		console.log(
-			`handleModifier called with key: ${key}, current modifier: ${modifier}, buffer:`,
-			buffer,
-		)
 		if (modifier === "Hold") {
 			const comboKeys = [...buffer, key]
-			console.log("Sending combo:", comboKeys)
 			sendCombo(comboKeys)
 		} else if (modifier === "Active") {
 			setBuffer((prev) => [...prev, key])
