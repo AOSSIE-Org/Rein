@@ -39,7 +39,7 @@ export const useTrackpadGesture = (
   const startTimeStamp = useRef(0);
   const releasedCount = useRef(0);
   const dragging = useRef(false);
-  const draggingTimeout = useRef<NodeJS.Timeout | null>(null);
+  const draggingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastPinchDist = useRef<number | null>(null);
   const pinching = useRef(false);
 
