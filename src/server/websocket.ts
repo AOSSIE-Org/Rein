@@ -78,12 +78,12 @@ export function createWsServer(server: CompatibleServer) {
 			const token = url.searchParams.get("token")
 			const local = isLocalhost(request)
 
-			logger.info(
+			logger.debug(
 				`Upgrade request received from ${request.socket.remoteAddress}`,
 			)
 
 			if (local) {
-				logger.info("Localhost connection allowed")
+				logger.debug("Localhost connection allowed")
 				wss.handleUpgrade(request, socket, head, (ws) => {
 					wss.emit("connection", ws, request, token, true)
 				})
@@ -124,8 +124,12 @@ export function createWsServer(server: CompatibleServer) {
 		) => {
 			// Localhost: only store token if it's already known (trusted scan)
 			// Remote: token is already validated in the upgrade handler
-			logger.info(`Client connected from ${request.socket.remoteAddress}`)
+			ws.on("close", () => {
+				stopMirror()
+				logger.info("Client disconnected")
+			})
 
+	
 			if (token && (isKnownToken(token) || !isLocal)) {
 				storeToken(token)
 			}
@@ -365,9 +369,9 @@ export function createWsServer(server: CompatibleServer) {
 			})
 
 			ws.on("error", (error: Error) => {
-				console.error("WebSocket error:", error)
 				logger.error(`WebSocket error: ${error.message}`)
 			})
 		},
 	)
 }
+

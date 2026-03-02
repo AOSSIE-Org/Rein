@@ -12,7 +12,7 @@ import {
 	ConnectionProvider,
 	useConnection,
 } from "../contexts/ConnectionProvider"
-import { useCaptureProvider } from "../hooks/useCaptureProvider"
+import { useWebRTCProvider } from "../hooks/useWebRTCProvider" 
 
 export const Route = createRootRoute({
 	component: AppWithConnection,
@@ -46,7 +46,7 @@ function RootComponent() {
 
 function DesktopCaptureProvider() {
 	const { wsRef, status } = useConnection()
-	const { startSharing } = useCaptureProvider(wsRef)
+	const { startSharing } = useWebRTCProvider(wsRef)
 	const hasStartedRef = useRef(false)
 
 	useEffect(() => {
