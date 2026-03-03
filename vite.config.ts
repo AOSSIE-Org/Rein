@@ -19,22 +19,20 @@ const config = defineConfig({
 			name: "websocket-server",
 			configureServer(server) {
 				if (server.httpServer) {
-					createWsServer(server.httpServer)
+					createWsServer(server.httpServer as import("http").Server)
 				}
 			},
 			configurePreviewServer(server) {
 				if (server.httpServer) {
-					createWsServer(server.httpServer)
+					createWsServer(server.httpServer as import("http").Server)
 				}
 			},
 		},
 		devtools(),
 		nitro(),
-		// this is the plugin that enables path aliases
 		viteTsConfigPaths({
 			projects: ["./tsconfig.json"],
 		}),
-
 		tanstackStart(),
 		viteReact(),
 	],

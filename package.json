@@ -27,6 +27,8 @@
 		"react": "^19.2.0",
 		"react-dom": "^19.2.0",
 		"react-icons": "^5.5.0",
+		"socket.io": "^4.8.3",
+		"socket.io-client": "^4.8.3",
 		"vite-tsconfig-paths": "^6.0.2",
 		"winston": "^3.19.0",
 		"ws": "^8.18.0"
@@ -37,7 +39,7 @@
 		"@tanstack/devtools-vite": "^0.3.11",
 		"@testing-library/dom": "^10.4.0",
 		"@testing-library/react": "^16.2.0",
-		"@types/node": "^22.10.2",
+		"@types/node": "^22.19.13",
 		"@types/qrcode": "^1.5.5",
 		"@types/react": "^19.2.0",
 		"@types/react-dom": "^19.2.0",
