@@ -82,13 +82,6 @@ function TrackpadPage() {
 		const data = nativeEvent.data
 		const val = e.target.value
 
-		console.log("Input Event:", {
-			inputType,
-			data,
-			val,
-			isComposing: isComposingRef.current,
-		})
-
 		const resetInput = () => {
 			if (hiddenInputRef.current) {
 				hiddenInputRef.current.value = " "
@@ -119,7 +112,6 @@ function TrackpadPage() {
 		const textToSend = data || (val.length > 1 ? val.slice(1) : null)
 
 		if (textToSend) {
-			console.log("Sending text:", textToSend)
 			if (modifier !== "Release") {
 				handleModifier(textToSend)
 			} else {
@@ -134,7 +126,6 @@ function TrackpadPage() {
 	}
 
 	const handleCompositionStart = () => {
-		console.log("Composition Start")
 		isComposingRef.current = true
 	}
 
@@ -143,7 +134,6 @@ function TrackpadPage() {
 	) => {
 		isComposingRef.current = false
 		const val = (e.target as HTMLInputElement).value
-		console.log("Composition End, final value:", val)
 
 		const textToSend = val.startsWith(" ") ? val.slice(1) : val
 
@@ -163,7 +153,6 @@ function TrackpadPage() {
 
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
 		const key = e.key.toLowerCase()
-		console.log("KeyDown:", key)
 
 		// 1. Enter key fallback
 		if (key === "enter") {
@@ -218,10 +207,6 @@ function TrackpadPage() {
 	}
 
 	const handleModifier = (key: string) => {
-		console.log(
-			`handleModifier: ${key}, modifier: ${modifier}, buffer:`,
-			buffer,
-		)
 		if (modifier === "Hold") {
 			const comboKeys = [...buffer, key]
 			sendCombo(comboKeys)
