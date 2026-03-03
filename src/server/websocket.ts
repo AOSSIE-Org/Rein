@@ -25,7 +25,6 @@ interface ExtWebSocket extends WebSocket {
 	isProvider?: boolean
 }
 
-
 export async function createWsServer(
 	server: NonNullable<import("vite").ViteDevServer["httpServer"]>,
 ) {
