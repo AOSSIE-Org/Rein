@@ -17,15 +17,15 @@ const config = defineConfig({
 	plugins: [
 		{
 			name: "websocket-server",
-			configureServer(server) {
-				if (server.httpServer) {
-					createWsServer(server.httpServer)
-				}
+			async configureServer(server) {
+				const httpServer = server.httpServer
+				if (!httpServer) return
+				await createWsServer(httpServer)
 			},
-			configurePreviewServer(server) {
-				if (server.httpServer) {
-					createWsServer(server.httpServer)
-				}
+			async configurePreviewServer(server) {
+				const httpServer = server.httpServer
+				if (!httpServer) return
+				await createWsServer(httpServer)
 			},
 		},
 		devtools(),
