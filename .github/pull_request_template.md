@@ -50,7 +50,7 @@ Fixes #(issue number)
 
 - [ ] Glide typing: Verified path drawing and text output.
 
-- [ ] Voice input: Verified speech-to-text functionality.
+- [ ] Voice input: Verified speech-to-text functionality for full sentences.
 
 - [ ] Backspace doesn't send the previous input.
 

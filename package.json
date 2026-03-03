@@ -1,12 +1,17 @@
 {
+	"main": "electron/main.cjs",
 	"name": "app",
+	"version": "1.0.0",
 	"private": true,
 	"type": "module",
 	"scripts": {
 		"predev": "biome check . --write",
-		"dev": "vite dev --host --open",
+		"dev": "vite dev --host",
 		"start": "vite preview --host --open",
 		"build": "vite build",
+		"electron": "npx electron .",
+		"electron-dev": "concurrently \"vite\" \"wait-on http://localhost:3000 && cross-env VITE_DEV_SERVER_URL=http://localhost:3000 electron .\"",
+		"dist": "electron-builder",
 		"preview": "vite preview",
 		"test": "vitest run",
 		"check": "biome check .",
@@ -46,13 +51,44 @@
 		"@types/ws": "^8.5.14",
 		"@vitejs/plugin-react": "^5.0.4",
 		"autoprefixer": "^10.4.23",
+		"concurrently": "^9.2.1",
+		"cross-env": "^10.1.0",
 		"daisyui": "^5.5.14",
+		"electron": "^40.6.1",
+		"electron-builder": "^26.8.1",
 		"jsdom": "^27.0.0",
 		"postcss": "^8.5.6",
 		"tailwindcss": "^4.1.18",
 		"tsx": "^4.19.0",
 		"typescript": "^5.7.2",
 		"vite": "^7.1.7",
-		"vitest": "^3.0.5"
+		"vitest": "^3.0.5",
+		"wait-on": "^9.0.4"
+	},
+	"build": {
+		"appId": "com.rein.app",
+		"productName": "Rein",
+		"asarUnpack": [
+			".output/**/*"
+		],
+		"extraResources": [
+			{
+				"from": ".output",
+				"to": ".output"
+			}
+		],
+		"files": [
+			".output/**/*",
+			"electron/**/*",
+			"package.json"
+		],
+		"win": {
+			"target": "nsis"
+		},
+		"nsis": {
+			"oneClick": false,
+			"allowToChangeInstallationDirectory": true,
+			"createDesktopShortcut": true
+		}
 	}
 }

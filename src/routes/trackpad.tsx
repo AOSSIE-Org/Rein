@@ -19,6 +19,7 @@ function TrackpadPage() {
 	const [buffer, setBuffer] = useState<string[]>([])
 	const bufferText = buffer.join(" + ")
 	const hiddenInputRef = useRef<HTMLInputElement>(null)
+	const isComposingRef = useRef(false)
 	const [keyboardOpen, setKeyboardOpen] = useState(false)
 	const [extraKeysVisible, setExtraKeysVisible] = useState(true)
 
@@ -67,13 +68,20 @@ function TrackpadPage() {
 		setTimeout(() => send({ type: "click", button, press: false }), 50)
 	}
 
+	const handleCopy = () => {
+		send({ type: "copy" })
+	}
+
+	const handlePaste = async () => {
+		send({ type: "paste" })
+	}
+
 	const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const nativeEvent = e.nativeEvent as InputEvent
 		const inputType = nativeEvent.inputType
 		const data = nativeEvent.data
 		const val = e.target.value
 
-		// Synchronous Reset: Reset the input immediately to prevent buffer accumulation
 		const resetInput = () => {
 			if (hiddenInputRef.current) {
 				hiddenInputRef.current.value = " "
@@ -81,37 +89,66 @@ function TrackpadPage() {
 			}
 		}
 
-		// 1. Explicit Backspace Detection
+		// 1. Backspace
 		if (inputType === "deleteContentBackward" || val.length === 0) {
 			send({ type: "key", key: "backspace" })
 			resetInput()
 			return
 		}
 
-		// 2. Explicit New Line / Enter
+		// 2. Enter
 		if (inputType === "insertLineBreak" || inputType === "insertParagraph") {
 			send({ type: "key", key: "enter" })
 			resetInput()
 			return
 		}
 
-		// 3. Handle Text Insertion
+		// 3. Text
+		// Early return only for EXPLICIT composition text that isn't finished
+		if (isComposingRef.current && inputType === "insertCompositionText") {
+			return
+		}
+
 		const textToSend = data || (val.length > 1 ? val.slice(1) : null)
 
 		if (textToSend) {
 			if (modifier !== "Release") {
 				handleModifier(textToSend)
 			} else {
-				// Map space character to the 'space' key command specifically
 				if (textToSend === " ") {
 					send({ type: "key", key: "space" })
 				} else {
 					send({ type: "text", text: textToSend })
 				}
 			}
+			resetInput()
+		}
+	}
+
+	const handleCompositionStart = () => {
+		isComposingRef.current = true
+	}
+
+	const handleCompositionEnd = (
+		e: React.CompositionEvent<HTMLInputElement>,
+	) => {
+		isComposingRef.current = false
+		const val = (e.target as HTMLInputElement).value
+
+		const textToSend = val.startsWith(" ") ? val.slice(1) : val
+
+		if (textToSend) {
+			if (modifier !== "Release") {
+				handleModifier(textToSend)
+			} else {
+				send({ type: "text", text: textToSend })
+			}
 		}
 
-		resetInput()
+		if (hiddenInputRef.current) {
+			hiddenInputRef.current.value = " "
+			hiddenInputRef.current.setSelectionRange(1, 1)
+		}
 	}
 
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -152,14 +189,6 @@ function TrackpadPage() {
 		}
 	}
 
-	const handleCopy = () => {
-		send({ type: "copy" })
-	}
-
-	const handlePaste = async () => {
-		send({ type: "paste" })
-	}
-
 	const handleModifierState = () => {
 		switch (modifier) {
 			case "Active":
@@ -178,13 +207,8 @@ function TrackpadPage() {
 	}
 
 	const handleModifier = (key: string) => {
-		console.log(
-			`handleModifier called with key: ${key}, current modifier: ${modifier}, buffer:`,
-			buffer,
-		)
 		if (modifier === "Hold") {
 			const comboKeys = [...buffer, key]
-			console.log("Sending combo:", comboKeys)
 			sendCombo(comboKeys)
 		} else if (modifier === "Active") {
 			setBuffer((prev) => [...prev, key])
@@ -195,7 +219,6 @@ function TrackpadPage() {
 		<div className="flex flex-col h-full min-h-0 bg-base-300 overflow-hidden">
 			{/* TOUCH AREA */}
 			<div className="flex-1 min-h-0 relative flex flex-col border-b border-base-200">
-				{/* Touch Surface */}
 				<TouchArea
 					isTracking={isTracking}
 					scrollMode={scrollMode}
@@ -237,7 +260,6 @@ function TrackpadPage() {
 										: "max-h-[50vh] opacity-100"
 								}`}
 			>
-				{/* Extra Keys */}
 				<ExtraKeys
 					sendKey={(k) => {
 						if (modifier !== "Release") handleModifier(k)
@@ -254,6 +276,13 @@ function TrackpadPage() {
 				defaultValue=" "
 				onKeyDown={handleKeyDown}
 				onChange={handleInput}
+				onCompositionStart={handleCompositionStart}
+				onCompositionEnd={handleCompositionEnd}
+				onBlur={() => {
+					if (keyboardOpen) {
+						setTimeout(() => hiddenInputRef.current?.focus(), 10)
+					}
+				}}
 				autoComplete="off"
 				autoCorrect="off"
 				autoCapitalize="off"

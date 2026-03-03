@@ -21,6 +21,12 @@ const getTouchDistance = (a: TrackedTouch, b: TrackedTouch): number => {
 	return Math.sqrt(dx * dx + dy * dy)
 }
 
+const BUTTON_MAP: Record<number, "left" | "right" | "middle"> = {
+	1: "left",
+	2: "right",
+	3: "middle",
+}
+
 export const useTrackpadGesture = (
 	send: (msg: unknown) => void,
 	scrollMode: boolean,
@@ -31,7 +37,7 @@ export const useTrackpadGesture = (
 	const [isTracking, setIsTracking] = useState(false)
 
 	// Refs for tracking state (avoids re-renders during rapid movement)
-	const ongoingTouches = useRef<TrackedTouch[]>([])
+	const ongoingTouches = useRef<Map<number, TrackedTouch>>(new Map())
 	const moved = useRef(false)
 	const startTimeStamp = useRef(0)
 	const releasedCount = useRef(0)
@@ -40,11 +46,8 @@ export const useTrackpadGesture = (
 	const lastPinchDist = useRef<number | null>(null)
 	const pinching = useRef(false)
 
-	// Helpers
-	const findTouchIndex = (id: number) =>
-		ongoingTouches.current.findIndex((t) => t.identifier === id)
-
 	const processMovement = (sumX: number, sumY: number) => {
+		const touchCount = ongoingTouches.current.size
 		if (dragging.current) {
 			send({
 				type: "move",
@@ -54,11 +57,9 @@ export const useTrackpadGesture = (
 			return
 		}
 		const invertMult = invertScroll ? -1 : 1
-		if (!scrollMode && ongoingTouches.current.length === 2) {
-			const dist = getTouchDistance(
-				ongoingTouches.current[0],
-				ongoingTouches.current[1],
-			)
+		if (!scrollMode && touchCount === 2) {
+			const touches = Array.from(ongoingTouches.current.values())
+			const dist = getTouchDistance(touches[0], touches[1])
 			const delta =
 				lastPinchDist.current !== null ? dist - lastPinchDist.current : 0
 			if (pinching.current || Math.abs(delta) > PINCH_THRESHOLD) {
@@ -73,7 +74,7 @@ export const useTrackpadGesture = (
 					dy: -sumY * sensitivity * invertMult,
 				})
 			}
-		} else if (scrollMode || ongoingTouches.current.length === 2) {
+		} else if (scrollMode || touchCount === 2) {
 			let scrollDx = sumX
 			let scrollDy = sumY
 			if (scrollMode) {
@@ -90,7 +91,7 @@ export const useTrackpadGesture = (
 				dx: Math.round(-scrollDx * sensitivity * 10 * invertMult) / 10,
 				dy: Math.round(-scrollDy * sensitivity * 10 * invertMult) / 10,
 			})
-		} else if (ongoingTouches.current.length === 1) {
+		} else if (touchCount === 1) {
 			send({
 				type: "move",
 				dx: Math.round(sumX * sensitivity * 10) / 10,
@@ -105,7 +106,7 @@ export const useTrackpadGesture = (
 	}
 
 	const handleTouchStart = (e: React.TouchEvent) => {
-		if (ongoingTouches.current.length === 0) {
+		if (ongoingTouches.current.size === 0) {
 			startTimeStamp.current = e.timeStamp
 			moved.current = false
 		}
@@ -113,27 +114,19 @@ export const useTrackpadGesture = (
 		const touches = e.changedTouches
 		for (let i = 0; i < touches.length; i++) {
 			const touch = touches[i]
-			const tracked: TrackedTouch = {
+			ongoingTouches.current.set(touch.identifier, {
 				identifier: touch.identifier,
 				pageX: touch.pageX,
 				pageY: touch.pageY,
 				pageXStart: touch.pageX,
 				pageYStart: touch.pageY,
 				timeStamp: e.timeStamp,
-			}
-			const idx = findTouchIndex(touch.identifier)
-			if (idx < 0) {
-				ongoingTouches.current.push(tracked)
-			} else {
-				ongoingTouches.current[idx] = tracked
-			}
+			})
 		}
 
-		if (ongoingTouches.current.length === 2) {
-			lastPinchDist.current = getTouchDistance(
-				ongoingTouches.current[0],
-				ongoingTouches.current[1],
-			)
+		if (ongoingTouches.current.size === 2) {
+			const touches = Array.from(ongoingTouches.current.values())
+			lastPinchDist.current = getTouchDistance(touches[0], touches[1])
 			pinching.current = false
 		}
 
@@ -151,27 +144,30 @@ export const useTrackpadGesture = (
 		const touches = e.changedTouches
 		let sumX = 0
 		let sumY = 0
+		let movedTouchesCount = 0
+		const touchCount = ongoingTouches.current.size
 
 		for (let i = 0; i < touches.length; i++) {
 			const touch = touches[i]
-			const idx = findTouchIndex(touch.identifier)
-			if (idx < 0) continue
+			const tracked = ongoingTouches.current.get(touch.identifier)
+			if (!tracked) continue
 
-			const tracked = ongoingTouches.current[idx]
+			movedTouchesCount++
 
 			// Check if we've moved enough to consider this a "move" gesture
 			if (!moved.current) {
-				const dist = Math.sqrt(
+				const distSq =
 					(touch.pageX - tracked.pageXStart) ** 2 +
-						(touch.pageY - tracked.pageYStart) ** 2,
+					(touch.pageY - tracked.pageYStart) ** 2
+				const thresholdIndex = Math.min(
+					touchCount - 1,
+					TOUCH_MOVE_THRESHOLD.length - 1,
 				)
-				const threshold =
-					ongoingTouches.current.length > TOUCH_MOVE_THRESHOLD.length
-						? TOUCH_MOVE_THRESHOLD[TOUCH_MOVE_THRESHOLD.length - 1]
-						: TOUCH_MOVE_THRESHOLD[ongoingTouches.current.length - 1]
+				const threshold = TOUCH_MOVE_THRESHOLD[thresholdIndex]
+				const thresholdSq = threshold * threshold
 
 				if (
-					dist > threshold ||
+					distSq > thresholdSq ||
 					e.timeStamp - startTimeStamp.current >= TOUCH_TIMEOUT
 				) {
 					moved.current = true
@@ -196,9 +192,9 @@ export const useTrackpadGesture = (
 			tracked.timeStamp = e.timeStamp
 		}
 
-		// Send movement if we've moved
-		if (moved.current) {
-			processMovement(sumX, sumY)
+		// Normalize movement by number of touches that actually moved to prevent sensitivity doubling
+		if (moved.current && movedTouchesCount > 0) {
+			processMovement(sumX / movedTouchesCount, sumY / movedTouchesCount)
 		}
 	}
 
@@ -206,14 +202,13 @@ export const useTrackpadGesture = (
 		const touches = e.changedTouches
 
 		for (let i = 0; i < touches.length; i++) {
-			const idx = findTouchIndex(touches[i].identifier)
-			if (idx >= 0) {
-				ongoingTouches.current.splice(idx, 1)
+			if (ongoingTouches.current.has(touches[i].identifier)) {
+				ongoingTouches.current.delete(touches[i].identifier)
 				releasedCount.current += 1
 			}
 		}
 
-		if (ongoingTouches.current.length < 2) {
+		if (ongoingTouches.current.size < 2) {
 			lastPinchDist.current = null
 			pinching.current = false
 		}
@@ -224,7 +219,7 @@ export const useTrackpadGesture = (
 		}
 
 		// All fingers lifted
-		if (ongoingTouches.current.length === 0 && releasedCount.current >= 1) {
+		if (ongoingTouches.current.size === 0 && releasedCount.current >= 1) {
 			setIsTracking(false)
 
 			// Release drag if active
@@ -238,15 +233,7 @@ export const useTrackpadGesture = (
 				!moved.current &&
 				e.timeStamp - startTimeStamp.current < TOUCH_TIMEOUT
 			) {
-				let button: "left" | "right" | "middle" | null = null
-
-				if (releasedCount.current === 1) {
-					button = "left"
-				} else if (releasedCount.current === 2) {
-					button = "right"
-				} else if (releasedCount.current === 3) {
-					button = "middle"
-				}
+				const button = BUTTON_MAP[releasedCount.current]
 
 				if (button) {
 					send({ type: "click", button, press: true })

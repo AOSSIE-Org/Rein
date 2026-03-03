@@ -1,0 +1,70 @@
+name: Build Electron
+
+on:
+  push:
+    branches:
+      - electron-packaging-workflow
+  pull_request:
+    paths:
+      - "src/**"
+      - "public/**"
+      - "electron/**"
+      - "package.json"
+      - "vite.config.ts"
+      - ".github/workflows/**"
+
+jobs:
+  build-electron:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Clean node_modules and npm cache (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
+          npm cache clean --force
+        shell: pwsh
+
+      - name: Clean node_modules and npm cache (macOS/Linux)
+        if: runner.os != 'Windows'
+        run: |
+          rm -rf node_modules package-lock.json || true
+          npm cache clean --force
+
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: npm ci --include=optional
+
+      - name: Install dependencies (macOS/Linux)
+        if: runner.os != 'Windows'
+        run: npm install --include=optional --force
+
+      - name: Rebuild native dependencies
+        run: npx electron-builder install-app-deps
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Package Electron app
+        run: npm run dist -- --publish=never
+
+      - name: Upload Electron Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-${{ matrix.os }}
+          path: dist/**
+          retention-days: 7
