@@ -117,44 +117,50 @@ export class InputHandler {
 
 		switch (msg.type) {
 			case "move":
-				if (
-					typeof msg.dx === "number" &&
-					typeof msg.dy === "number" &&
-					Number.isFinite(msg.dx) &&
-					Number.isFinite(msg.dy)
-				) {
-					// Attempt ydotool relative movement first
-					const success = await moveRelative(msg.dx, msg.dy)
+				try {
+					if (
+						typeof msg.dx === "number" &&
+						typeof msg.dy === "number" &&
+						Number.isFinite(msg.dx) &&
+						Number.isFinite(msg.dy)
+					) {
+						const success = await moveRelative(msg.dx, msg.dy)
 
-					// Fallback to absolute positioning if ydotool is unavailable or fails
-					if (!success) {
-						const currentPos = await mouse.getPosition()
+						if (!success) {
+							const currentPos = await mouse.getPosition()
 
-						await mouse.setPosition(
-							new Point(
-								Math.round(currentPos.x + msg.dx),
-								Math.round(currentPos.y + msg.dy),
-							),
-						)
+							await mouse.setPosition(
+								new Point(
+									Math.round(currentPos.x + msg.dx),
+									Math.round(currentPos.y + msg.dy),
+								),
+							)
+						}
 					}
+				} catch (err) {
+					console.error("Error handling move input:", err)
 				}
 				break
 
 			case "click": {
 				const VALID_BUTTONS = ["left", "right", "middle"]
-				if (msg.button && VALID_BUTTONS.includes(msg.button)) {
-					const btn =
-						msg.button === "left"
-							? Button.LEFT
-							: msg.button === "right"
-								? Button.RIGHT
-								: Button.MIDDLE
+				try {
+					if (msg.button && VALID_BUTTONS.includes(msg.button)) {
+						const btn =
+							msg.button === "left"
+								? Button.LEFT
+								: msg.button === "right"
+									? Button.RIGHT
+									: Button.MIDDLE
 
-					if (msg.press) {
-						await mouse.pressButton(btn)
-					} else {
-						await mouse.releaseButton(btn)
+						if (msg.press) {
+							await mouse.pressButton(btn)
+						} else {
+							await mouse.releaseButton(btn)
+						}
 					}
+				} catch (err) {
+					console.error("Error handling click input:", err)
 				}
 				break
 			}
@@ -211,7 +217,11 @@ export class InputHandler {
 				}
 
 				if (promises.length) {
-					await Promise.all(promises)
+					try {
+						await Promise.all(promises)
+					} catch (err) {
+						console.error("Error handling scroll input:", err)
+					}
 				}
 				break
 			}
@@ -235,8 +245,17 @@ export class InputHandler {
 							} else {
 								await mouse.scrollUp(-amount)
 							}
+						} catch (err) {
+							console.error("Error handling zoom input:", err)
 						} finally {
-							await keyboard.releaseKey(Key.LeftControl)
+							await keyboard
+								.releaseKey(Key.LeftControl)
+								.catch((releaseErr) => {
+									console.error(
+										"Error releasing control key after zoom:",
+										releaseErr,
+									)
+								})
 						}
 					}
 				}
@@ -248,14 +267,43 @@ export class InputHandler {
 					const nutKey = KEY_MAP[msg.key.toLowerCase()]
 
 					if (nutKey !== undefined) {
-						await keyboard.pressKey(nutKey)
-						await keyboard.releaseKey(nutKey)
+						try {
+							await keyboard.pressKey(nutKey)
+						} catch (err) {
+							console.error("Error pressing key:", err, msg.key)
+						} finally {
+							await keyboard
+								.releaseKey(nutKey)
+								.catch((releaseErr) => {
+									console.error(
+										"Error releasing key:",
+										releaseErr,
+										msg.key,
+									)
+								})
+						}
 					} else if (msg.key === " " || msg.key?.toLowerCase() === "space") {
 						const spaceKey = KEY_MAP.space
-						await keyboard.pressKey(spaceKey)
-						await keyboard.releaseKey(spaceKey)
+						try {
+							await keyboard.pressKey(spaceKey)
+						} catch (err) {
+							console.error("Error pressing space key:", err)
+						} finally {
+							await keyboard
+								.releaseKey(spaceKey)
+								.catch((releaseErr) => {
+									console.error(
+										"Error releasing space key:",
+										releaseErr,
+									)
+								})
+						}
 					} else if (msg.key.length === 1) {
-						await keyboard.type(msg.key)
+						try {
+							await keyboard.type(msg.key)
+						} catch (err) {
+							console.error("Error typing single key:", err, msg.key)
+						}
 					} else {
 						console.log(`Unmapped key: ${msg.key}`)
 					}
@@ -269,44 +317,56 @@ export class InputHandler {
 					msg.keys.length > 0 &&
 					msg.keys.length <= 10
 				) {
-					const nutKeys: (Key | string)[] = []
-
-					for (const k of msg.keys) {
-						const lowerKey = k.toLowerCase()
-						const nutKey = KEY_MAP[lowerKey]
-
-						if (nutKey !== undefined) {
-							nutKeys.push(nutKey)
-						} else if (lowerKey.length === 1) {
-							nutKeys.push(lowerKey)
-						} else {
-							console.warn(`Unknown key in combo: ${k}`)
-						}
-					}
-
-					if (nutKeys.length === 0) {
-						console.error("No valid keys in combo")
-						return
-					}
-
-					console.log("Pressing keys:", nutKeys)
-					const pressedKeys: Key[] = []
-
 					try {
-						for (const k of nutKeys) {
-							if (typeof k === "string") {
-								await keyboard.type(k)
+						const nutKeys: (Key | string)[] = []
+
+						for (const k of msg.keys) {
+							const lowerKey = k.toLowerCase()
+							const nutKey = KEY_MAP[lowerKey]
+
+							if (nutKey !== undefined) {
+								nutKeys.push(nutKey)
+							} else if (lowerKey.length === 1) {
+								nutKeys.push(lowerKey)
 							} else {
-								await keyboard.pressKey(k)
-								pressedKeys.push(k)
+								console.warn(`Unknown key in combo: ${k}`)
 							}
 						}
 
-						await new Promise((resolve) => setTimeout(resolve, 10))
-					} finally {
-						for (const k of pressedKeys.reverse()) {
-							await keyboard.releaseKey(k)
+						if (nutKeys.length === 0) {
+							console.error("No valid keys in combo")
+							return
 						}
+
+						console.log("Pressing keys:", nutKeys)
+						const pressedKeys: Key[] = []
+
+						try {
+							for (const k of nutKeys) {
+								if (typeof k === "string") {
+									await keyboard.type(k)
+								} else {
+									await keyboard.pressKey(k)
+									pressedKeys.push(k)
+								}
+							}
+
+							await new Promise((resolve) => setTimeout(resolve, 10))
+						} finally {
+							for (const k of pressedKeys.reverse()) {
+								await keyboard
+									.releaseKey(k)
+									.catch((releaseErr) => {
+										console.error(
+											"Error releasing combo key:",
+											releaseErr,
+											k,
+										)
+									})
+							}
+						}
+					} catch (err) {
+						console.error("Error handling combo input:", err, msg.keys)
 					}
 
 					console.log(`Combo complete: ${msg.keys.join("+")}`)
@@ -315,7 +375,11 @@ export class InputHandler {
 
 			case "text":
 				if (msg.text && typeof msg.text === "string") {
-					await keyboard.type(msg.text)
+					try {
+						await keyboard.type(msg.text)
+					} catch (err) {
+						console.error("Error typing text input:", err)
+					}
 				}
 				break
 		}
