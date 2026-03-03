@@ -25,7 +25,7 @@ interface ExtWebSocket extends WebSocket {
 	isProvider?: boolean
 }
 
-// server: any is used to support Vite's dynamic httpServer types (http, https, http2)
+
 export async function createWsServer(
 	server: NonNullable<import("vite").ViteDevServer["httpServer"]>,
 ) {
