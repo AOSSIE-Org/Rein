@@ -1,7 +1,7 @@
 {
 	"main": "electron/main.cjs",
 	"name": "app",
-	"version" : "1.0.0",
+	"version": "1.0.0",
 	"private": true,
 	"type": "module",
 	"scripts": {
@@ -48,6 +48,7 @@
 		"@types/qrcode": "^1.5.5",
 		"@types/react": "^19.2.0",
 		"@types/react-dom": "^19.2.0",
+		"@types/winston": "^2.4.4",
 		"@types/ws": "^8.5.14",
 		"@vitejs/plugin-react": "^5.0.4",
 		"autoprefixer": "^10.4.23",

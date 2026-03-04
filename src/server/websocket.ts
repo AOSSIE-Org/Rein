@@ -1,15 +1,11 @@
 import fs from "node:fs"
-import type { IncomingMessage } from "node:http"
+import type { IncomingMessage, Server as HttpServer } from "node:http"
+import type { Server as HttpsServer } from "node:https"
 import type { Socket } from "node:net"
 import os from "node:os"
 import { WebSocket, WebSocketServer } from "ws"
-import logger from "../utils/logger"
+import { logger } from "../utils/logger"
 import { InputHandler, type InputMessage } from "./InputHandler"
-import type { Server as HttpServer } from "node:http"
-import type { Server as HttpsServer } from "node:https"
-
-type CompatibleServer = HttpServer | HttpsServer
-
 import {
 	generateToken,
 	getActiveToken,
@@ -17,6 +13,8 @@ import {
 	storeToken,
 	touchToken,
 } from "./tokenStore"
+
+type CompatibleServer = HttpServer | HttpsServer
 
 function getLocalIp(): string {
 	const nets = os.networkInterfaces()
@@ -41,7 +39,6 @@ interface ExtWebSocket extends WebSocket {
 	isProvider?: boolean
 }
 
-// server: any is used to support Vite's dynamic httpServer types (http, https, http2)
 export function createWsServer(server: CompatibleServer) {
 	const configPath = "./src/server-config.json"
 	let serverConfig: Record<string, unknown> = {}
@@ -51,10 +48,11 @@ export function createWsServer(server: CompatibleServer) {
 				string,
 				unknown
 			>
-		} catch (e) {
-			logger.warn(`Invalid server-config.json, using defaults: ${String(e)}`)
+		} catch (error) {
+			logger.warn(`Config load failed: ${String(error)}`)
 		}
 	}
+
 	const inputThrottleMs =
 		typeof serverConfig.inputThrottleMs === "number" &&
 		serverConfig.inputThrottleMs > 0
@@ -64,9 +62,9 @@ export function createWsServer(server: CompatibleServer) {
 	const wss = new WebSocketServer({ noServer: true })
 	const inputHandler = new InputHandler(inputThrottleMs)
 	const LAN_IP = getLocalIp()
-	const MAX_PAYLOAD_SIZE = 10 * 1024 // 10KB limit
+	const MAX_PAYLOAD_SIZE = 10 * 1024
 
-	logger.info("WebSocket server initialized")
+	logger.info("[WS] Server initialized")
 
 	server.on(
 		"upgrade",
@@ -78,35 +76,31 @@ export function createWsServer(server: CompatibleServer) {
 			const token = url.searchParams.get("token")
 			const local = isLocalhost(request)
 
-			logger.info(
-				`Upgrade request received from ${request.socket.remoteAddress}`,
-			)
+			logger.debug("[WS] Upgrade request received")
 
 			if (local) {
-				logger.info("Localhost connection allowed")
+				logger.debug("[WS] Localhost connection accepted")
 				wss.handleUpgrade(request, socket, head, (ws) => {
 					wss.emit("connection", ws, request, token, true)
 				})
 				return
 			}
 
-			// Remote connections require a token
 			if (!token) {
-				logger.warn("Unauthorized connection attempt: No token provided")
+				logger.warn("[WS] Connection rejected: no token provided")
 				socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n")
 				socket.destroy()
 				return
 			}
 
-			// Validate against known tokens
 			if (!isKnownToken(token)) {
-				logger.warn("Unauthorized connection attempt: Invalid token")
+				logger.warn("[WS] Connection rejected: invalid token")
 				socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n")
 				socket.destroy()
 				return
 			}
 
-			logger.info("Remote connection authenticated successfully")
+			logger.info("[WS] Remote connection authenticated")
 
 			wss.handleUpgrade(request, socket, head, (ws) => {
 				wss.emit("connection", ws, request, token, false)
@@ -118,13 +112,11 @@ export function createWsServer(server: CompatibleServer) {
 		"connection",
 		(
 			ws: WebSocket,
-			request: IncomingMessage,
+			_request: IncomingMessage,
 			token: string | null,
 			isLocal: boolean,
 		) => {
-			// Localhost: only store token if it's already known (trusted scan)
-			// Remote: token is already validated in the upgrade handler
-			logger.info(`Client connected from ${request.socket.remoteAddress}`)
+			logger.debug("[WS] Client connected")
 
 			if (token && (isKnownToken(token) || !isLocal)) {
 				storeToken(token)
@@ -136,18 +128,17 @@ export function createWsServer(server: CompatibleServer) {
 
 			const startMirror = () => {
 				;(ws as ExtWebSocket).isConsumer = true
-				logger.info("Client registered as Screen Consumer")
+				logger.debug("[WS] Client registered as consumer")
 			}
 
 			const stopMirror = () => {
 				;(ws as ExtWebSocket).isConsumer = false
-				logger.info("Client unregistered as Screen Consumer")
+				logger.debug("[WS] Client unregistered as consumer")
 			}
 
 			ws.on("message", async (data: WebSocket.RawData, isBinary: boolean) => {
 				try {
 					if (isBinary) {
-						// Relay frames from Providers to Consumers
 						if ((ws as ExtWebSocket).isProvider) {
 							for (const client of wss.clients) {
 								if (
@@ -161,17 +152,20 @@ export function createWsServer(server: CompatibleServer) {
 						}
 						return
 					}
+
 					const raw = data.toString()
 					const now = Date.now()
 
 					if (raw.length > MAX_PAYLOAD_SIZE) {
-						logger.warn("Payload too large, rejecting message.")
+						logger.warn("[WS] Message rejected: payload too large")
 						return
 					}
 
-					const msg = JSON.parse(raw)
+					const msg = JSON.parse(raw) as {
+						type: string
+						config?: Record<string, unknown>
+					}
 
-					// Throttle token touch to once per second — avoids crypto comparison on every event
 					if (token && msg.type !== "get-ip" && msg.type !== "generate-token") {
 						if (now - lastTokenTouch > 1000) {
 							lastTokenTouch = now
@@ -186,7 +180,9 @@ export function createWsServer(server: CompatibleServer) {
 
 					if (msg.type === "generate-token") {
 						if (!isLocal) {
-							logger.warn("Token generation attempt from non-localhost")
+							logger.warn(
+								"[WS] Token generation rejected: non-localhost request",
+							)
 							ws.send(
 								JSON.stringify({
 									type: "auth-error",
@@ -196,14 +192,13 @@ export function createWsServer(server: CompatibleServer) {
 							return
 						}
 
-						// Idempotent: return active token if one exists
 						let tokenToReturn = getActiveToken()
 						if (!tokenToReturn) {
 							tokenToReturn = generateToken()
 							storeToken(tokenToReturn)
-							logger.info("New token generated")
+							logger.info("[WS] New token generated")
 						} else {
-							logger.info("Existing active token returned")
+							logger.info("[WS] Active token returned")
 						}
 
 						ws.send(
@@ -224,7 +219,7 @@ export function createWsServer(server: CompatibleServer) {
 
 					if (msg.type === "start-provider") {
 						;(ws as ExtWebSocket).isProvider = true
-						logger.info("Client registered as Screen Provider")
+						logger.debug("[WS] Client registered as provider")
 						return
 					}
 
@@ -313,20 +308,19 @@ export function createWsServer(server: CompatibleServer) {
 							const newConfig = { ...current, ...filtered }
 							fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2))
 
-							// Propagate inputThrottleMs immediately to live subsystems
 							if (typeof filtered.inputThrottleMs === "number") {
 								inputHandler.setThrottleMs(filtered.inputThrottleMs)
 							}
 
-							logger.info("Server configuration updated")
+							logger.info("[WS] Server config updated")
 							ws.send(JSON.stringify({ type: "config-updated", success: true }))
-						} catch (e) {
-							logger.error(`Failed to update config: ${String(e)}`)
+						} catch (configError) {
+							logger.error(`[WS] Config update failed: ${String(configError)}`)
 							ws.send(
 								JSON.stringify({
 									type: "config-updated",
 									success: false,
-									error: String(e),
+									error: String(configError),
 								}),
 							)
 						}
@@ -345,14 +339,14 @@ export function createWsServer(server: CompatibleServer) {
 						"paste",
 					]
 					if (!msg.type || !VALID_INPUT_TYPES.includes(msg.type)) {
-						logger.warn(`Unknown message type: ${msg.type}`)
+						logger.warn(`[WS] Unknown message type: ${msg.type}`)
 						return
 					}
 
 					await inputHandler.handleMessage(msg as InputMessage)
 				} catch (err: unknown) {
 					logger.error(
-						`Error processing message: ${
+						`[WS] Message processing failed: ${
 							err instanceof Error ? err.message : String(err)
 						}`,
 					)
@@ -361,12 +355,11 @@ export function createWsServer(server: CompatibleServer) {
 
 			ws.on("close", () => {
 				stopMirror()
-				logger.info("Client disconnected")
+				logger.debug("[WS] Client disconnected")
 			})
 
 			ws.on("error", (error: Error) => {
-				console.error("WebSocket error:", error)
-				logger.error(`WebSocket error: ${error.message}`)
+				logger.error(`[WS] Socket error: ${error.message}`)
 			})
 		},
 	)
