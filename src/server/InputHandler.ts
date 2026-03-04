@@ -248,14 +248,12 @@ export class InputHandler {
 						} catch (err) {
 							console.error("Error handling zoom input:", err)
 						} finally {
-							await keyboard
-								.releaseKey(Key.LeftControl)
-								.catch((releaseErr) => {
-									console.error(
-										"Error releasing control key after zoom:",
-										releaseErr,
-									)
-								})
+							await keyboard.releaseKey(Key.LeftControl).catch((releaseErr) => {
+								console.error(
+									"Error releasing control key after zoom:",
+									releaseErr,
+								)
+							})
 						}
 					}
 				}
@@ -272,15 +270,9 @@ export class InputHandler {
 						} catch (err) {
 							console.error("Error pressing key:", err, msg.key)
 						} finally {
-							await keyboard
-								.releaseKey(nutKey)
-								.catch((releaseErr) => {
-									console.error(
-										"Error releasing key:",
-										releaseErr,
-										msg.key,
-									)
-								})
+							await keyboard.releaseKey(nutKey).catch((releaseErr) => {
+								console.error("Error releasing key:", releaseErr, msg.key)
+							})
 						}
 					} else if (msg.key === " " || msg.key?.toLowerCase() === "space") {
 						const spaceKey = KEY_MAP.space
@@ -289,14 +281,9 @@ export class InputHandler {
 						} catch (err) {
 							console.error("Error pressing space key:", err)
 						} finally {
-							await keyboard
-								.releaseKey(spaceKey)
-								.catch((releaseErr) => {
-									console.error(
-										"Error releasing space key:",
-										releaseErr,
-									)
-								})
+							await keyboard.releaseKey(spaceKey).catch((releaseErr) => {
+								console.error("Error releasing space key:", releaseErr)
+							})
 						}
 					} else if (msg.key.length === 1) {
 						try {
@@ -354,15 +341,9 @@ export class InputHandler {
 							await new Promise((resolve) => setTimeout(resolve, 10))
 						} finally {
 							for (const k of pressedKeys.reverse()) {
-								await keyboard
-									.releaseKey(k)
-									.catch((releaseErr) => {
-										console.error(
-											"Error releasing combo key:",
-											releaseErr,
-											k,
-										)
-									})
+								await keyboard.releaseKey(k).catch((releaseErr) => {
+									console.error("Error releasing combo key:", releaseErr, k)
+								})
 							}
 						}
 					} catch (err) {
