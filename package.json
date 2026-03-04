@@ -1,7 +1,7 @@
 {
 	"main": "electron/main.cjs",
 	"name": "app",
-	"version": "1.0.0",
+	"version" : "1.0.0",
 	"private": true,
 	"type": "module",
 	"scripts": {
@@ -10,7 +10,7 @@
 		"start": "vite preview --host --open",
 		"build": "vite build",
 		"electron": "npx electron .",
-		"electron-dev": "concurrently \"vite\" \"wait-on http://localhost:3000 && cross-env VITE_DEV_SERVER_URL=http://localhost:3000 electron .\"",
+		"electron-dev": "concurrently \"vite\" \"wait-on http://localhost:3000 && VITE_DEV_SERVER_URL=http://localhost:3000 electron .\"",
 		"dist": "electron-builder",
 		"preview": "vite preview",
 		"test": "vitest run",
@@ -52,7 +52,6 @@
 		"@vitejs/plugin-react": "^5.0.4",
 		"autoprefixer": "^10.4.23",
 		"concurrently": "^9.2.1",
-		"cross-env": "^10.1.0",
 		"daisyui": "^5.5.14",
 		"electron": "^40.6.1",
 		"electron-builder": "^26.8.1",
