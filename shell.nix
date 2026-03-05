@@ -18,6 +18,7 @@ pkgs.mkShell {
   buildInputs = [
     pkgs.nodejs_24
     pkgs.procps
+    pkgs.appimage-run
   ] ++ sharedLibs;
 
   shellHook = ''
