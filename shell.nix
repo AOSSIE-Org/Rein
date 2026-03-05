@@ -25,7 +25,8 @@ pkgs.mkShell {
     export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath sharedLibs}:$LD_LIBRARY_PATH
     
     # Alias for starting the application
-    alias start="npm i && npm run electron-dev"
+    npm i
+    npm run electron-dev"
   '';
 }
 
