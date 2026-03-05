@@ -46,6 +46,25 @@ const config = defineConfig({
 	build: {
 		outDir: ".output",
 		emptyOutDir: true,
+		minify: "terser",
+		terserOptions: {
+			compress: {
+				drop_console: true,
+				drop_debugger: true,
+				pure_funcs: ["console.log", "console.info"]
+			}
+		},
+		rollupOptions: {
+			output: {
+				manualChunks: {
+					react: ["react", "react-dom"],
+					router: ["@tanstack/react-router"],
+					ui: ["lucide-react", "react-icons"]
+				}
+			}
+		},
+		target: "esnext",
+		chunkSizeWarningLimit: 1600
 	},
 })
 

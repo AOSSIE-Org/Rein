@@ -1,0 +1,40 @@
+# Ignore development files
+src/
+.git/
+.github/
+.vscode/
+.tanstack/
+test-input.ts
+*.md
+*.log
+*.map
+
+# Node modules (we'll bundle only what's needed)
+node_modules/
+
+# Build artifacts
+.output/public/
+dist/
+coverage/
+
+# Development configs
+vite.config.ts
+tsconfig.json
+biome.json
+postcss.config.js
+shell.nix
+
+# Test files
+**/*.test.*
+**/*.spec.*
+__tests__/
+
+# Documentation
+docs/
+*.md
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db

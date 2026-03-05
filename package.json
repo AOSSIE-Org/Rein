@@ -1,21 +1,25 @@
 {
 	"main": "electron/main.cjs",
 	"name": "app",
-	"version" : "1.0.0",
+	"version": "1.0.0",
 	"private": true,
 	"type": "module",
 	"scripts": {
 		"predev": "biome check . --write",
 		"dev": "vite dev --host",
 		"start": "vite preview --host --open",
-		"build": "vite build",
+		"build": "vite build && node scripts/optimize-build.js",
+		"build:electron": "npm run build && electron-builder --config",
+		"build:electron-dir": "npm run build && electron-builder --dir",
 		"electron": "npx electron .",
 		"electron-dev": "concurrently \"vite\" \"wait-on http://localhost:3000 && VITE_DEV_SERVER_URL=http://localhost:3000 electron .\"",
-		"dist": "electron-builder",
+		"dist": "npm run build:electron",
 		"preview": "vite preview",
 		"test": "vitest run",
 		"check": "biome check .",
-		"check:fix": "biome check . --write"
+		"check:fix": "biome check . --write",
+		"analyze": "npm run build && npx webpack-bundle-analyzer .output/public/assets/*.js",
+		"clean": "rimraf .output dist node_modules/.cache"
 	},
 	"dependencies": {
 		"@nut-tree-fork/nut-js": "^4.2.6",
@@ -26,6 +30,7 @@
 		"@tanstack/react-router-ssr-query": "^1.131.7",
 		"@tanstack/react-start": "^1.132.0",
 		"@tanstack/router-plugin": "^1.132.0",
+		"biome": "^0.2.2",
 		"lucide-react": "^0.561.0",
 		"nitro": "npm:nitro-nightly@latest",
 		"qrcode": "^1.5.4",
@@ -55,32 +60,52 @@
 		"electron-builder": "^26.8.1",
 		"jsdom": "^27.0.0",
 		"postcss": "^8.5.6",
+		"rimraf": "^6.0.1",
 		"tailwindcss": "^4.1.18",
+		"terser": "^5.36.0",
 		"tsx": "^4.19.0",
 		"typescript": "^5.7.2",
 		"vite": "^7.1.7",
 		"vitest": "^3.0.5",
-		"wait-on": "^9.0.4"
+		"wait-on": "^9.0.4",
+		"webpack-bundle-analyzer": "^4.10.2"
 	},
 	"build": {
 		"appId": "com.rein.app",
 		"productName": "Rein",
+		"compression": "maximum",
+		"nodeGypRebuild": false,
+		"buildDependenciesFromSource": false,
 		"asarUnpack": [
-			".output/**/*"
+			".output/server/**/*"
 		],
 		"extraResources": [
 			{
-				"from": ".output",
-				"to": ".output"
+				"from": ".output/server",
+				"to": ".output/server"
 			}
 		],
 		"files": [
-			".output/**/*",
+			".output/public/**/*",
+			".output/server/**/*",
 			"electron/**/*",
-			"package.json"
+			"package.json",
+			"!node_modules",
+			"!src",
+			"!**/*.map",
+			"!**/*.md",
+			"!**/*.txt",
+			"!**/.DS_Store",
+			"!**/Thumbs.db"
 		],
+		"directories": {
+			"output": "dist"
+		},
 		"win": {
-			"target": "nsis"
+			"target": {
+				"target": "nsis",
+				"arch": ["x64"]
+			}
 		},
 		"nsis": {
 			"oneClick": false,
