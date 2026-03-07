@@ -212,6 +212,12 @@ export function createWsServer(server: CompatibleServer) {
 						return
 					}
 
+					// Ping/Pong for latency measurement — echo timestamp back immediately
+					if (msg.type === "ping") {
+						ws.send(JSON.stringify({ type: "pong", timestamp: msg.timestamp }))
+						return
+					}
+
 					if (msg.type === "start-mirror") {
 						startMirror()
 						return

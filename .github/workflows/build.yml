@@ -1,9 +1,11 @@
 name: Build Electron
 
 on:
+  workflow_dispatch:
   push:
-    branches:
-      - electron-packaging-workflow
+    branches-ignore:
+      - main
+      - master
   pull_request:
     paths:
       - "src/**"
@@ -12,6 +14,7 @@ on:
       - "package.json"
       - "vite.config.ts"
       - ".github/workflows/**"
+      - ".electronbuilderignore"
 
 jobs:
   build-electron:

@@ -8,14 +8,12 @@ interface TouchAreaProps {
 		onTouchMove: (e: React.TouchEvent) => void
 		onTouchEnd: (e: React.TouchEvent) => void
 	}
-	status: "connecting" | "connected" | "disconnected"
 }
 
 export const TouchArea: React.FC<TouchAreaProps> = ({
 	scrollMode,
 	isTracking,
 	handlers,
-	status,
 }) => {
 	const handleStart = (e: React.TouchEvent) => {
 		handlers.onTouchStart(e)
@@ -36,10 +34,6 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
 			onTouchEnd={handlers.onTouchEnd}
 			onMouseDown={handlePreventFocus}
 		>
-			<div
-				className={`absolute top-0 left-0 w-full h-1 ${status === "connected" ? "bg-success" : "bg-error"}`}
-			/>
-
 			<div className="text-neutral-600 text-center pointer-events-none">
 				<div className="text-4xl mb-2 opacity-20">
 					{scrollMode ? "Scroll Mode" : "Touch Area"}

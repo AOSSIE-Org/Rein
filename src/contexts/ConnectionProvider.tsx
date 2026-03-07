@@ -16,6 +16,7 @@ interface ConnectionContextType {
 	wsRef: React.RefObject<WebSocket | null>
 	status: ConnectionStatus
 	platform: string | null
+	latency: number | null
 	send: (msg: unknown) => void
 	subscribe: (type: string, callback: (msg: unknown) => void) => () => void
 }
@@ -35,6 +36,7 @@ export function ConnectionProvider({
 	const wsRef = useRef<WebSocket | null>(null)
 	const [status, setStatus] = useState<ConnectionStatus>("disconnected")
 	const [platform, setPlatform] = useState<string | null>(null)
+	const [latency, setLatency] = useState<number | null>(null)
 	const isMountedRef = useRef(true)
 	const subscribersRef = useRef<Record<string, Set<(msg: unknown) => void>>>({})
 
@@ -166,9 +168,34 @@ export function ConnectionProvider({
 		}
 	}, [])
 
+	// Ping/Pong heartbeat for latency measurement
+	useEffect(() => {
+		if (status !== "connected") {
+			setLatency(null)
+			return
+		}
+
+		const unsubscribe = subscribe("pong", (msg: unknown) => {
+			const pong = msg as { timestamp?: number }
+			if (pong.timestamp) {
+				setLatency(Date.now() - pong.timestamp)
+			}
+		})
+
+		// Send a ping immediately, then every 2 seconds
+		const sendPing = () => send({ type: "ping", timestamp: Date.now() })
+		sendPing()
+		const interval = setInterval(sendPing, 2000)
+
+		return () => {
+			unsubscribe()
+			clearInterval(interval)
+		}
+	}, [status, send, subscribe])
+
 	return (
 		<ConnectionContext.Provider
-			value={{ wsRef, status, platform, send, subscribe }}
+			value={{ wsRef, status, platform, latency, send, subscribe }}
 		>
 			{children}
 		</ConnectionContext.Provider>

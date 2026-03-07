@@ -102,6 +102,27 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 	)
 }
 
+function LatencyBadge() {
+	const { latency } = useConnection()
+	if (latency === null) return null
+
+	const color =
+		latency < 50
+			? "text-green-400"
+			: latency < 150
+				? "text-yellow-400"
+				: "text-red-400"
+
+	return (
+		<div className={`flex items-center gap-1.5 px-2 ${color}`}>
+			<div className="w-1.5 h-1.5 rounded-full bg-current shadow-[0_0_8px_rgba(0,0,0,0.3)]" />
+			<span className="text-[11px] font-mono font-medium whitespace-nowrap">
+				{latency}ms
+			</span>
+		</div>
+	)
+}
+
 function Navbar() {
 	return (
 		<div className="navbar bg-base-100 border-b border-base-300 min-h-12 h-12 z-50 px-4">
@@ -116,7 +137,8 @@ function Navbar() {
 					Rein
 				</Link>
 			</div>
-			<div className="flex-none flex gap-2">
+			<div className="flex-none flex items-center gap-2">
+				<LatencyBadge />
 				<Link
 					to="/trackpad"
 					className="btn btn-ghost btn-sm"

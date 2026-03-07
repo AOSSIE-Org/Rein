@@ -36,7 +36,7 @@ function TrackpadPage() {
 		return s ? JSON.parse(s) : false
 	})
 
-	const { status, send, sendCombo } = useRemoteConnection()
+	const { send, sendCombo } = useRemoteConnection()
 	// Pass sensitivity and invertScroll to the gesture hook
 	const { isTracking, handlers } = useTrackpadGesture(
 		send,
@@ -223,7 +223,6 @@ function TrackpadPage() {
 					isTracking={isTracking}
 					scrollMode={scrollMode}
 					handlers={handlers}
-					status={status}
 				/>
 				<ScreenMirror
 					isTracking={isTracking}

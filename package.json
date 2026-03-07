@@ -19,10 +19,7 @@
 	},
 	"dependencies": {
 		"@nut-tree-fork/nut-js": "^4.2.6",
-		"@tailwindcss/postcss": "^4.1.18",
-		"@tanstack/react-devtools": "^0.7.0",
 		"@tanstack/react-router": "^1.132.0",
-		"@tanstack/react-router-devtools": "^1.132.0",
 		"@tanstack/react-router-ssr-query": "^1.131.7",
 		"@tanstack/react-start": "^1.132.0",
 		"@tanstack/router-plugin": "^1.132.0",
@@ -40,8 +37,11 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
+		"@tailwindcss/postcss": "^4.1.18",
 		"@tailwindcss/typography": "^0.5.19",
 		"@tanstack/devtools-vite": "^0.3.11",
+		"@tanstack/react-devtools": "^0.7.0",
+		"@tanstack/react-router-devtools": "^1.132.0",
 		"@testing-library/dom": "^10.4.0",
 		"@testing-library/react": "^16.2.0",
 		"@types/node": "^22.19.13",
@@ -61,14 +61,17 @@
 		"tsx": "^4.19.0",
 		"typescript": "^5.7.2",
 		"vite": "^7.1.7",
+		"vite-tsconfig-paths": "^6.0.2",
 		"vitest": "^3.0.5",
 		"wait-on": "^9.0.4"
 	},
 	"build": {
 		"appId": "com.rein.app",
 		"productName": "Rein",
+		"asar": true,
 		"asarUnpack": [
-			".output/**/*"
+			".output/**/*",
+			"node_modules/@nut-tree-fork/**/*"
 		],
 		"extraResources": [
 			{
@@ -81,6 +84,7 @@
 			"electron/**/*",
 			"package.json"
 		],
+		"npmRebuild": true,
 		"win": {
 			"target": "nsis"
 		},
