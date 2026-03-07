@@ -18,24 +18,22 @@ const config = defineConfig({
 	plugins: [
 		{
 			name: "websocket-server",
-			async configureServer(server) {
-				const httpServer = server.httpServer
-				if (!httpServer) return
-				await createWsServer(httpServer)
+			configureServer(server) {
+				if (server.httpServer) {
+					createWsServer(server.httpServer as import("http").Server)
+				}
 			},
-			async configurePreviewServer(server) {
-				const httpServer = server.httpServer
-				if (!httpServer) return
-				await createWsServer(httpServer)
+			configurePreviewServer(server) {
+				if (server.httpServer) {
+					createWsServer(server.httpServer as import("http").Server)
+				}
 			},
 		},
 		devtools(),
 		nitro(),
-		// this is the plugin that enables path aliases
 		viteTsConfigPaths({
 			projects: ["./tsconfig.json"],
 		}),
-
 		tanstackStart(),
 		viteReact(),
 	],
