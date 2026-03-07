@@ -14,6 +14,7 @@ export interface InputMessage {
 		| "text"
 		| "zoom"
 		| "combo"
+		| "gamepad"
 	dx?: number
 	dy?: number
 	button?: "left" | "right" | "middle"
@@ -22,6 +23,13 @@ export interface InputMessage {
 	keys?: string[]
 	text?: string
 	delta?: number
+	state?: GamepadInputState
+}
+
+interface GamepadInputState {
+	leftStick: { x: number; y: number }
+	rightStick: { x: number; y: number }
+	buttons: Record<string, boolean>
 }
 
 export class InputHandler {
@@ -50,6 +58,75 @@ export class InputHandler {
 
 	private clamp(value: number, min: number, max: number): number {
 		return Math.max(min, Math.min(max, value))
+	}
+
+	private previousGamepadState: GamepadInputState | null = null
+
+	private async handleGamepad(state: GamepadInputState) {
+		const DEADZONE = 0.15
+		const MOVEMENT_SCALE = 15
+
+		const applyDeadzone = (value: number): number => {
+			if (Math.abs(value) < DEADZONE) return 0
+			const sign = Math.sign(value)
+			const normalized = (Math.abs(value) - DEADZONE) / (1 - DEADZONE)
+			return sign * normalized
+		}
+
+		const prev = this.previousGamepadState
+		this.previousGamepadState = state
+
+		if (!prev) return
+
+		const prevLeftX = applyDeadzone(prev.leftStick.x)
+		const prevLeftY = applyDeadzone(prev.leftStick.y)
+		const currLeftX = applyDeadzone(state.leftStick.x)
+		const currLeftY = applyDeadzone(state.leftStick.y)
+
+		const deltaX = (currLeftX - prevLeftX) * MOVEMENT_SCALE
+		const deltaY = (currLeftY - prevLeftY) * MOVEMENT_SCALE
+
+		if (Math.abs(deltaX) > 0.1 || Math.abs(deltaY) > 0.1) {
+			await this.handleMessage({
+				type: "move",
+				dx: Math.round(deltaX),
+				dy: Math.round(deltaY),
+			})
+		}
+
+		const buttonMap: Record<string, string> = {
+			a: "enter",
+			b: "backspace",
+			x: "c",
+			y: "v",
+			lb: "q",
+			rb: "e",
+			dpadUp: "up",
+			dpadDown: "down",
+			dpadLeft: "left",
+			dpadRight: "right",
+		}
+
+		for (const [btn, key] of Object.entries(buttonMap)) {
+			const wasPressed = prev.buttons[btn] ?? false
+			const isPressed = state.buttons[btn] ?? false
+
+			if (isPressed && !wasPressed) {
+				await this.handleMessage({ type: "key", key })
+			}
+		}
+
+		const ltWasPressed = prev.buttons.lt ?? false
+		const ltIsPressed = state.buttons.lt ?? false
+		if (ltIsPressed && !ltWasPressed) {
+			await this.handleMessage({ type: "key", key: "shift" })
+		}
+
+		const rtWasPressed = prev.buttons.rt ?? false
+		const rtIsPressed = state.buttons.rt ?? false
+		if (rtIsPressed && !rtWasPressed) {
+			await this.handleMessage({ type: "key", key: "control" })
+		}
 	}
 
 	async handleMessage(msg: InputMessage) {
@@ -316,6 +393,12 @@ export class InputHandler {
 			case "text":
 				if (msg.text && typeof msg.text === "string") {
 					await keyboard.type(msg.text)
+				}
+				break
+
+			case "gamepad":
+				if (msg.state) {
+					await this.handleGamepad(msg.state)
 				}
 				break
 		}
