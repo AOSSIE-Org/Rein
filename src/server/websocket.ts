@@ -1,14 +1,10 @@
 import fs from "node:fs"
 import type { IncomingMessage } from "node:http"
 import type { Socket } from "node:net"
-import os from "node:os"
 import { WebSocket, WebSocketServer } from "ws"
 import logger from "../utils/logger"
 import { InputHandler, type InputMessage } from "./InputHandler"
-import type { Server as HttpServer } from "node:http"
-import type { Server as HttpsServer } from "node:https"
-
-type CompatibleServer = HttpServer | HttpsServer
+import { getLocalIp } from "./getLocalIp"
 
 import {
 	generateToken,
@@ -17,18 +13,6 @@ import {
 	storeToken,
 	touchToken,
 } from "./tokenStore"
-
-function getLocalIp(): string {
-	const nets = os.networkInterfaces()
-	for (const name of Object.keys(nets)) {
-		for (const net of nets[name] ?? []) {
-			if (net.family === "IPv4" && !net.internal) {
-				return net.address
-			}
-		}
-	}
-	return "localhost"
-}
 
 function isLocalhost(request: IncomingMessage): boolean {
 	const addr = request.socket.remoteAddress
@@ -41,8 +25,9 @@ interface ExtWebSocket extends WebSocket {
 	isProvider?: boolean
 }
 
-// server: any is used to support Vite's dynamic httpServer types (http, https, http2)
-export function createWsServer(server: CompatibleServer) {
+export async function createWsServer(
+	server: NonNullable<import("vite").ViteDevServer["httpServer"]>,
+) {
 	const configPath = "./src/server-config.json"
 	let serverConfig: Record<string, unknown> = {}
 	if (fs.existsSync(configPath)) {
@@ -63,7 +48,18 @@ export function createWsServer(server: CompatibleServer) {
 
 	const wss = new WebSocketServer({ noServer: true })
 	const inputHandler = new InputHandler(inputThrottleMs)
-	const LAN_IP = getLocalIp()
+	let LAN_IP = "127.0.0.1"
+	try {
+		LAN_IP = await getLocalIp()
+	} catch (error) {
+		logger.warn(`Failed to resolve LAN IP, using localhost: ${String(error)}`)
+	}
+
+	if (LAN_IP === "127.0.0.1") {
+		logger.warn("LAN IP resolution fell back to localhost (127.0.0.1)")
+	} else {
+		logger.info(`Resolved LAN IP: ${LAN_IP}`)
+	}
 	const MAX_PAYLOAD_SIZE = 10 * 1024 // 10KB limit
 
 	logger.info("WebSocket server initialized")
