@@ -8,6 +8,8 @@ import { TouchArea } from "../components/Trackpad/TouchArea"
 import { useRemoteConnection } from "../hooks/useRemoteConnection"
 import { useTrackpadGesture } from "../hooks/useTrackpadGesture"
 import { ScreenMirror } from "../components/Trackpad/ScreenMirror"
+import { GamepadUI } from "../components/Gamepad/GamepadUI"
+import { useGamepad } from "../hooks/useGamepad"
 
 export const Route = createFileRoute("/trackpad")({
 	component: TrackpadPage,
@@ -22,6 +24,8 @@ function TrackpadPage() {
 	const isComposingRef = useRef(false)
 	const [keyboardOpen, setKeyboardOpen] = useState(false)
 	const [extraKeysVisible, setExtraKeysVisible] = useState(true)
+	const [gamepadOpen, setGamepadOpen] = useState(false)
+	const { sendGamepadState } = useGamepad()
 
 	// Load Client Settings
 	const [sensitivity] = useState(() => {
@@ -56,6 +60,10 @@ function TrackpadPage() {
 
 	const toggleKeyboard = () => {
 		setKeyboardOpen((prev) => !prev)
+	}
+
+	const toggleGamepad = () => {
+		setGamepadOpen((prev) => !prev)
 	}
 
 	const focusInput = () => {
@@ -224,17 +232,18 @@ function TrackpadPage() {
 					scrollMode={scrollMode}
 					handlers={handlers}
 				/>
-				<ScreenMirror
+			<ScreenMirror
 					isTracking={isTracking}
 					scrollMode={scrollMode}
 					handlers={handlers}
 				/>
+				<GamepadUI visible={gamepadOpen} onStateChange={sendGamepadState} />
 				{bufferText !== "" && <BufferBar bufferText={bufferText} />}
 			</div>
 
 			{/* CONTROL BAR */}
 			<div className="shrink-0 border-b border-base-200">
-				<ControlBar
+			<ControlBar
 					onCopy={handleCopy}
 					onPaste={handlePaste}
 					scrollMode={scrollMode}
@@ -248,6 +257,8 @@ function TrackpadPage() {
 					onKeyboardToggle={toggleKeyboard}
 					onModifierToggle={handleModifierState}
 					onExtraKeysToggle={() => setExtraKeysVisible((prev) => !prev)}
+					gamepadOpen={gamepadOpen}
+					onGamepadToggle={toggleGamepad}
 				/>
 			</div>
 
