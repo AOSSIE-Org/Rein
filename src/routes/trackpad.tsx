@@ -10,6 +10,7 @@ import { useTrackpadGesture } from "../hooks/useTrackpadGesture"
 import { ScreenMirror } from "../components/Trackpad/ScreenMirror"
 import { GamepadUI, type GamepadState } from "../components/Gamepad/GamepadUI"
 import { GamepadDemo } from "../components/Gamepad/GamepadDemo"
+import { useGamepad } from "../hooks/useGamepad"
 
 export const Route = createFileRoute("/trackpad")({
 	component: TrackpadPage,
@@ -48,6 +49,7 @@ function TrackpadPage() {
 			dpadRight: false,
 		},
 	})
+	const { sendGamepadState } = useGamepad()
 	// Load Client Settings
 	const [sensitivity] = useState(() => {
 		if (typeof window === "undefined") return 1.0
@@ -99,6 +101,7 @@ function TrackpadPage() {
 
 	const handleGamepadStateChange = (state: typeof gamepadState) => {
 		setGamepadState(state)
+		sendGamepadState(state)
 	}
 
 	const focusInput = () => {

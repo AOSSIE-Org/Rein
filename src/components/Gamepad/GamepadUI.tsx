@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 interface GamepadUIProps {
 	onStateChange: (state: GamepadState) => void
@@ -67,6 +67,7 @@ const Joystick = ({ x, y, onChange }: StickProps) => {
 
 	const handleStart = useCallback((e: React.PointerEvent) => {
 		e.preventDefault()
+		baseRef.current?.setPointerCapture(e.pointerId)
 		setIsActive(true)
 		const rect = baseRef.current?.getBoundingClientRect()
 		if (rect) {
@@ -106,10 +107,14 @@ const Joystick = ({ x, y, onChange }: StickProps) => {
 		[isActive, onChange],
 	)
 
-	const handleEnd = useCallback(() => {
-		setIsActive(false)
-		onChange(0, 0)
-	}, [onChange])
+	const handleEnd = useCallback(
+		(e: React.PointerEvent) => {
+			baseRef.current?.releasePointerCapture(e.pointerId)
+			setIsActive(false)
+			onChange(0, 0)
+		},
+		[onChange],
+	)
 
 	const stickX = x * 25
 	const stickY = y * 25
@@ -192,6 +197,16 @@ const GamepadButton = ({
 
 export const GamepadUI = ({ onStateChange, visible }: GamepadUIProps) => {
 	const [state, setState] = useState<GamepadState>(createInitialState)
+
+	// Reset all inputs and emit a zeroed snapshot when the overlay closes
+	// so stale button/stick state is never retained
+	useEffect(() => {
+		if (!visible) {
+			const fresh = createInitialState()
+			setState(fresh)
+			onStateChange(fresh)
+		}
+	}, [visible, onStateChange])
 
 	const updateState = useCallback(
 		(updater: (prev: GamepadState) => GamepadState) => {

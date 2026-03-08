@@ -163,7 +163,8 @@ export const GamepadDemo = ({ visible, gamepadState }: GamepadDemoProps) => {
 			x: W / 2,
 			y: H - 80,
 			size: 18,
-			speed: 5,
+			// Units per second
+			speed: 300,
 		}
 
 		const bullets: Bullet[] = []
@@ -174,7 +175,8 @@ export const GamepadDemo = ({ visible, gamepadState }: GamepadDemoProps) => {
 		const stars: Star[] = Array.from({ length: 80 }, () => ({
 			x: Math.random() * W,
 			y: Math.random() * H,
-			speed: 0.3 + Math.random() * 1.2,
+			// Pixels per second
+			speed: 18 + Math.random() * 72,
 			size: 0.5 + Math.random() * 1.5,
 			brightness: 0.4 + Math.random() * 0.6,
 		}))
@@ -185,20 +187,25 @@ export const GamepadDemo = ({ visible, gamepadState }: GamepadDemoProps) => {
 			wave: 1,
 			lastWaveThreshold: 300,
 			shieldActive: false,
+			// Seconds
 			shieldTimer: 0,
 			shieldCooldown: 0,
 			dashTimer: 0,
 			bombTimer: 0,
 			shootCooldown: 0,
 			enemySpawnTimer: 0,
-			enemySpawnInterval: 90,
+			// Seconds between spawns
+			enemySpawnInterval: 1.5,
 			gameOver: false,
 			waveMessage: "WAVE 1",
-			waveMessageTimer: 120,
+			waveMessageTimer: 2,
 		}
 
 		// Track which buttons were down last frame to detect fresh presses
 		const prevButtons = { a: false, b: false, x: false, y: false }
+
+		// Delta-time tracking
+		let lastTs = 0
 
 		// ── enemy spawner ────────────────────────────────────────────────────
 
@@ -209,10 +216,12 @@ export const GamepadDemo = ({ visible, gamepadState }: GamepadDemoProps) => {
 			enemies.push({
 				x: 20 + Math.random() * (W - 40),
 				y: -20,
-				vx: (Math.random() - 0.5) * 1.5,
-				vy: 0.8 + Math.random() * 1.0 + gs.wave * 0.1,
+				vx: (Math.random() - 0.5) * 90,
+				// Pixels per second
+				vy: 48 + Math.random() * 60 + gs.wave * 6,
 				rot: Math.random() * Math.PI * 2,
-				rotSpeed: (Math.random() - 0.5) * 0.06,
+				// Radians per second
+				rotSpeed: (Math.random() - 0.5) * 3.6,
 				hp: hps[tier],
 				maxHp: hps[tier],
 				size: 14 + tier * 4,
@@ -344,13 +353,13 @@ export const GamepadDemo = ({ visible, gamepadState }: GamepadDemoProps) => {
 			}
 			// Shield cooldown bar above the button legend
 			if (gs.shieldCooldown > 0) {
-				const pct = gs.shieldCooldown / 240
+				const pct = gs.shieldCooldown / 4
 				ctx.fillStyle = hexAlpha("#22d3ee", 0.25)
 				ctx.fillRect(0, H - 40, W, 4)
 				ctx.fillStyle = hexAlpha("#22d3ee", 0.85)
 				ctx.fillRect(0, H - 40, W * (1 - pct), 4)
 			} else if (gs.shieldActive) {
-				const pct = gs.shieldTimer / 180
+				const pct = gs.shieldTimer / 3
 				ctx.fillStyle = hexAlpha("#22d3ee", 0.85)
 				ctx.fillRect(0, H - 40, W * pct, 4)
 			}
@@ -432,7 +441,7 @@ export const GamepadDemo = ({ visible, gamepadState }: GamepadDemoProps) => {
 
 		function drawWaveMessage() {
 			if (gs.waveMessageTimer <= 0) return
-			const alpha = Math.min(1, gs.waveMessageTimer / 30)
+			const alpha = Math.min(1, gs.waveMessageTimer / 0.5)
 			ctx.save()
 			ctx.globalAlpha = alpha
 			ctx.font = "bold 28px monospace"
@@ -486,15 +495,25 @@ export const GamepadDemo = ({ visible, gamepadState }: GamepadDemoProps) => {
 			gs.bombTimer = 0
 			gs.shootCooldown = 0
 			gs.enemySpawnTimer = 0
-			gs.enemySpawnInterval = 90
+			gs.enemySpawnInterval = 1.5
 			gs.gameOver = false
 			gs.waveMessage = "WAVE 1"
-			gs.waveMessageTimer = 120
+			gs.waveMessageTimer = 2
 		}
 
 		// ── game loop ────────────────────────────────────────────────────────
 
-		function loop() {
+		function loop(ts: number) {
+			// Bootstrap first frame — no dt so we skip physics
+			if (lastTs === 0) {
+				lastTs = ts
+				animRef.current = requestAnimationFrame(loop)
+				return
+			}
+			// Cap dt to 100 ms to avoid spiral-of-death on tab resume
+			const dt = Math.min((ts - lastTs) / 1000, 0.1)
+			lastTs = ts
+
 			const gp = gpRef.current
 			const btn = gp.buttons
 			const ls = gp.leftStick
@@ -541,7 +560,7 @@ export const GamepadDemo = ({ visible, gamepadState }: GamepadDemoProps) => {
 			ctx.restore()
 
 			for (const s of stars) {
-				s.y += s.speed
+				s.y += s.speed * dt
 				if (s.y > H) {
 					s.y = 0
 					s.x = Math.random() * W
@@ -558,23 +577,25 @@ export const GamepadDemo = ({ visible, gamepadState }: GamepadDemoProps) => {
 				return Math.sign(v) * ((Math.abs(v) - DZ) / (1 - DZ))
 			}
 
-			// player movement
+			// player movement (units/sec * dt)
 			const speed = player.speed * (gs.dashTimer > 0 ? 2.2 : 1)
-			player.x += applyDZ(ls.x) * speed
-			player.y += applyDZ(ls.y) * speed
+			player.x += applyDZ(ls.x) * speed * dt
+			player.y += applyDZ(ls.y) * speed * dt
 			player.x = Math.max(player.size, Math.min(W - player.size, player.x))
 			player.y = Math.max(
 				50 + player.size,
 				Math.min(H - 40 - player.size, player.y),
 			)
 
-			// A — shoot
-			if (gs.shootCooldown > 0) gs.shootCooldown--
+			// A — shoot (cooldown in seconds)
+			if (gs.shootCooldown > 0) gs.shootCooldown -= dt
+			if (gs.shootCooldown < 0) gs.shootCooldown = 0
 			if (btn.a && gs.shootCooldown === 0) {
 				bullets.push({
 					x: player.x,
 					y: player.y - player.size,
-					vy: -12,
+					// Pixels per second
+					vy: -720,
 					active: true,
 				})
 				// Twin bullets at wave 3+
@@ -582,24 +603,24 @@ export const GamepadDemo = ({ visible, gamepadState }: GamepadDemoProps) => {
 					bullets.push({
 						x: player.x - 8,
 						y: player.y - player.size + 4,
-						vy: -12,
+						vy: -720,
 						active: true,
 					})
 					bullets.push({
 						x: player.x + 8,
 						y: player.y - player.size + 4,
-						vy: -12,
+						vy: -720,
 						active: true,
 					})
 				}
-				gs.shootCooldown = 10
+				gs.shootCooldown = 0.17
 				if (justA)
 					spawnParticles(particles, player.x, player.y, 4, "#86efac", 2, 0.4)
 			}
 
-			// B — dash
+			// B — dash (timer in seconds)
 			if (justB && gs.dashTimer === 0) {
-				gs.dashTimer = 18
+				gs.dashTimer = 0.3
 				spawnParticles(
 					particles,
 					player.x,
@@ -610,26 +631,33 @@ export const GamepadDemo = ({ visible, gamepadState }: GamepadDemoProps) => {
 					0.6,
 				)
 			}
-			if (gs.dashTimer > 0) gs.dashTimer--
+			if (gs.dashTimer > 0) {
+				gs.dashTimer -= dt
+				if (gs.dashTimer < 0) gs.dashTimer = 0
+			}
 
-			// X — shield
+			// X — shield (timers in seconds: 3 s active, 4 s cooldown)
 			if (justX && !gs.shieldActive && gs.shieldCooldown === 0) {
 				gs.shieldActive = true
-				gs.shieldTimer = 180
+				gs.shieldTimer = 3
 				spawnParticles(particles, player.x, player.y, 16, "#22d3ee", 3, 0.8)
 			}
 			if (gs.shieldActive) {
-				gs.shieldTimer--
+				gs.shieldTimer -= dt
 				if (gs.shieldTimer <= 0) {
 					gs.shieldActive = false
-					gs.shieldCooldown = 240 // 4s cooldown after shield expires
+					gs.shieldTimer = 0
+					gs.shieldCooldown = 4
 				}
 			}
-			if (gs.shieldCooldown > 0) gs.shieldCooldown--
+			if (gs.shieldCooldown > 0) {
+				gs.shieldCooldown -= dt
+				if (gs.shieldCooldown < 0) gs.shieldCooldown = 0
+			}
 
-			// Y — bomb
+			// Y — bomb (flash timer in seconds)
 			if (justY && gs.bombTimer === 0) {
-				gs.bombTimer = 45
+				gs.bombTimer = 0.75
 				for (const e of enemies) {
 					if (e.active) {
 						e.active = false
@@ -639,20 +667,23 @@ export const GamepadDemo = ({ visible, gamepadState }: GamepadDemoProps) => {
 				}
 				spawnParticles(particles, player.x, player.y, 40, "#fde047", 8, 1.5)
 			}
-			if (gs.bombTimer > 0) gs.bombTimer--
+			if (gs.bombTimer > 0) {
+				gs.bombTimer -= dt
+				if (gs.bombTimer < 0) gs.bombTimer = 0
+			}
 
-			if (gs.bombTimer > 30) {
+			if (gs.bombTimer > 0.5) {
 				ctx.save()
-				ctx.globalAlpha = ((gs.bombTimer - 30) / 15) * 0.4
+				ctx.globalAlpha = ((gs.bombTimer - 0.5) / 0.25) * 0.4
 				ctx.fillStyle = "#fde047"
 				ctx.fillRect(0, 0, W, H)
 				ctx.restore()
 			}
 
-			// enemy spawn
-			gs.enemySpawnTimer++
+			// enemy spawn (accumulate seconds)
+			gs.enemySpawnTimer += dt
 			if (gs.enemySpawnTimer >= gs.enemySpawnInterval) {
-				gs.enemySpawnTimer = 0
+				gs.enemySpawnTimer -= gs.enemySpawnInterval
 				spawnEnemy()
 			}
 
@@ -660,16 +691,19 @@ export const GamepadDemo = ({ visible, gamepadState }: GamepadDemoProps) => {
 			if (gs.score >= gs.lastWaveThreshold) {
 				gs.wave++
 				gs.lastWaveThreshold += gs.wave * 300
-				gs.enemySpawnInterval = Math.max(30, 90 - gs.wave * 8)
+				gs.enemySpawnInterval = Math.max(0.5, 1.5 - gs.wave * 0.13)
 				gs.waveMessage = `WAVE ${gs.wave}`
-				gs.waveMessageTimer = 120
+				gs.waveMessageTimer = 2
 			}
-			if (gs.waveMessageTimer > 0) gs.waveMessageTimer--
+			if (gs.waveMessageTimer > 0) {
+				gs.waveMessageTimer -= dt
+				if (gs.waveMessageTimer < 0) gs.waveMessageTimer = 0
+			}
 
-			// update bullets
+			// update bullets (px/s * dt)
 			for (const b of bullets) {
 				if (!b.active) continue
-				b.y += b.vy
+				b.y += b.vy * dt
 				if (b.y < 40) {
 					b.active = false
 					continue
@@ -681,7 +715,7 @@ export const GamepadDemo = ({ visible, gamepadState }: GamepadDemoProps) => {
 					if (Math.sqrt(dx * dx + dy * dy) < e.size + 4) {
 						b.active = false
 						e.hp--
-						e.flash = 6
+						e.flash = 0.1
 						if (e.hp <= 0) {
 							e.active = false
 							const pts = e.maxHp * 10
@@ -689,7 +723,7 @@ export const GamepadDemo = ({ visible, gamepadState }: GamepadDemoProps) => {
 							floaters.push({
 								x: e.x,
 								y: e.y,
-								vy: -1.2,
+								vy: -72,
 								text: `+${pts}`,
 								life: 1.2,
 								color: e.color,
@@ -703,13 +737,16 @@ export const GamepadDemo = ({ visible, gamepadState }: GamepadDemoProps) => {
 				}
 			}
 
-			// update enemies
+			// update enemies (px/s * dt)
 			for (const e of enemies) {
 				if (!e.active) continue
-				e.x += e.vx
-				e.y += e.vy
-				e.rot += e.rotSpeed
-				if (e.flash > 0) e.flash--
+				e.x += e.vx * dt
+				e.y += e.vy * dt
+				e.rot += e.rotSpeed * dt
+				if (e.flash > 0) {
+					e.flash -= dt
+					if (e.flash < 0) e.flash = 0
+				}
 				if (e.x < e.size || e.x > W - e.size) e.vx *= -1
 				if (e.y > H + 20) {
 					e.active = false
@@ -736,13 +773,13 @@ export const GamepadDemo = ({ visible, gamepadState }: GamepadDemoProps) => {
 				if (!bullets[i].active) bullets.splice(i, 1)
 			}
 
-			// update particles
+			// update particles (life in seconds)
 			for (const p of particles) {
-				p.x += p.vx
-				p.y += p.vy
-				p.vx *= 0.94
-				p.vy *= 0.94
-				p.life -= 1 / 60
+				p.x += p.vx * dt * 60
+				p.y += p.vy * dt * 60
+				p.vx *= 1 - (1 - 0.94) * dt * 60
+				p.vy *= 1 - (1 - 0.94) * dt * 60
+				p.life -= dt
 			}
 			for (let i = particles.length - 1; i >= 0; i--) {
 				if (particles[i].life <= 0) particles.splice(i, 1)
@@ -783,10 +820,10 @@ export const GamepadDemo = ({ visible, gamepadState }: GamepadDemoProps) => {
 			// draw player
 			drawShip(player.x, player.y, gs.shieldActive, gs.dashTimer > 0)
 
-			// update & draw floaters
+			// update & draw floaters (px/s * dt)
 			for (const f of floaters) {
-				f.y += f.vy
-				f.life -= 1 / 60
+				f.y += f.vy * dt
+				f.life -= dt
 			}
 			for (let i = floaters.length - 1; i >= 0; i--) {
 				if (floaters[i].life <= 0) floaters.splice(i, 1)

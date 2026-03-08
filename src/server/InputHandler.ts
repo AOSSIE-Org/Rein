@@ -62,9 +62,30 @@ export class InputHandler {
 
 	private previousGamepadState: GamepadInputState | null = null
 
-	private async handleGamepad(state: GamepadInputState) {
+	private async handleGamepad(rawState: GamepadInputState) {
 		const DEADZONE = 0.15
 		const MOVEMENT_SCALE = 15
+
+		// Normalise and validate the incoming payload so malformed packets
+		// cannot cause NaN or thrown errors downstream.
+		const clampAxis = (v: unknown): number => {
+			const n = Number(v)
+			return Number.isFinite(n) ? Math.max(-1, Math.min(1, n)) : 0
+		}
+		const state: GamepadInputState = {
+			leftStick: {
+				x: clampAxis(rawState.leftStick?.x),
+				y: clampAxis(rawState.leftStick?.y),
+			},
+			rightStick: {
+				x: clampAxis(rawState.rightStick?.x),
+				y: clampAxis(rawState.rightStick?.y),
+			},
+			buttons:
+				rawState.buttons && typeof rawState.buttons === "object"
+					? rawState.buttons
+					: {},
+		}
 
 		const applyDeadzone = (value: number): number => {
 			if (Math.abs(value) < DEADZONE) return 0
@@ -76,23 +97,23 @@ export class InputHandler {
 		const prev = this.previousGamepadState
 		this.previousGamepadState = state
 
-		if (!prev) return
-
-		const prevLeftX = applyDeadzone(prev.leftStick.x)
-		const prevLeftY = applyDeadzone(prev.leftStick.y)
+		// Use the current deflection (not packet-to-packet delta) so that
+		// holding the stick continuously moves the cursor.
 		const currLeftX = applyDeadzone(state.leftStick.x)
 		const currLeftY = applyDeadzone(state.leftStick.y)
 
-		const deltaX = (currLeftX - prevLeftX) * MOVEMENT_SCALE
-		const deltaY = (currLeftY - prevLeftY) * MOVEMENT_SCALE
+		const deltaX = currLeftX * MOVEMENT_SCALE
+		const deltaY = currLeftY * MOVEMENT_SCALE
 
-		if (Math.abs(deltaX) > 0.1 || Math.abs(deltaY) > 0.1) {
+		if (Math.abs(currLeftX) > 0.1 || Math.abs(currLeftY) > 0.1) {
 			await this.handleMessage({
 				type: "move",
 				dx: Math.round(deltaX),
 				dy: Math.round(deltaY),
 			})
 		}
+
+		if (!prev) return
 
 		const buttonMap: Record<string, string> = {
 			a: "enter",
@@ -108,22 +129,22 @@ export class InputHandler {
 		}
 
 		for (const [btn, key] of Object.entries(buttonMap)) {
-			const wasPressed = prev.buttons[btn] ?? false
-			const isPressed = state.buttons[btn] ?? false
+			const wasPressed = (prev.buttons?.[btn] ?? false) as boolean
+			const isPressed = (state.buttons?.[btn] ?? false) as boolean
 
 			if (isPressed && !wasPressed) {
 				await this.handleMessage({ type: "key", key })
 			}
 		}
 
-		const ltWasPressed = prev.buttons.lt ?? false
-		const ltIsPressed = state.buttons.lt ?? false
+		const ltWasPressed = (prev.buttons?.lt ?? false) as boolean
+		const ltIsPressed = (state.buttons?.lt ?? false) as boolean
 		if (ltIsPressed && !ltWasPressed) {
 			await this.handleMessage({ type: "key", key: "shift" })
 		}
 
-		const rtWasPressed = prev.buttons.rt ?? false
-		const rtIsPressed = state.buttons.rt ?? false
+		const rtWasPressed = (prev.buttons?.rt ?? false) as boolean
+		const rtIsPressed = (state.buttons?.rt ?? false) as boolean
 		if (rtIsPressed && !rtWasPressed) {
 			await this.handleMessage({ type: "key", key: "control" })
 		}

@@ -147,7 +147,8 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 			<button
 				type="button"
 				className={`${baseButton} ${gamepadOpen ? "text-primary" : ""}`}
-				onPointerDown={(e) => handleInteraction(e, onGamepadToggle)}
+				aria-pressed={gamepadOpen}
+				onClick={onGamepadToggle}
 				aria-label="Gamepad"
 			>
 				<Gamepad2 size={20} />
@@ -156,7 +157,8 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 			<button
 				type="button"
 				className={`${baseButton} ${demoOpen ? "text-primary" : ""}`}
-				onPointerDown={(e) => handleInteraction(e, onDemoToggle)}
+				aria-pressed={demoOpen}
+				onClick={onDemoToggle}
 				aria-label="Demo"
 			>
 				<Play size={20} />
