@@ -335,7 +335,7 @@ export async function createWsServer(
 						return
 					}
 
-				const VALID_INPUT_TYPES = [
+					const VALID_INPUT_TYPES = [
 						"move",
 						"click",
 						"scroll",
@@ -345,7 +345,6 @@ export async function createWsServer(
 						"combo",
 						"copy",
 						"paste",
-						"gamepad",
 					]
 					if (!msg.type || !VALID_INPUT_TYPES.includes(msg.type)) {
 						logger.warn(`Unknown message type: ${msg.type}`)

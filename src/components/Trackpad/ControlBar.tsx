@@ -9,6 +9,7 @@ import {
 	Keyboard,
 	X,
 	Gamepad2,
+	Play,
 } from "lucide-react"
 
 interface ControlBarProps {
@@ -27,6 +28,8 @@ interface ControlBarProps {
 	onExtraKeysToggle: () => void
 	gamepadOpen: boolean
 	onGamepadToggle: () => void
+	demoOpen: boolean
+	onDemoToggle: () => void
 }
 
 export const ControlBar: React.FC<ControlBarProps> = ({
@@ -42,6 +45,8 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 	buffer,
 	gamepadOpen,
 	onGamepadToggle,
+	demoOpen,
+	onDemoToggle,
 }) => {
 	const handleInteraction = (e: React.PointerEvent, action: () => void) => {
 		e.preventDefault()
@@ -146,6 +151,15 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 				aria-label="Gamepad"
 			>
 				<Gamepad2 size={20} />
+			</button>
+
+			<button
+				type="button"
+				className={`${baseButton} ${demoOpen ? "text-primary" : ""}`}
+				onPointerDown={(e) => handleInteraction(e, onDemoToggle)}
+				aria-label="Demo"
+			>
+				<Play size={20} />
 			</button>
 		</div>
 	)

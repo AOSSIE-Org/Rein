@@ -8,8 +8,8 @@ import { TouchArea } from "../components/Trackpad/TouchArea"
 import { useRemoteConnection } from "../hooks/useRemoteConnection"
 import { useTrackpadGesture } from "../hooks/useTrackpadGesture"
 import { ScreenMirror } from "../components/Trackpad/ScreenMirror"
-import { GamepadUI } from "../components/Gamepad/GamepadUI"
-import { useGamepad } from "../hooks/useGamepad"
+import { GamepadUI, type GamepadState } from "../components/Gamepad/GamepadUI"
+import { GamepadDemo } from "../components/Gamepad/GamepadDemo"
 
 export const Route = createFileRoute("/trackpad")({
 	component: TrackpadPage,
@@ -25,8 +25,29 @@ function TrackpadPage() {
 	const [keyboardOpen, setKeyboardOpen] = useState(false)
 	const [extraKeysVisible, setExtraKeysVisible] = useState(true)
 	const [gamepadOpen, setGamepadOpen] = useState(false)
-	const { sendGamepadState } = useGamepad()
-
+	const [demoOpen, setDemoOpen] = useState(false)
+	const [gamepadState, setGamepadState] = useState<GamepadState>({
+		leftStick: { x: 0, y: 0 },
+		rightStick: { x: 0, y: 0 },
+		buttons: {
+			a: false,
+			b: false,
+			x: false,
+			y: false,
+			lb: false,
+			rb: false,
+			lt: false,
+			rt: false,
+			back: false,
+			start: false,
+			l3: false,
+			r3: false,
+			dpadUp: false,
+			dpadDown: false,
+			dpadLeft: false,
+			dpadRight: false,
+		},
+	})
 	// Load Client Settings
 	const [sensitivity] = useState(() => {
 		if (typeof window === "undefined") return 1.0
@@ -64,6 +85,20 @@ function TrackpadPage() {
 
 	const toggleGamepad = () => {
 		setGamepadOpen((prev) => !prev)
+	}
+
+	const toggleDemo = () => {
+		setDemoOpen((prev) => {
+			const newState = !prev
+			setGamepadOpen(newState)
+			// Always close the keyboard when entering demo mode
+			if (newState) setKeyboardOpen(false)
+			return newState
+		})
+	}
+
+	const handleGamepadStateChange = (state: typeof gamepadState) => {
+		setGamepadState(state)
 	}
 
 	const focusInput = () => {
@@ -232,18 +267,24 @@ function TrackpadPage() {
 					scrollMode={scrollMode}
 					handlers={handlers}
 				/>
-			<ScreenMirror
-					isTracking={isTracking}
-					scrollMode={scrollMode}
-					handlers={handlers}
+				{!demoOpen && (
+					<ScreenMirror
+						isTracking={isTracking}
+						scrollMode={scrollMode}
+						handlers={handlers}
+					/>
+				)}
+				<GamepadUI
+					visible={gamepadOpen}
+					onStateChange={handleGamepadStateChange}
 				/>
-				<GamepadUI visible={gamepadOpen} onStateChange={sendGamepadState} />
+				<GamepadDemo visible={demoOpen} gamepadState={gamepadState} />
 				{bufferText !== "" && <BufferBar bufferText={bufferText} />}
 			</div>
 
 			{/* CONTROL BAR */}
 			<div className="shrink-0 border-b border-base-200">
-			<ControlBar
+				<ControlBar
 					onCopy={handleCopy}
 					onPaste={handlePaste}
 					scrollMode={scrollMode}
@@ -259,6 +300,8 @@ function TrackpadPage() {
 					onExtraKeysToggle={() => setExtraKeysVisible((prev) => !prev)}
 					gamepadOpen={gamepadOpen}
 					onGamepadToggle={toggleGamepad}
+					demoOpen={demoOpen}
+					onDemoToggle={toggleDemo}
 				/>
 			</div>
 
@@ -289,7 +332,8 @@ function TrackpadPage() {
 				onCompositionStart={handleCompositionStart}
 				onCompositionEnd={handleCompositionEnd}
 				onBlur={() => {
-					if (keyboardOpen) {
+					// Only re-focus when keyboard is intentionally open AND gamepad/demo is not active
+					if (keyboardOpen && !gamepadOpen && !demoOpen) {
 						setTimeout(() => hiddenInputRef.current?.focus(), 10)
 					}
 				}}

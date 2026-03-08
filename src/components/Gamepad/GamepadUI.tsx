@@ -65,20 +65,17 @@ const Joystick = ({ x, y, onChange }: StickProps) => {
 	const [isActive, setIsActive] = useState(false)
 	const startPos = useRef({ x: 0, y: 0 })
 
-	const handleStart = useCallback(
-		(e: React.PointerEvent) => {
-			e.preventDefault()
-			setIsActive(true)
-			const rect = baseRef.current?.getBoundingClientRect()
-			if (rect) {
-				startPos.current = {
-					x: rect.left + rect.width / 2,
-					y: rect.top + rect.height / 2,
-				}
+	const handleStart = useCallback((e: React.PointerEvent) => {
+		e.preventDefault()
+		setIsActive(true)
+		const rect = baseRef.current?.getBoundingClientRect()
+		if (rect) {
+			startPos.current = {
+				x: rect.left + rect.width / 2,
+				y: rect.top + rect.height / 2,
 			}
-		},
-		[],
-	)
+		}
+	}, [])
 
 	const handleMove = useCallback(
 		(e: React.PointerEvent) => {
@@ -120,8 +117,8 @@ const Joystick = ({ x, y, onChange }: StickProps) => {
 	return (
 		<div
 			ref={baseRef}
-			className={`relative w-28 h-28 rounded-full bg-base-100/30 border-2 border-base-100/50 touch-none select-none ${
-				isActive ? "border-primary" : ""
+			className={`relative w-24 h-24 rounded-full bg-white/20 border-2 border-white/40 touch-none select-none ${
+				isActive ? "border-green-400" : ""
 			}`}
 			onPointerDown={handleStart}
 			onPointerMove={handleMove}
@@ -130,7 +127,7 @@ const Joystick = ({ x, y, onChange }: StickProps) => {
 			onPointerCancel={handleEnd}
 		>
 			<div
-				className="absolute w-12 h-12 rounded-full bg-base-100 shadow-lg transition-transform duration-75"
+				className="absolute w-12 h-12 rounded-full bg-white/80 shadow-lg transition-transform duration-75"
 				style={{
 					left: "50%",
 					top: "50%",
@@ -157,20 +154,36 @@ const GamepadButton = ({
 	size = "md",
 }: ButtonProps) => {
 	const sizeClasses = {
-		sm: "w-8 h-8 text-xs",
-		md: "w-10 h-10 text-sm",
-		lg: "w-12 h-12 text-base",
+		sm: "w-10 h-10 text-sm",
+		md: "w-12 h-12 text-base",
+		lg: "w-14 h-14 text-lg",
 	}
 
 	return (
 		<button
 			type="button"
-			className={`${sizeClasses[size]} rounded-full font-bold transition-all duration-100 active:scale-90 ${
-				pressed ? `${color} text-white` : "bg-base-100/70 text-base-content"
+			tabIndex={-1}
+			className={`${sizeClasses[size]} rounded-full font-bold shadow-lg transition-all duration-75 active:scale-95 touch-none select-none ${
+				pressed
+					? `${color} text-white ring-2 ring-white`
+					: "bg-white/70 text-gray-800"
 			}`}
-			onPointerDown={() => onChange(true)}
-			onPointerUp={() => onChange(false)}
-			onPointerLeave={() => onChange(false)}
+			onPointerDown={(e) => {
+				e.preventDefault()
+				onChange(true)
+			}}
+			onPointerUp={(e) => {
+				e.preventDefault()
+				onChange(false)
+			}}
+			onPointerLeave={(e) => {
+				e.preventDefault()
+				onChange(false)
+			}}
+			onPointerCancel={(e) => {
+				e.preventDefault()
+				onChange(false)
+			}}
 		>
 			{label}
 		</button>
@@ -198,13 +211,6 @@ export const GamepadUI = ({ onStateChange, visible }: GamepadUIProps) => {
 		[updateState],
 	)
 
-	const handleRightStick = useCallback(
-		(x: number, y: number) => {
-			updateState((prev) => ({ ...prev, rightStick: { x, y } }))
-		},
-		[updateState],
-	)
-
 	const handleButton = useCallback(
 		(button: keyof GamepadState["buttons"], pressed: boolean) => {
 			updateState((prev) => ({
@@ -218,7 +224,7 @@ export const GamepadUI = ({ onStateChange, visible }: GamepadUIProps) => {
 	if (!visible) return null
 
 	return (
-		<div className="absolute inset-0 pointer-events-none z-20">
+		<div className="absolute inset-0 pointer-events-none z-40">
 			<div className="absolute bottom-4 left-4 pointer-events-auto">
 				<Joystick
 					x={state.leftStick.x}
@@ -227,21 +233,14 @@ export const GamepadUI = ({ onStateChange, visible }: GamepadUIProps) => {
 				/>
 			</div>
 
-			<div className="absolute bottom-4 right-4 pointer-events-auto">
-				<Joystick
-					x={state.rightStick.x}
-					y={state.rightStick.y}
-					onChange={handleRightStick}
-				/>
-			</div>
-
-			<div className="absolute right-8 top-1/2 -translate-y-1/2 flex flex-col gap-2 pointer-events-auto">
+			<div className="absolute right-6 bottom-8 flex flex-col gap-2 pointer-events-auto">
 				<div className="flex gap-2 justify-end">
 					<GamepadButton
 						pressed={state.buttons.y}
 						onChange={(p) => handleButton("y", p)}
 						label="Y"
 						color="bg-yellow-500"
+						size="lg"
 					/>
 				</div>
 				<div className="flex gap-2">
@@ -250,89 +249,23 @@ export const GamepadUI = ({ onStateChange, visible }: GamepadUIProps) => {
 						onChange={(p) => handleButton("x", p)}
 						label="X"
 						color="bg-blue-500"
+						size="lg"
 					/>
 					<GamepadButton
 						pressed={state.buttons.b}
 						onChange={(p) => handleButton("b", p)}
 						label="B"
 						color="bg-red-500"
+						size="lg"
 					/>
 					<GamepadButton
 						pressed={state.buttons.a}
 						onChange={(p) => handleButton("a", p)}
 						label="A"
 						color="bg-green-500"
+						size="lg"
 					/>
 				</div>
-			</div>
-
-			<div className="absolute left-8 top-1/2 -translate-y-1/2 flex flex-col gap-2 pointer-events-auto">
-				<div className="flex gap-2 justify-center">
-					<GamepadButton
-						pressed={state.buttons.dpadUp}
-						onChange={(p) => handleButton("dpadUp", p)}
-						label="▲"
-						color="bg-gray-600"
-						size="sm"
-					/>
-				</div>
-				<div className="flex gap-2 justify-center">
-					<GamepadButton
-						pressed={state.buttons.dpadLeft}
-						onChange={(p) => handleButton("dpadLeft", p)}
-						label="◀"
-						color="bg-gray-600"
-						size="sm"
-					/>
-					<GamepadButton
-						pressed={state.buttons.dpadDown}
-						onChange={(p) => handleButton("dpadDown", p)}
-						label="▼"
-						color="bg-gray-600"
-						size="sm"
-					/>
-					<GamepadButton
-						pressed={state.buttons.dpadRight}
-						onChange={(p) => handleButton("dpadRight", p)}
-						label="▶"
-						color="bg-gray-600"
-						size="sm"
-					/>
-				</div>
-			</div>
-
-			<div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex gap-4 pointer-events-auto">
-				<GamepadButton
-					pressed={state.buttons.lt}
-					onChange={(p) => handleButton("lt", p)}
-					label="LT"
-					color="bg-gray-700"
-					size="sm"
-				/>
-				<GamepadButton
-					pressed={state.buttons.rt}
-					onChange={(p) => handleButton("rt", p)}
-					label="RT"
-					color="bg-gray-700"
-					size="sm"
-				/>
-			</div>
-
-			<div className="absolute top-4 left-1/2 -translate-x-1/2 flex gap-8 pointer-events-auto">
-				<GamepadButton
-					pressed={state.buttons.back}
-					onChange={(p) => handleButton("back", p)}
-					label="◀"
-					color="bg-gray-600"
-					size="sm"
-				/>
-				<GamepadButton
-					pressed={state.buttons.start}
-					onChange={(p) => handleButton("start", p)}
-					label="▶"
-					color="bg-gray-600"
-					size="sm"
-				/>
 			</div>
 		</div>
 	)
