@@ -58,7 +58,12 @@ export async function createWsServer(
 	}
 
 	const configuredAddress =
-		typeof serverConfig.address === "string" ? serverConfig.address : null
+		typeof serverConfig.address === "string" &&
+		serverConfig.address.trim() !== "" &&
+		serverConfig.address !== "0.0.0.0" &&
+		serverConfig.address !== "::"
+			? serverConfig.address.trim()
+			: null
 
 	if (LAN_IP === "127.0.0.1" && configuredAddress) {
 		LAN_IP = configuredAddress
