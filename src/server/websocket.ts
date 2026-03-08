@@ -64,9 +64,13 @@ export async function createWsServer(
 
 	logger.info("WebSocket server initialized")
 
-	wss.on("close", () => {
+	// Wire cleanup to the underlying HTTP server's "close" event.
+	// wss is created with { noServer: true } and is never explicitly closed,
+	// so wss.on("close") would never fire. Listening on the HTTP server ensures
+	// inputHandler.cleanup() runs when the Vite dev server shuts down.
+	server.on("close", () => {
 		inputHandler.cleanup()
-		logger.info("WebSocket server closed, virtual input cleaned up")
+		logger.info("HTTP server closed, virtual input cleaned up")
 	})
 
 	server.on(

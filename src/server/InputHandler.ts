@@ -17,6 +17,7 @@ export interface InputMessage {
 	dx?: number
 	dy?: number
 	button?: "left" | "right" | "middle"
+	/** true = press down, false = release up, undefined = full click */
 	press?: boolean
 	key?: string
 	keys?: string[]
@@ -33,15 +34,27 @@ export class InputHandler {
 	private scrollTimer: ReturnType<typeof setTimeout> | null = null
 	private throttleMs: number
 	private modifier: Key
-	private vi: VirtualInputDriver
+	private vi: VirtualInputDriver | null = null
+	private isShuttingDown = false
 
 	constructor(throttleMs = 8) {
 		this.modifier = os.platform() === "darwin" ? Key.LeftSuper : Key.LeftControl
 		this.throttleMs = throttleMs
 		// Initialise the virtual input driver for this platform.
 		// move / click / scroll bypass NutJS entirely.
-		this.vi = createVirtualInput()
-		this.vi.init()
+		try {
+			this.vi = createVirtualInput()
+			this.vi.init()
+		} catch (err) {
+			console.error(
+				"VirtualInput: failed to initialise virtual input device:",
+				err,
+			)
+			console.warn(
+				"VirtualInput: move/click/scroll will be unavailable until the issue is resolved.",
+			)
+			this.vi = null
+		}
 	}
 
 	setThrottleMs(ms: number) {
@@ -50,7 +63,25 @@ export class InputHandler {
 
 	/** Release the virtual input device (call on server shutdown). */
 	cleanup() {
-		this.vi.cleanup()
+		this.isShuttingDown = true
+
+		// Cancel any pending throttle timers so their callbacks cannot fire
+		// after the virtual device has been destroyed.
+		if (this.moveTimer !== null) {
+			clearTimeout(this.moveTimer)
+			this.moveTimer = null
+		}
+		if (this.scrollTimer !== null) {
+			clearTimeout(this.scrollTimer)
+			this.scrollTimer = null
+		}
+		this.pendingMove = null
+		this.pendingScroll = null
+
+		if (this.vi !== null) {
+			this.vi.cleanup()
+			this.vi = null
+		}
 	}
 
 	private isFiniteNumber(value: unknown): value is number {
@@ -91,7 +122,7 @@ export class InputHandler {
 				if (!this.moveTimer) {
 					this.moveTimer = setTimeout(() => {
 						this.moveTimer = null
-						if (this.pendingMove) {
+						if (!this.isShuttingDown && this.pendingMove) {
 							const pending = this.pendingMove
 							this.pendingMove = null
 							this.handleMessage(pending).catch((err) => {
@@ -110,7 +141,7 @@ export class InputHandler {
 				if (!this.scrollTimer) {
 					this.scrollTimer = setTimeout(() => {
 						this.scrollTimer = null
-						if (this.pendingScroll) {
+						if (!this.isShuttingDown && this.pendingScroll) {
 							const pending = this.pendingScroll
 							this.pendingScroll = null
 							this.handleMessage(pending).catch((err) => {
@@ -133,6 +164,7 @@ export class InputHandler {
 					Number.isFinite(msg.dx) &&
 					Number.isFinite(msg.dy)
 				) {
+					if (this.vi === null) break
 					try {
 						this.vi.moveMouse(Math.round(msg.dx), Math.round(msg.dy))
 					} catch (err) {
@@ -142,15 +174,25 @@ export class InputHandler {
 				break
 
 			case "click": {
+				if (this.vi === null) break
 				const VALID_BUTTONS = ["left", "right", "middle"] as const
 				if (msg.button && VALID_BUTTONS.includes(msg.button)) {
 					try {
-						if (msg.button === "left") {
-							this.vi.leftClick()
-						} else if (msg.button === "right") {
-							this.vi.rightClick()
+						if (msg.press === true) {
+							// Press down only (drag start)
+							if (msg.button === "left") this.vi.leftDown()
+							else if (msg.button === "right") this.vi.rightDown()
+							else this.vi.middleDown()
+						} else if (msg.press === false) {
+							// Release up only (drag end)
+							if (msg.button === "left") this.vi.leftUp()
+							else if (msg.button === "right") this.vi.rightUp()
+							else this.vi.middleUp()
 						} else {
-							this.vi.middleClick()
+							// Full click (press undefined)
+							if (msg.button === "left") this.vi.leftClick()
+							else if (msg.button === "right") this.vi.rightClick()
+							else this.vi.middleClick()
 						}
 					} catch (err) {
 						console.error("Click event failed:", err)
@@ -160,6 +202,7 @@ export class InputHandler {
 			}
 
 			case "scroll": {
+				if (this.vi === null) break
 				const MAX_SCROLL = 100
 				try {
 					// Vertical
@@ -215,7 +258,11 @@ export class InputHandler {
 			}
 
 			case "zoom":
-				if (this.isFiniteNumber(msg.delta) && msg.delta !== 0) {
+				if (
+					this.vi !== null &&
+					this.isFiniteNumber(msg.delta) &&
+					msg.delta !== 0
+				) {
 					const sensitivityFactor = 0.5
 					const MAX_ZOOM_STEP = 5
 

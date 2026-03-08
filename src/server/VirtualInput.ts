@@ -16,8 +16,8 @@
  *   vi.moveMouse(dx, dy)
  *   vi.scrollV(ticks)                 // positive = up, negative = down
  *   vi.scrollH(ticks)                 // positive = right, negative = left
- *   vi.leftClick()
- *   vi.rightClick()
+ *   vi.leftClick()                    // full click (down + up)
+ *   vi.leftDown() / vi.leftUp()       // individual press / release for drag
  *   vi.cleanup()                      // call on process exit / ws close
  */
 
@@ -35,12 +35,24 @@ export interface VirtualInputDriver {
 	scrollV(ticks: number): void
 	/** Horizontal scroll. positive = right, negative = left. */
 	scrollH(ticks: number): void
-	/** Synthesise a left mouse button click. */
+	/** Full left mouse button click (down + up). */
 	leftClick(): void
-	/** Synthesise a right mouse button click. */
+	/** Left button press (down only — for drag start). */
+	leftDown(): void
+	/** Left button release (up only — for drag end). */
+	leftUp(): void
+	/** Full right mouse button click. */
 	rightClick(): void
-	/** Synthesise a middle mouse button click. */
+	/** Right button press. */
+	rightDown(): void
+	/** Right button release. */
+	rightUp(): void
+	/** Full middle mouse button click. */
 	middleClick(): void
+	/** Middle button press. */
+	middleDown(): void
+	/** Middle button release. */
+	middleUp(): void
 	/** Release resources (destroy virtual device on Linux). */
 	cleanup(): void
 }
@@ -139,12 +151,30 @@ function buildWindowsDriver(): VirtualInputDriver {
 			sendMouse(MOUSEEVENTF_LEFTDOWN)
 			sendMouse(MOUSEEVENTF_LEFTUP)
 		},
+		leftDown() {
+			sendMouse(MOUSEEVENTF_LEFTDOWN)
+		},
+		leftUp() {
+			sendMouse(MOUSEEVENTF_LEFTUP)
+		},
 		rightClick() {
 			sendMouse(MOUSEEVENTF_RIGHTDOWN)
 			sendMouse(MOUSEEVENTF_RIGHTUP)
 		},
+		rightDown() {
+			sendMouse(MOUSEEVENTF_RIGHTDOWN)
+		},
+		rightUp() {
+			sendMouse(MOUSEEVENTF_RIGHTUP)
+		},
 		middleClick() {
 			sendMouse(MOUSEEVENTF_MIDDLEDOWN)
+			sendMouse(MOUSEEVENTF_MIDDLEUP)
+		},
+		middleDown() {
+			sendMouse(MOUSEEVENTF_MIDDLEDOWN)
+		},
+		middleUp() {
 			sendMouse(MOUSEEVENTF_MIDDLEUP)
 		},
 		cleanup() {},
@@ -228,9 +258,12 @@ function buildLinuxDriver(): VirtualInputDriver {
 		emit(EV_SYN, 0, 0)
 	}
 
-	function clickBtn(btn: number) {
+	function btnDown(btn: number) {
 		emit(EV_KEY, btn, 1)
 		syn()
+	}
+
+	function btnUp(btn: number) {
 		emit(EV_KEY, btn, 0)
 		syn()
 	}
@@ -290,15 +323,34 @@ function buildLinuxDriver(): VirtualInputDriver {
 		},
 
 		leftClick() {
-			clickBtn(BTN_LEFT)
+			btnDown(BTN_LEFT)
+			btnUp(BTN_LEFT)
 		},
-
+		leftDown() {
+			btnDown(BTN_LEFT)
+		},
+		leftUp() {
+			btnUp(BTN_LEFT)
+		},
 		rightClick() {
-			clickBtn(BTN_RIGHT)
+			btnDown(BTN_RIGHT)
+			btnUp(BTN_RIGHT)
 		},
-
+		rightDown() {
+			btnDown(BTN_RIGHT)
+		},
+		rightUp() {
+			btnUp(BTN_RIGHT)
+		},
 		middleClick() {
-			clickBtn(BTN_MIDDLE)
+			btnDown(BTN_MIDDLE)
+			btnUp(BTN_MIDDLE)
+		},
+		middleDown() {
+			btnDown(BTN_MIDDLE)
+		},
+		middleUp() {
+			btnUp(BTN_MIDDLE)
 		},
 
 		cleanup() {
@@ -334,7 +386,6 @@ function buildMacDriver(): VirtualInputDriver {
 	const kCGEventRightMouseUp = 4
 	const kCGEventOtherMouseDown = 25
 	const kCGEventOtherMouseUp = 26
-	// kCGEventScrollWheel = 22 — used via CGEventCreateScrollWheelEvent, not directly
 	const kCGHIDEventTap = 0
 	const kCGMouseButtonLeft = 0
 	const kCGMouseButtonRight = 1
@@ -346,8 +397,9 @@ function buildMacDriver(): VirtualInputDriver {
 	const CGEventCreateMouseEvent = cg.func(
 		"void* CGEventCreateMouseEvent(void *source, int mouseType, CGPoint mouseCursorPosition, int mouseButton)",
 	)
-	const CGEventCreateScrollWheelEvent = cg.func(
-		"void* CGEventCreateScrollWheelEvent(void *source, int units, uint32_t wheelCount, int32_t wheel1)",
+	// wheelCount=2 lets us pass wheel1 (vertical) and wheel2 (horizontal)
+	const CGEventCreateScrollWheelEvent2 = cg.func(
+		"void* CGEventCreateScrollWheelEvent(void *source, int units, uint32_t wheelCount, int32_t wheel1, int32_t wheel2)",
 	)
 	const CGEventPost = cg.func("void CGEventPost(int tap, void *event)")
 	const CFRelease = cf.func("void CFRelease(void *cf)")
@@ -380,19 +432,15 @@ function buildMacDriver(): VirtualInputDriver {
 		},
 
 		scrollV(ticks) {
-			// kCGScrollEventUnitLine = 1
-			const ev = CGEventCreateScrollWheelEvent(source, 1, 1, ticks)
+			// kCGScrollEventUnitLine = 1; wheel1 = vertical, wheel2 = 0
+			const ev = CGEventCreateScrollWheelEvent2(source, 1, 2, ticks, 0)
 			CGEventPost(kCGHIDEventTap, ev)
 			CFRelease(ev)
 		},
 
-		scrollH(_ticks) {
-			// Horizontal scroll: CGEventCreateScrollWheelEvent takes variadic wheel args.
-			// koffi doesn't support variadic signatures beyond what's declared, so
-			// horizontal scroll on macOS requires a separate approach (e.g. wheel2 field).
-			// Emitting a no-op scroll for now; full support can be added once the PoC
-			// approach is approved and the API is stabilised.
-			const ev = CGEventCreateScrollWheelEvent(source, 1, 1, 0)
+		scrollH(ticks) {
+			// wheel1 = 0 (no vertical), wheel2 = horizontal delta
+			const ev = CGEventCreateScrollWheelEvent2(source, 1, 2, 0, ticks)
 			CGEventPost(kCGHIDEventTap, ev)
 			CFRelease(ev)
 		},
@@ -402,16 +450,38 @@ function buildMacDriver(): VirtualInputDriver {
 			postMouse(kCGEventLeftMouseDown, kCGMouseButtonLeft, pos)
 			postMouse(kCGEventLeftMouseUp, kCGMouseButtonLeft, pos)
 		},
-
+		leftDown() {
+			const pos = getPos()
+			postMouse(kCGEventLeftMouseDown, kCGMouseButtonLeft, pos)
+		},
+		leftUp() {
+			const pos = getPos()
+			postMouse(kCGEventLeftMouseUp, kCGMouseButtonLeft, pos)
+		},
 		rightClick() {
 			const pos = getPos()
 			postMouse(kCGEventRightMouseDown, kCGMouseButtonRight, pos)
 			postMouse(kCGEventRightMouseUp, kCGMouseButtonRight, pos)
 		},
-
+		rightDown() {
+			const pos = getPos()
+			postMouse(kCGEventRightMouseDown, kCGMouseButtonRight, pos)
+		},
+		rightUp() {
+			const pos = getPos()
+			postMouse(kCGEventRightMouseUp, kCGMouseButtonRight, pos)
+		},
 		middleClick() {
 			const pos = getPos()
 			postMouse(kCGEventOtherMouseDown, kCGMouseButtonCenter, pos)
+			postMouse(kCGEventOtherMouseUp, kCGMouseButtonCenter, pos)
+		},
+		middleDown() {
+			const pos = getPos()
+			postMouse(kCGEventOtherMouseDown, kCGMouseButtonCenter, pos)
+		},
+		middleUp() {
+			const pos = getPos()
 			postMouse(kCGEventOtherMouseUp, kCGMouseButtonCenter, pos)
 		},
 

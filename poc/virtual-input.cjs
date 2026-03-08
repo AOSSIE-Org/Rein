@@ -15,10 +15,10 @@
  * the issue description asks for.
  *
  * Run:
- *   node poc/virtual-input.js
+ *   node poc/virtual-input.cjs
  *
  * On Linux you need write access to /dev/uinput:
- *   sudo node poc/virtual-input.js
+ *   sudo node poc/virtual-input.cjs
  *   -- or --
  *   sudo usermod -aG input $USER   (then re-login)
  */
