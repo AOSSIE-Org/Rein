@@ -1,7 +1,8 @@
 import { Button, Key, Point, keyboard, mouse } from "@nut-tree-fork/nut-js"
+import os from "node:os"
+import logger from "../utils/logger"
 import { KEY_MAP } from "./KeyMap"
 import { moveRelative } from "./ydotool"
-import os from "node:os"
 
 export interface InputMessage {
 	type:
@@ -86,7 +87,9 @@ export class InputHandler {
 							const pending = this.pendingMove
 							this.pendingMove = null
 							this.handleMessage(pending).catch((err) => {
-								console.error("Error processing pending move event:", err)
+								logger.error(
+									`Error processing pending move event: ${err instanceof Error ? err.message : String(err)}`,
+								)
 							})
 						}
 					}, this.throttleMs)
@@ -105,7 +108,9 @@ export class InputHandler {
 							const pending = this.pendingScroll
 							this.pendingScroll = null
 							this.handleMessage(pending).catch((err) => {
-								console.error("Error processing pending move event:", err)
+								logger.error(
+									`Error processing pending scroll event: ${err instanceof Error ? err.message : String(err)}`,
+								)
 							})
 						}
 					}, this.throttleMs)
@@ -139,7 +144,9 @@ export class InputHandler {
 							)
 						}
 					} catch (err) {
-						console.error("Move event failed:", err)
+						logger.error(
+							`Move event failed: ${err instanceof Error ? err.message : String(err)}`,
+						)
 					}
 				}
 				break
@@ -161,7 +168,9 @@ export class InputHandler {
 							await mouse.releaseButton(btn)
 						}
 					} catch (err) {
-						console.error("Click event failed:", err)
+						logger.error(
+							`Click event failed: ${err instanceof Error ? err.message : String(err)}`,
+						)
 						// ensure release just in case
 						await mouse.releaseButton(btn).catch(() => {})
 					}
@@ -173,7 +182,9 @@ export class InputHandler {
 				try {
 					await keyboard.pressKey(this.modifier, Key.C)
 				} catch (err) {
-					console.warn("Error while copying:", err)
+					logger.warn(
+						`Error while copying: ${err instanceof Error ? err.message : String(err)}`,
+					)
 				} finally {
 					await Promise.allSettled([
 						keyboard.releaseKey(Key.C),
@@ -186,7 +197,9 @@ export class InputHandler {
 				try {
 					await keyboard.pressKey(this.modifier, Key.V)
 				} catch (err) {
-					console.warn("Error while pasting:", err)
+					logger.warn(
+						`Error while pasting: ${err instanceof Error ? err.message : String(err)}`,
+					)
 				} finally {
 					await Promise.allSettled([
 						keyboard.releaseKey(Key.V),
@@ -224,7 +237,9 @@ export class InputHandler {
 					const results = await Promise.allSettled(promises)
 					for (const result of results) {
 						if (result.status === "rejected") {
-							console.error("Scroll event failed:", result.reason)
+							logger.error(
+								`Scroll event failed: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`,
+							)
 						}
 					}
 				}
@@ -259,7 +274,7 @@ export class InputHandler {
 
 			case "key":
 				if (msg.key && typeof msg.key === "string" && msg.key.length <= 50) {
-					console.log(`Processing key: ${msg.key}`)
+					logger.debug(`Processing key: ${msg.key}`)
 					const nutKey = KEY_MAP[msg.key.toLowerCase()]
 
 					try {
@@ -273,10 +288,12 @@ export class InputHandler {
 						} else if (msg.key.length === 1) {
 							await keyboard.type(msg.key)
 						} else {
-							console.log(`Unmapped key: ${msg.key}`)
+							logger.debug(`Unmapped key: ${msg.key}`)
 						}
 					} catch (err) {
-						console.warn("Key press failed:", err)
+						logger.warn(
+							`Key press failed: ${err instanceof Error ? err.message : String(err)}`,
+						)
 						// ensure release just in case
 						if (nutKey !== undefined)
 							await keyboard.releaseKey(nutKey).catch(() => {})
@@ -304,16 +321,16 @@ export class InputHandler {
 						} else if (lowerKey.length === 1) {
 							nutKeys.push(lowerKey)
 						} else {
-							console.warn(`Unknown key in combo: ${k}`)
+							logger.warn(`Unknown key in combo: ${k}`)
 						}
 					}
 
 					if (nutKeys.length === 0) {
-						console.error("No valid keys in combo")
+						logger.error("No valid keys in combo")
 						return
 					}
 
-					console.log("Pressing keys:", nutKeys)
+					logger.debug(`Pressing keys: ${nutKeys.join(", ")}`)
 					const pressedKeys: Key[] = []
 
 					try {
@@ -328,7 +345,9 @@ export class InputHandler {
 
 						await new Promise((resolve) => setTimeout(resolve, 10))
 					} catch (err) {
-						console.error("Combo execution failed:", err)
+						logger.error(
+							`Combo execution failed: ${err instanceof Error ? err.message : String(err)}`,
+						)
 					} finally {
 						const releasePromises = pressedKeys
 							.reverse()
@@ -336,7 +355,7 @@ export class InputHandler {
 						await Promise.allSettled(releasePromises)
 					}
 
-					console.log(`Combo complete: ${msg.keys.join("+")}`)
+					logger.debug(`Combo complete: ${msg.keys.join("+")}`)
 				}
 				break
 
@@ -345,7 +364,9 @@ export class InputHandler {
 					try {
 						await keyboard.type(msg.text)
 					} catch (err) {
-						console.error("Failed to type text:", err)
+						logger.error(
+							`Failed to type text: ${err instanceof Error ? err.message : String(err)}`,
+						)
 					}
 				}
 				break

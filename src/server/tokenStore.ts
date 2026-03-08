@@ -3,6 +3,7 @@ import fs from "node:fs"
 import { writeFile } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
+import logger from "../utils/logger"
 
 interface TokenEntry {
 	token: string
@@ -54,7 +55,9 @@ async function save(force = false): Promise<void> {
 		})
 		lastSaveTime = now
 	} catch (e) {
-		console.error("Failed to persist tokens:", e)
+		logger.error(
+			`Failed to persist tokens: ${e instanceof Error ? e.message : String(e)}`,
+		)
 	} finally {
 		isSaving = false
 	}

@@ -74,7 +74,7 @@ export async function createWsServer(
 			const token = url.searchParams.get("token")
 			const local = isLocalhost(request)
 
-			logger.info(
+			logger.debug(
 				`Upgrade request received from ${request.socket.remoteAddress}`,
 			)
 
@@ -367,7 +367,6 @@ export async function createWsServer(
 			})
 
 			ws.on("error", (error: Error) => {
-				console.error("WebSocket error:", error)
 				logger.error(`WebSocket error: ${error.message}`)
 			})
 		},
