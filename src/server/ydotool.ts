@@ -37,7 +37,7 @@ export async function checkYdotool(): Promise<boolean> {
 		isYdotoolAvailable = false
 		lastFailureTime = now
 		logger.warn(
-			"[ydotool] ydotool not available, falling back to nut.js for cursor movement",
+			`[ydotool] ydotool not available, falling back to nut.js for cursor movement: ${err instanceof Error ? err.message : String(err)}`,
 		)
 	}
 

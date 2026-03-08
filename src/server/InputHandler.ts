@@ -274,7 +274,7 @@ export class InputHandler {
 
 			case "key":
 				if (msg.key && typeof msg.key === "string" && msg.key.length <= 50) {
-					logger.debug(`Processing key: ${msg.key}`)
+					logger.debug("Processing key input")
 					const nutKey = KEY_MAP[msg.key.toLowerCase()]
 
 					try {
@@ -288,7 +288,7 @@ export class InputHandler {
 						} else if (msg.key.length === 1) {
 							await keyboard.type(msg.key)
 						} else {
-							logger.debug(`Unmapped key: ${msg.key}`)
+							logger.debug("Unmapped key received")
 						}
 					} catch (err) {
 						logger.warn(
@@ -321,7 +321,7 @@ export class InputHandler {
 						} else if (lowerKey.length === 1) {
 							nutKeys.push(lowerKey)
 						} else {
-							logger.warn(`Unknown key in combo: ${k}`)
+							logger.warn("Unknown key in combo")
 						}
 					}
 
@@ -330,7 +330,7 @@ export class InputHandler {
 						return
 					}
 
-					logger.debug(`Pressing keys: ${nutKeys.join(", ")}`)
+					logger.debug(`Pressing combo with ${nutKeys.length} accepted keys`)
 					const pressedKeys: Key[] = []
 
 					try {
@@ -355,7 +355,7 @@ export class InputHandler {
 						await Promise.allSettled(releasePromises)
 					}
 
-					logger.debug(`Combo complete: ${msg.keys.join("+")}`)
+					logger.debug(`Combo complete (${nutKeys.length} accepted keys)`)
 				}
 				break
 
