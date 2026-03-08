@@ -48,17 +48,18 @@ export async function createWsServer(
 
 	const wss = new WebSocketServer({ noServer: true })
 	const inputHandler = new InputHandler(inputThrottleMs)
-	let LAN_IP = "127.0.0.1"
+	let LAN_IP = "0.0.0.0"
 	try {
-		LAN_IP = await getLocalIp()
+	LAN_IP = await getLocalIp()
 	} catch (error) {
-		logger.warn(`Failed to resolve LAN IP, using localhost: ${String(error)}`)
+	logger.warn(`Failed to resolve LAN IP, using 0.0.0.0: ${String(error)}`)
 	}
 
 	if (LAN_IP === "127.0.0.1") {
-		logger.warn("LAN IP resolution fell back to localhost (127.0.0.1)")
+	logger.warn("LAN IP resolved to localhost, falling back to 0.0.0.0")
+	LAN_IP = "0.0.0.0"
 	} else {
-		logger.info(`Resolved LAN IP: ${LAN_IP}`)
+	logger.info(`Resolved LAN IP: ${LAN_IP}`)
 	}
 	const MAX_PAYLOAD_SIZE = 10 * 1024 // 10KB limit
 
