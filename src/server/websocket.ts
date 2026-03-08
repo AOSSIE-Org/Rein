@@ -51,15 +51,21 @@ export async function createWsServer(
 	let LAN_IP = "127.0.0.1"
 
 	try {
-	LAN_IP = await getLocalIp()
+		LAN_IP = await getLocalIp()
 	} catch (error) {
-	logger.warn(`Failed to resolve LAN IP: ${String(error)}`)
+		logger.warn(`Failed to resolve LAN IP: ${String(error)}`)
 	}
 
-	if (LAN_IP === "127.0.0.1") {
-	logger.warn("LAN IP resolved to localhost")
+	const configuredAddress =
+		typeof serverConfig.address === "string" ? serverConfig.address : null
+
+	if (LAN_IP === "127.0.0.1" && configuredAddress) {
+		LAN_IP = configuredAddress
+		logger.warn(`Using configured server address fallback: ${LAN_IP}`)
+	} else if (LAN_IP === "127.0.0.1") {
+		logger.warn("LAN IP resolved to localhost")
 	} else {
-	logger.info(`Resolved LAN IP: ${LAN_IP}`)
+		logger.info(`Resolved LAN IP: ${LAN_IP}`)
 	}
 	const MAX_PAYLOAD_SIZE = 10 * 1024 // 10KB limit
 
