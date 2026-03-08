@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Rein
+Comment=Wireless trackpad, keyboard and screen mirror
+Exec=run.sh
+Icon=com.rein.app
+Type=Application
+Categories=Utility;
+StartupWMClass=rein

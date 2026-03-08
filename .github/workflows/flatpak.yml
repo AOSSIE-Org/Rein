@@ -1,0 +1,84 @@
+name: Flatpak
+
+on:
+  workflow_dispatch:
+  push:
+    branches-ignore:
+      - main
+      - master
+  pull_request:
+    paths:
+      - "src/**"
+      - "public/**"
+      - "electron/**"
+      - "flatpak/**"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.ts"
+      - ".github/workflows/flatpak.yml"
+
+jobs:
+  flatpak:
+    name: Build Flatpak
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      # Regenerate generated-sources.json from the current package-lock.json.
+      # This step runs on the host (not inside the Flatpak sandbox) and produces
+      # the offline npm source bundle consumed by flatpak-builder.
+      - name: Install flatpak-node-generator
+        run: pip3 install aiohttp aiofiles
+
+      - name: Download flatpak-node-generator
+        run: |
+          curl -sSL https://raw.githubusercontent.com/flatpak/flatpak-builder-tools/master/node/flatpak-node-generator.py \
+            -o flatpak-node-generator.py
+
+      - name: Generate offline npm sources
+        run: |
+          python3 flatpak-node-generator.py npm package-lock.json \
+            -o flatpak/generated-sources.json
+
+      - name: Install Flatpak and flatpak-builder
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y flatpak flatpak-builder
+
+      - name: Add Flathub remote
+        run: |
+          flatpak remote-add --user --if-not-exists flathub \
+            https://dl.flathub.org/repo/flathub.flatpakrepo
+
+      - name: Install Flatpak runtimes and SDK extensions
+        run: |
+          flatpak install --user -y flathub \
+            org.freedesktop.Platform//24.08 \
+            org.freedesktop.Sdk//24.08 \
+            org.electronjs.Electron2.BaseApp//24.08 \
+            org.freedesktop.Sdk.Extension.node20//24.08
+
+      - name: Build Flatpak bundle
+        run: |
+          flatpak-builder --user --install-deps-from=flathub \
+            --force-clean --repo=flatpak-repo \
+            flatpak-build flatpak/com.rein.app.yml
+
+      - name: Create .flatpak bundle file
+        run: |
+          flatpak build-bundle flatpak-repo rein.flatpak com.rein.app
+
+      - name: Upload Flatpak artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rein-flatpak
+          path: rein.flatpak
+          retention-days: 7
