@@ -63,25 +63,28 @@ function createWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
     },
   });
 
-  // Grant screen capture, microphone and camera permission requests from
-  // the renderer. Without this handler Electron silently denies
-  // getDisplayMedia in packaged/executable builds.
+  // Grant screen-capture permission requests only from the trusted local
+  // origin and only for display-capture / screen. Without this handler
+  // Electron silently denies getDisplayMedia in packaged builds.
+  const TRUSTED_ORIGIN = 'http://localhost:3000';
   mainWindow.webContents.session.setPermissionRequestHandler(
     (webContents, permission, callback) => {
-      const allowed = ['media', 'display-capture', 'screen'];
-      callback(allowed.includes(permission));
+      const origin = webContents.getURL();
+      const isScreenCapture = permission === 'display-capture' || permission === 'screen';
+      callback(origin.startsWith(TRUSTED_ORIGIN) && isScreenCapture);
     }
   );
 
-  // Allow permission checks (e.g. navigator.permissions.query)
+  // Allow permission checks (e.g. navigator.permissions.query) for the same
+  // trusted origin and screen-capture permissions only.
   mainWindow.webContents.session.setPermissionCheckHandler(
     (webContents, permission) => {
-      const allowed = ['media', 'display-capture', 'screen'];
-      return allowed.includes(permission);
+      const origin = webContents ? webContents.getURL() : '';
+      const isScreenCapture = permission === 'display-capture' || permission === 'screen';
+      return origin.startsWith(TRUSTED_ORIGIN) && isScreenCapture;
     }
   );
 
@@ -90,6 +93,11 @@ function createWindow() {
   // Show when ready
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+  });
+
+  // Clear the reference so createWindow() can recreate it (macOS dock reopen)
+  mainWindow.on('closed', () => {
+    mainWindow = null;
   });
 
   // Debug only if needed
@@ -126,11 +134,16 @@ app.whenReady().then(async () => {
 
 // Cleanup
 app.on('window-all-closed', () => {
-  if (serverProcess) serverProcess.kill();
-  if (process.platform !== 'darwin') app.quit();
+  // On macOS the server keeps running so the app can be reopened via the
+  // dock without restarting the Nitro process. Only kill the server and
+  // quit on platforms where closing all windows means the app is done.
+  if (process.platform !== 'darwin') {
+    if (serverProcess) serverProcess.kill();
+    app.quit();
+  }
 });
 
 // macOS: re-create window when dock icon is clicked
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  if (!mainWindow) createWindow();
 });

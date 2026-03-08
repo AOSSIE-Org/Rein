@@ -21,8 +21,10 @@ finish-args:
   - --share=network
   # DRI device access required for hardware-accelerated rendering and screen capture
   - --device=dri
-  # Allow the app to talk to the ScreenCast portal for getDisplayMedia
-  - --talk-name=org.freedesktop.portal.ScreenCast
+  # Allow the app to talk to the XDG Desktop Portal (ScreenCast interface)
+  # Note: org.freedesktop.portal.Desktop is the D-Bus service name; the
+  # ScreenCast interface is exposed under it.
+  - --talk-name=org.freedesktop.portal.Desktop
   - --env=ELECTRON_TRASH=gio
   # Proper cursor scaling on HiDPI displays under Wayland
   - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons

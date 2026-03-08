@@ -7,6 +7,8 @@ on:
       - main
       - master
     paths:
+      - "src/**"
+      - "public/**"
       - "electron/**"
       - "flatpak/**"
       - "package.json"
