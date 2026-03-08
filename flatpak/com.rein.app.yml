@@ -55,7 +55,7 @@ modules:
 
       # Package with electron-builder for Linux (unpacked dir, no network)
       - |
-        . ../../flatpak-node/electron-builder-arch-args.sh
+        . ../flatpak-node/electron-builder-arch-args.sh
         npm run dist -- $ELECTRON_BUILDER_ARCH_ARGS --linux --dir
 
       # Bundle the unpacked app into /app/main
