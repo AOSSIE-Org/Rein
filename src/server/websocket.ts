@@ -59,11 +59,10 @@ export async function createWsServer(
 	const configuredAddress =
 		typeof serverConfig.address === "string" ? serverConfig.address : null
 
-	if (LAN_IP === "127.0.0.1" && configuredAddress) {
-		LAN_IP = configuredAddress
-		logger.warn(`Using configured server address fallback: ${LAN_IP}`)
-	} else if (LAN_IP === "127.0.0.1") {
-		logger.warn("LAN IP resolved to localhost")
+	if (LAN_IP === "127.0.0.1") {
+		LAN_IP = configuredAddress ?? "0.0.0.0"
+
+		logger.warn(`LAN detection failed, using fallback address: ${LAN_IP}`)
 	} else {
 		logger.info(`Resolved LAN IP: ${LAN_IP}`)
 	}
