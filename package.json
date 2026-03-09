@@ -89,6 +89,11 @@
 			"oneClick": false,
 			"allowToChangeInstallationDirectory": true,
 			"createDesktopShortcut": true
+		},
+		"linux": {
+			"target": "dir",
+			"category": "Utility",
+			"executableName": "rein"
 		}
 	}
 }

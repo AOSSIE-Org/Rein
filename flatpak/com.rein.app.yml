@@ -1,0 +1,100 @@
+app-id: com.rein.app
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: '24.08'
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.node20
+command: run.sh
+separate-locales: false
+
+finish-args:
+  - --share=ipc
+  # X11 as default display; use Xwayland when running under a Wayland compositor.
+  # Electron native Wayland support is still experimental.
+  - --socket=x11
+  # Wayland socket is included so the XDG Desktop Portal (ScreenCast) is
+  # reachable for getDisplayMedia even in an Xwayland session.
+  - --socket=wayland
+  - --socket=pulseaudio
+  - --share=network
+  # DRI device access required for hardware-accelerated rendering and screen capture
+  - --device=dri
+  # Allow the app to talk to the XDG Desktop Portal (ScreenCast interface)
+  # Note: org.freedesktop.portal.Desktop is the D-Bus service name; the
+  # ScreenCast interface is exposed under it.
+  - --talk-name=org.freedesktop.portal.Desktop
+  - --env=ELECTRON_TRASH=gio
+  # Proper cursor scaling on HiDPI displays under Wayland
+  - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
+
+build-options:
+  append-path: /usr/lib/sdk/node20/bin
+  env:
+    NPM_CONFIG_LOGLEVEL: info
+
+modules:
+  - name: rein
+    buildsystem: simple
+    subdir: rein
+    build-options:
+      env:
+        XDG_CACHE_HOME: /run/build/rein/flatpak-node/cache
+        npm_config_cache: /run/build/rein/flatpak-node/npm-cache
+        npm_config_nodedir: /usr/lib/sdk/node20
+        npm_config_offline: 'true'
+    build-commands:
+      # Install npm dependencies (offline, from pre-downloaded cache)
+      - npm install --offline
+
+      # package.json already contains "linux": { "target": "dir" } so no patch
+      # is needed. The jq line is intentionally omitted: reading and writing the
+      # same file in a single shell redirect would corrupt it.
+
+      # Build the Vite/TanStack frontend
+      - npm run build
+
+      # Package with electron-builder for Linux (unpacked dir, no network)
+      - |
+        . ../flatpak-node/electron-builder-arch-args.sh
+        npm run dist -- $ELECTRON_BUILDER_ARCH_ARGS --linux --dir
+
+      # Bundle the unpacked app into /app/main
+      - cp -a dist/linux-unpacked /app/main
+
+      # Bundle Node.js runtime so electron/main.cjs can spawn it at runtime
+      - install -Dm755 /usr/lib/sdk/node20/bin/node /app/bin/node
+
+      # Install the app launcher wrapper
+      - install -Dm755 -t /app/bin/ ../run.sh
+
+      # Install AppStream metadata
+      - install -Dm644 flatpak/com.rein.app.metainfo.xml \
+          /app/share/metainfo/com.rein.app.metainfo.xml
+
+      # Install desktop file and icon
+      - install -Dm644 flatpak/com.rein.app.desktop \
+          /app/share/applications/com.rein.app.desktop
+      - install -Dm644 public/app_icon/Icon.svg \
+          /app/share/icons/hicolor/scalable/apps/com.rein.app.svg
+
+    sources:
+      - type: dir
+        path: ..
+        dest: rein
+        skip:
+          - .git
+          - node_modules
+          - dist
+          - .output
+
+      # Generated npm sources (produced by flatpak-node-generator)
+      # Run: flatpak-node-generator npm package-lock.json -o flatpak/generated-sources.json
+      - generated-sources.json
+
+      # Wrapper script to launch the Electron app via zypak
+      - type: script
+        dest-filename: run.sh
+        commands:
+          - zypak-wrapper.sh /app/main/rein "$@"

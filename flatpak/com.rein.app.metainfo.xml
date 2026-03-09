@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.rein.app</id>
+  <name>Rein</name>
+  <summary>Use your phone as a wireless trackpad, keyboard and screen mirror for your PC</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+
+  <description>
+    <p>
+      Rein turns your mobile device into a wireless trackpad, keyboard, and screen
+      mirror for your desktop. Connect over your local network — no cable, no
+      Bluetooth pairing required.
+    </p>
+    <ul>
+      <li>Trackpad: use your phone screen as a precise touchpad</li>
+      <li>Keyboard: type on your phone and the input appears on your PC</li>
+      <li>Screen Mirror: view your desktop screen on your mobile device in real time</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">com.rein.app.desktop</launchable>
+
+  <url type="homepage">https://github.com/anomalyco/opencode</url>
+  <url type="bugtracker">https://github.com/anomalyco/opencode/issues</url>
+
+  <releases>
+    <release version="1.0.0" date="2026-03-08">
+      <description>
+        <p>Initial Flatpak release of Rein.</p>
+        <ul>
+          <li>Wireless trackpad, keyboard and screen mirror over local network</li>
+          <li>Fixed screen capture permissions in packaged Electron executables</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+
+  <content_rating type="oars-1.1"/>
+</component>
