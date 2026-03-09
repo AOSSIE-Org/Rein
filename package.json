@@ -83,7 +83,9 @@
 		],
 		"npmRebuild": true,
 		"linux": {
-			"target": "AppImage"
+			"target": "dir",
+			"category": "Utility",
+			"executableName": "rein"
 		},
 		"win": {
 			"target": "portable"
