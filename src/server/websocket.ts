@@ -23,6 +23,7 @@ function isLocalhost(request: IncomingMessage): boolean {
 interface ExtWebSocket extends WebSocket {
 	isConsumer?: boolean
 	isProvider?: boolean
+	clientId?: string
 }
 
 export async function createWsServer(
@@ -61,6 +62,7 @@ export async function createWsServer(
 		logger.info(`Resolved LAN IP: ${LAN_IP}`)
 	}
 	const MAX_PAYLOAD_SIZE = 10 * 1024 // 10KB limit
+	let nextClientId = 1
 
 	logger.info("WebSocket server initialized")
 
@@ -120,7 +122,11 @@ export async function createWsServer(
 		) => {
 			// Localhost: only store token if it's already known (trusted scan)
 			// Remote: token is already validated in the upgrade handler
-			logger.info(`Client connected from ${request.socket.remoteAddress}`)
+			const clientId = String(nextClientId++)
+			;(ws as ExtWebSocket).clientId = clientId
+			logger.info(
+				`Client connected from ${request.socket.remoteAddress} (id: ${clientId})`,
+			)
 
 			if (token && (isKnownToken(token) || !isLocal)) {
 				storeToken(token)
@@ -133,6 +139,15 @@ export async function createWsServer(
 			const startMirror = () => {
 				;(ws as ExtWebSocket).isConsumer = true
 				logger.info("Client registered as Screen Consumer")
+				for (const client of wss.clients) {
+					if (
+						(client as ExtWebSocket).isProvider &&
+						client.readyState === WebSocket.OPEN
+					) {
+						ws.send(JSON.stringify({ type: "provider-ready" }))
+						break
+					}
+				}
 			}
 
 			const stopMirror = () => {
@@ -227,6 +242,88 @@ export async function createWsServer(
 					if (msg.type === "start-provider") {
 						;(ws as ExtWebSocket).isProvider = true
 						logger.info("Client registered as Screen Provider")
+						for (const client of wss.clients) {
+							if (
+								(client as ExtWebSocket).isConsumer &&
+								client.readyState === WebSocket.OPEN
+							) {
+								client.send(JSON.stringify({ type: "provider-ready" }))
+							}
+						}
+						return
+					}
+
+					if (msg.type === "webrtc-offer") {
+						const senderId = (ws as ExtWebSocket).clientId
+						for (const client of wss.clients) {
+							if (
+								(client as ExtWebSocket).isProvider &&
+								client.readyState === WebSocket.OPEN
+							) {
+								client.send(
+									JSON.stringify({
+										type: "webrtc-offer",
+										senderId,
+										offer: msg.offer,
+									}),
+								)
+							}
+						}
+						return
+					}
+
+					if (msg.type === "webrtc-answer") {
+						const senderId = (ws as ExtWebSocket).clientId
+						for (const client of wss.clients) {
+							if (
+								(client as ExtWebSocket).clientId === msg.targetId &&
+								client.readyState === WebSocket.OPEN
+							) {
+								client.send(
+									JSON.stringify({
+										type: "webrtc-answer",
+										senderId,
+										answer: msg.answer,
+									}),
+								)
+							}
+						}
+						return
+					}
+
+					if (msg.type === "webrtc-ice-candidate") {
+						const senderId = (ws as ExtWebSocket).clientId
+						if (msg.targetId) {
+							for (const client of wss.clients) {
+								if (
+									(client as ExtWebSocket).clientId === msg.targetId &&
+									client.readyState === WebSocket.OPEN
+								) {
+									client.send(
+										JSON.stringify({
+											type: "webrtc-ice-candidate",
+											senderId,
+											candidate: msg.candidate,
+										}),
+									)
+								}
+							}
+						} else if ((ws as ExtWebSocket).isConsumer) {
+							for (const client of wss.clients) {
+								if (
+									(client as ExtWebSocket).isProvider &&
+									client.readyState === WebSocket.OPEN
+								) {
+									client.send(
+										JSON.stringify({
+											type: "webrtc-ice-candidate",
+											senderId,
+											candidate: msg.candidate,
+										}),
+									)
+								}
+							}
+						}
 						return
 					}
 
