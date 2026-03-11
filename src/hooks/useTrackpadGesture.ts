@@ -36,7 +36,6 @@ export const useTrackpadGesture = (
 ) => {
 	const [isTracking, setIsTracking] = useState(false)
 
-	// Refs for tracking state (avoids re-renders during rapid movement)
 	const ongoingTouches = useRef<Map<number, TrackedTouch>>(new Map())
 	const moved = useRef(false)
 	const startTimeStamp = useRef(0)
@@ -46,8 +45,7 @@ export const useTrackpadGesture = (
 	const lastPinchDist = useRef<number | null>(null)
 	const pinching = useRef(false)
 
-	// ✅ Centralized reset helper
-	const resetGestureState = () => {
+	const resetGestureState = (preserveDraggingTimeout = false) => {
 		ongoingTouches.current.clear()
 		moved.current = false
 		releasedCount.current = 0
@@ -55,7 +53,7 @@ export const useTrackpadGesture = (
 		lastPinchDist.current = null
 		pinching.current = false
 
-		if (draggingTimeout.current) {
+		if (!preserveDraggingTimeout && draggingTimeout.current) {
 			clearTimeout(draggingTimeout.current)
 			draggingTimeout.current = null
 		}
@@ -167,7 +165,6 @@ export const useTrackpadGesture = (
 
 		setIsTracking(true)
 
-		// Convert tap timeout into drag
 		if (draggingTimeout.current) {
 			clearTimeout(draggingTimeout.current)
 			draggingTimeout.current = null
@@ -285,7 +282,7 @@ export const useTrackpadGesture = (
 				}
 			}
 
-			resetGestureState()
+			resetGestureState(draggingTimeout.current !== null)
 		}
 	}
 
