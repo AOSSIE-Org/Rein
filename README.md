@@ -33,7 +33,7 @@ A cross-platform, LAN-based remote control for touch-screen devices. Based which
     ```
 3.  Open the local app: `http://localhost:3000`
 
-## 📱 How to Use (Remote Control)
+## How to Use (Remote Control)
 
 To control this computer from your phone/tablet:
 
