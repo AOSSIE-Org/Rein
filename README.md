@@ -63,4 +63,4 @@ Visit the [Discord Channel](https://discord.com/invite/C8wHmwtczs) for interacti
 
 ---
 
-Contributions are welcome! Please leave a star ⭐ to show your support.
+> Contributions are welcome! Please leave a star ⭐ to show your support.
