@@ -1,0 +1,65 @@
+app-id: org.aossie.Rein
+runtime: org.freedesktop.Platform
+runtime-version: '23.08'
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: '23.08'
+command: rein
+separate-locales: false
+
+finish-args:
+  # X11 / Wayland display
+  - --share=ipc
+  - --socket=x11
+  - --socket=wayland
+  # Network access (WebSocket / WebRTC signalling)
+  - --share=network
+  # Screen capture (pipewire portal)
+  - --filesystem=xdg-run/pipewire-0
+  - --talk-name=org.freedesktop.portal.Desktop
+  - --talk-name=org.freedesktop.portal.ScreenCast
+  # Udev access for virtual input (uinput)
+  - --device=all
+  # Persistent app data
+  - --filesystem=xdg-config/Rein:create
+  - --filesystem=xdg-data/Rein:create
+
+modules:
+  # ── ydotool (virtual input backend) ──────────────────────────────────────
+  - name: ydotool
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+    sources:
+      - type: git
+        url: https://github.com/ReimuNotMoe/ydotool.git
+        tag: v1.0.4
+        commit: b58b3e3d5f9d1f0f0c5b2e1a9c3d4e5f6a7b8c9d
+
+  # ── Rein Electron app ────────────────────────────────────────────────────
+  - name: rein
+    buildsystem: simple
+    build-commands:
+      # Install the pre-built AppImage contents into /app
+      - install -Dm755 rein.AppImage /app/lib/rein/rein.AppImage
+      - install -Dm755 rein-wrapper.sh /app/bin/rein
+      - install -Dm644 org.aossie.Rein.desktop /app/share/applications/org.aossie.Rein.desktop
+      - install -Dm644 org.aossie.Rein.metainfo.xml /app/share/metainfo/org.aossie.Rein.metainfo.xml
+      - |
+        for size in 16 32 48 64 128 256; do
+          install -Dm644 icons/${size}x${size}.png \
+            /app/share/icons/hicolor/${size}x${size}/apps/org.aossie.Rein.png || true
+        done
+    sources:
+      # Placeholder: replaced by CI with actual built AppImage
+      - type: file
+        path: rein-placeholder.AppImage
+        dest-filename: rein.AppImage
+      - type: file
+        path: flatpak/rein-wrapper.sh
+      - type: file
+        path: flatpak/org.aossie.Rein.desktop
+      - type: file
+        path: flatpak/org.aossie.Rein.metainfo.xml
+      - type: dir
+        path: flatpak/icons

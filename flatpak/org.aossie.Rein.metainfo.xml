@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.aossie.Rein</id>
+  <name>Rein</name>
+  <summary>Remote desktop and input sharing over the local network</summary>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <description>
+    <p>
+      Rein lets you share your screen and control another computer's keyboard,
+      mouse and gamepad over a local network connection. It uses WebRTC for
+      low-latency screen capture and a virtual-input driver to replay input
+      events on the host machine.
+    </p>
+  </description>
+  <url type="homepage">https://gitlab.com/aossie/rein</url>
+  <url type="bugtracker">https://gitlab.com/aossie/rein/-/issues</url>
+  <releases>
+    <release version="1.0.0" date="2025-01-01"/>
+  </releases>
+  <content_rating type="oars-1.1"/>
+</component>
