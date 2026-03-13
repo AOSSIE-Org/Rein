@@ -72,6 +72,8 @@ Visit the [Discord Channel](https://discord.com/invite/C8wHmwtczs) for interacti
 
 The diagram below describes the full end-to-end architecture after migrating from WebSocket to HTTP + WebRTC.
 
+> The following diagram is AI generated and may not be accurate
+
 ```mermaid
 flowchart TD
     subgraph DESKTOP["🖥️ Desktop (Server)"]
