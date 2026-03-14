@@ -27,10 +27,16 @@ if (!gotLock) {
   process.exit(0);
 }
 
-// Wait until server is ready
-function waitForServer(url) {
-  return new Promise((resolve) => {
+// Wait until server is ready (with retry limit)
+function waitForServer(url, maxRetries = 60) {
+  return new Promise((resolve, reject) => {
+    let attempts = 0;
     const check = () => {
+      if (attempts >= maxRetries) {
+        reject(new Error(`Server did not start after ${maxRetries} attempts`));
+        return;
+      }
+      attempts++;
       http
         .get(url, () => resolve())
         .on('error', () => setTimeout(check, 500));
@@ -62,8 +68,19 @@ function startServer() {
       },
     });
 
-    waitForServer(`http://localhost:${serverPort}`).then(resolve);
+    waitForServer(`http://localhost:${serverPort}`).then(resolve).catch((err) => {
+      console.error('Server failed to start:', err.message);
+      app.quit();
+    });
   });
+}
+
+// Terminate child server process cleanly
+function killServer() {
+  if (serverProcess && !serverProcess.killed) {
+    serverProcess.kill();
+    serverProcess = null;
+  }
 }
 
 // Create window
@@ -97,6 +114,17 @@ app.whenReady().then(async () => {
 
 // Cleanup
 app.on('window-all-closed', () => {
-  if (serverProcess) serverProcess.kill();
+  killServer();
   if (process.platform !== 'darwin') app.quit();
+});
+
+// Handle SIGTERM/SIGINT for clean shutdown
+process.on('SIGTERM', () => {
+  killServer();
+  app.quit();
+});
+
+process.on('SIGINT', () => {
+  killServer();
+  app.quit();
 });
