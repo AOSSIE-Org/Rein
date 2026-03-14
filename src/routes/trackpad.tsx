@@ -33,7 +33,11 @@ function TrackpadPage() {
 	const [invertScroll] = useState(() => {
 		if (typeof window === "undefined") return false
 		const s = localStorage.getItem("rein_invert")
-		return s ? JSON.parse(s) : false
+		try {
+			return s ? JSON.parse(s) : false
+		} catch {
+			return false
+		}
 	})
 
 	const { send, sendCombo } = useRemoteConnection()
