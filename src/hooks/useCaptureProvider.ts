@@ -2,12 +2,31 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 
+// Detect whether the browser can encode canvas frames as WebP.
+// Firefox on some platforms (e.g. Wayland/Linux) may not support WebP
+// encoding in canvas.toBlob, so we fall back to JPEG in that case.
+function getSupportedMimeType(): string {
+	try {
+		const canvas = document.createElement("canvas")
+		canvas.width = 1
+		canvas.height = 1
+		// toDataURL is synchronous and reliable for capability detection
+		const data = canvas.toDataURL("image/webp")
+		if (data.startsWith("data:image/webp")) return "image/webp"
+	} catch {
+		// ignore
+	}
+	return "image/jpeg"
+}
+
 export function useCaptureProvider(wsRef: React.RefObject<WebSocket | null>) {
 	const [isSharing, setIsSharing] = useState(false)
 	const videoRef = useRef<HTMLVideoElement | null>(null)
 	const canvasRef = useRef<HTMLCanvasElement | null>(null)
 	const streamRef = useRef<MediaStream | null>(null)
 	const timerRef = useRef<number | null>(null)
+	// Resolved once on first use so we do not recreate a canvas every frame
+	const mimeTypeRef = useRef<string | null>(null)
 
 	const stopSharing = useCallback(() => {
 		if (timerRef.current) {
@@ -19,7 +38,7 @@ export function useCaptureProvider(wsRef: React.RefObject<WebSocket | null>) {
 			streamRef.current = null
 		}
 		if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-			wsRef.current.send(JSON.stringify({ type: "stop-mirror" }))
+			wsRef.current.send(JSON.stringify({ type: "stop-provider" }))
 		}
 		setIsSharing(false)
 	}, [wsRef])
@@ -54,10 +73,10 @@ export function useCaptureProvider(wsRef: React.RefObject<WebSocket | null>) {
 
 		ctx.drawImage(video, 0, 0, width, height)
 
-		// Adaptive Format/Quality: WebP is smaller, JPEG is faster to encode
-		// We use slightly lower quality (0.5) for better latency
-		const format = "image/webp"
-		const quality = 1
+		// Use WebP when supported (smaller payload); fall back to JPEG for
+		// browsers that cannot encode WebP (e.g. older Firefox on Wayland).
+		const format = mimeTypeRef.current ?? "image/jpeg"
+		const quality = 0.8
 
 		canvas.toBlob(
 			(blob) => {
@@ -70,13 +89,22 @@ export function useCaptureProvider(wsRef: React.RefObject<WebSocket | null>) {
 		)
 	}, [wsRef])
 
-	const startSharing = useCallback(async () => {
+	// Returns true when sharing was successfully started, false otherwise.
+	// Callers can use this to decide whether to retry the permission prompt.
+	const startSharing = useCallback(async (): Promise<boolean> => {
 		try {
+			// Resolve the best supported MIME type once
+			if (!mimeTypeRef.current) {
+				mimeTypeRef.current = getSupportedMimeType()
+			}
+
+			// Use only standard, cross-browser constraints.
+			// Chrome-specific hints like `displaySurface` are omitted because
+			// Firefox may treat unrecognised constraint keys as errors in strict
+			// mode, causing the permission prompt to never appear (issue #297).
 			const stream = await navigator.mediaDevices.getDisplayMedia({
-				video: {
-					displaySurface: "monitor",
-					// frameRate: { ideal: 30 },
-				},
+				video: true,
+				audio: false,
 			})
 
 			// Create hidden video to consume the stream
@@ -109,9 +137,12 @@ export function useCaptureProvider(wsRef: React.RefObject<WebSocket | null>) {
 			stream.getVideoTracks()[0].onended = () => {
 				stopSharing()
 			}
+
+			return true
 		} catch (err) {
 			console.error("Failed to start screen capture:", err)
 			setIsSharing(false)
+			return false
 		}
 	}, [wsRef, captureFrame, stopSharing])
 

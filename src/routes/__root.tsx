@@ -57,8 +57,15 @@ function DesktopCaptureProvider() {
 		const canShare = !!navigator.mediaDevices?.getDisplayMedia
 
 		if (!isMobile && canShare) {
-			hasStartedRef.current = true
-			startSharing()
+			// Mark as started only after sharing is successfully initiated so
+			// that a failed or dismissed permission prompt can be retried on
+			// the next connection event (fixes non-Chromium browsers where the
+			// permission dialog may not appear or may be dismissed).
+			startSharing().then((started) => {
+				if (started) {
+					hasStartedRef.current = true
+				}
+			})
 		}
 	}, [status, startSharing])
 
