@@ -68,25 +68,25 @@ function TrackpadPage() {
 		setTimeout(() => send({ type: "click", button, press: false }), 50)
 	}
 
-		const handleCopy = async () => {
-	try {
-		let text = ""
+	const handleCopy = async () => {
+		try {
+			let text = ""
 
-		if (navigator.clipboard && window.isSecureContext) {
-			text = await navigator.clipboard.readText()
-		} else {
-			// fallback → use selected text
-			text = window.getSelection()?.toString() || ""
+			if (navigator.clipboard && window.isSecureContext) {
+				text = await navigator.clipboard.readText()
+			} else {
+				// fallback → use selected text
+				text = window.getSelection()?.toString() || ""
+			}
+
+			send({
+				type: "clipboard-push",
+				text,
+			})
+		} catch (err) {
+			console.error("Copy failed", err)
 		}
-
-		send({
-			type: "clipboard-push",
-			text,
-		})
-	} catch (err) {
-		console.error("Copy failed", err)
 	}
-}
 
 	const handlePaste = async () => {
 		send({ type: "clipboard-pull" })
