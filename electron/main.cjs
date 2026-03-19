@@ -27,7 +27,7 @@ if (!gotLock) {
   process.exit(0);
 }
 
-// Centralized server cleanup (idempotent)
+// Centralized server cleanup
 function stopServer() {
   if (serverProcess) {
     try {
@@ -169,7 +169,7 @@ function shutdown() {
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
-// App start
+// App starts
 app.whenReady().then(async () => {
   try {
     await startServer();
