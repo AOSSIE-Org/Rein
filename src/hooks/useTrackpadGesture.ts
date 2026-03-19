@@ -155,10 +155,7 @@ export const useTrackpadGesture = (
 		if (ongoingTouches.current.size === 2) {
 			const touches = Array.from(ongoingTouches.current.values())
 
-			lastPinchDist.current = getTouchDistance(
-				touches[0],
-				touches[1],
-			)
+			lastPinchDist.current = getTouchDistance(touches[0], touches[1])
 
 			pinching.current = false
 		}
@@ -229,10 +226,7 @@ export const useTrackpadGesture = (
 		}
 
 		if (moved.current && movedTouchesCount > 0) {
-			processMovement(
-				sumX / movedTouchesCount,
-				sumY / movedTouchesCount,
-			)
+			processMovement(sumX / movedTouchesCount, sumY / movedTouchesCount)
 		}
 	}
 

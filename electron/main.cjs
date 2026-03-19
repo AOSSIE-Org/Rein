@@ -9,7 +9,6 @@ let serverProcess;
 let serverHost = '0.0.0.0';
 let serverPort = 3000;
 
-// Load config if exists
 try {
   const configPath = './src/server-config.json';
   if (fs.existsSync(configPath)) {
@@ -28,22 +27,41 @@ if (!gotLock) {
   process.exit(0);
 }
 
-// Wait until server is ready (with retry limit)
+// Centralized server cleanup (idempotent)
+function stopServer() {
+  if (serverProcess) {
+    try {
+      serverProcess.kill('SIGTERM');
+    } catch (e) {
+      console.warn('Error stopping server:', e.message);
+    }
+    serverProcess = null;
+  }
+}
+
+// Wait until server is ready
 function waitForServer(url, maxRetries = 20, delay = 500) {
   return new Promise((resolve, reject) => {
     let retries = 0;
 
     const check = () => {
-      http
+      const req = http
         .get(url, (res) => {
+          res.resume();
+
           if (res.statusCode === 200) {
-            console.log('✅ Server is ready');
+            console.log('Server is ready');
             resolve();
           } else {
             retry();
           }
         })
         .on('error', retry);
+
+      // Add timeout to prevent hanging
+      req.setTimeout(delay, () => {
+        req.destroy(new Error('Request timeout'));
+      });
     };
 
     const retry = () => {
@@ -86,21 +104,37 @@ function startServer() {
       },
     });
 
-    // Detect early crash
-    let resolved = false;
+    // Robust startup handling
+    let settled = false;
 
+    const fail = (err) => {
+      if (!settled) {
+        settled = true;
+        stopServer();
+        reject(err);
+      }
+    };
+
+    // Handle spawn errors
+    serverProcess.once('error', (err) => {
+      fail(new Error(`Failed to start Nitro server: ${err.message}`));
+    });
+
+    // Handle early exit
     serverProcess.once('exit', (code) => {
-      if (!resolved) {
-        reject(new Error(`Nitro server exited early with code ${code}`));
+      if (!settled) {
+        fail(new Error(`Nitro server exited early with code ${code}`));
       }
     });
 
     waitForServer(`http://localhost:${serverPort}`)
       .then(() => {
-        resolved = true;
-        resolve();
+        if (!settled) {
+          settled = true;
+          resolve();
+        }
       })
-      .catch(reject);
+      .catch(fail);
   });
 }
 
@@ -128,11 +162,7 @@ function createWindow() {
 // Graceful shutdown
 function shutdown() {
   console.log('Shutting down...');
-
-  if (serverProcess) {
-    serverProcess.kill('SIGTERM');
-  }
-
+  stopServer();
   app.quit();
 }
 
@@ -145,16 +175,15 @@ app.whenReady().then(async () => {
     await startServer();
     createWindow();
   } catch (err) {
-    console.error('❌ Failed to start server:', err.message);
+    console.error('Failed to start server:', err.message);
+    stopServer();
     app.quit();
   }
 });
 
 // Cleanup on window close
 app.on('window-all-closed', () => {
-  if (serverProcess) {
-    serverProcess.kill('SIGTERM');
-  }
+  stopServer();
 
   if (process.platform !== 'darwin') app.quit();
 });
