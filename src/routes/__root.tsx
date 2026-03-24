@@ -13,6 +13,7 @@ import {
 	useConnection,
 } from "../contexts/ConnectionProvider"
 import { useCaptureProvider } from "../hooks/useCaptureProvider"
+import { useWebRTCCaptureProvider } from "../hooks/useWebRTCCaptureProvider"
 
 export const Route = createRootRoute({
 	component: AppWithConnection,
@@ -46,7 +47,9 @@ function RootComponent() {
 
 function DesktopCaptureProvider() {
 	const { wsRef, status } = useConnection()
-	const { startSharing } = useCaptureProvider(wsRef)
+	const { startSharing: startCaptureProvider } = useCaptureProvider(wsRef)
+	const { startSharing: startWebRTC, isSharing: isWebRTCSharing } =
+		useWebRTCCaptureProvider(wsRef)
 	const hasStartedRef = useRef(false)
 
 	useEffect(() => {
@@ -58,9 +61,12 @@ function DesktopCaptureProvider() {
 
 		if (!isMobile && canShare) {
 			hasStartedRef.current = true
-			startSharing()
+			// Try WebRTC first (PoC #208), fall back to capture provider
+			startWebRTC().catch(() => {
+				startCaptureProvider()
+			})
 		}
-	}, [status, startSharing])
+	}, [status, startWebRTC, startCaptureProvider])
 
 	return null
 }
