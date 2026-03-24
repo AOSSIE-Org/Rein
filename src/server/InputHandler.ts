@@ -209,6 +209,7 @@ export class InputHandler {
 			case "clipboard-push": {
 				if (msg.text) {
 					// TEMP: fallback using typing instead of real clipboard
+					// TODO: Replace with native clipboard write
 					try {
 						await keyboard.type(msg.text)
 					} catch (err) {
@@ -235,7 +236,7 @@ export class InputHandler {
 				// ❗ send back to client (IMPORTANT)
 				this.sendToClient({
 					type: "clipboard-text",
-					text: "CLIPBOARD_DATA_UNAVAILABLE",
+					text: "Clipboard data temporarily unavailable",
 				})
 				break
 			}
