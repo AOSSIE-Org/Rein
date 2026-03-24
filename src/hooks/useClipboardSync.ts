@@ -48,7 +48,7 @@ export function useClipboardSync({
 					// Try modern clipboard API first (only works over HTTPS / localhost)
 					if (navigator.clipboard && window.isSecureContext) {
 						navigator.clipboard.writeText(msg.text).catch(() => {
-							insertTextFallback(msg.text!)
+							insertTextFallback(msg.text)
 						})
 					} else {
 						// Fallback: insert into focused element via execCommand (HTTP-safe)
