@@ -8,6 +8,7 @@ import { TouchArea } from "../components/Trackpad/TouchArea"
 import { useRemoteConnection } from "../hooks/useRemoteConnection"
 import { useTrackpadGesture } from "../hooks/useTrackpadGesture"
 import { ScreenMirror } from "../components/Trackpad/ScreenMirror"
+import { getStoredBoolean, getStoredNumber } from "../utils/storage"
 
 export const Route = createFileRoute("/trackpad")({
 	component: TrackpadPage,
@@ -25,15 +26,11 @@ function TrackpadPage() {
 
 	// Load Client Settings
 	const [sensitivity] = useState(() => {
-		if (typeof window === "undefined") return 1.0
-		const s = localStorage.getItem("rein_sensitivity")
-		return s ? Number.parseFloat(s) : 1.0
+		return getStoredNumber("rein_sensitivity", 1.0)
 	})
 
 	const [invertScroll] = useState(() => {
-		if (typeof window === "undefined") return false
-		const s = localStorage.getItem("rein_invert")
-		return s ? JSON.parse(s) : false
+		return getStoredBoolean("rein_invert", false)
 	})
 
 	const { send, sendCombo } = useRemoteConnection()
