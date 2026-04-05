@@ -18,6 +18,10 @@ export function useCaptureProvider(wsRef: React.RefObject<WebSocket | null>) {
 			for (const track of streamRef.current.getTracks()) track.stop()
 			streamRef.current = null
 		}
+		if (videoRef.current) {
+			videoRef.current.pause()
+			videoRef.current.srcObject = null
+		}
 		if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
 			wsRef.current.send(JSON.stringify({ type: "stop-mirror" }))
 		}
