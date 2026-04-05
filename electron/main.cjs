@@ -28,12 +28,20 @@ if (!gotLock) {
 }
 
 // Wait until server is ready
-function waitForServer(url) {
-  return new Promise((resolve) => {
+function waitForServer(url, maxRetries = 60) {
+  return new Promise((resolve, reject) => {
+    let attempts = 0;
     const check = () => {
+      attempts++;
       http
         .get(url, () => resolve())
-        .on('error', () => setTimeout(check, 500));
+        .on('error', () => {
+          if (attempts >= maxRetries) {
+            reject(new Error(`Server failed to start after ${maxRetries} attempts (${maxRetries * 0.5}s)`));
+          } else {
+            setTimeout(check, 500);
+          }
+        });
     };
     check();
   });
@@ -41,7 +49,7 @@ function waitForServer(url) {
 
 // Start Nitro server (production)
 function startServer() {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const serverPath = path.join(
       process.resourcesPath,
       'app.asar.unpacked',
@@ -62,7 +70,9 @@ function startServer() {
       },
     });
 
-    waitForServer(`http://localhost:${serverPort}`).then(resolve);
+    waitForServer(`http://localhost:${serverPort}`)
+      .then(resolve)
+      .catch(reject);
   });
 }
 
@@ -91,12 +101,30 @@ function createWindow() {
 
 // App start
 app.whenReady().then(async () => {
-  await startServer();
-  createWindow();
+  try {
+    await startServer();
+    createWindow();
+  } catch (error) {
+    console.error('Failed to start server:', error.message);
+    app.quit();
+  }
 });
 
 // Cleanup
 app.on('window-all-closed', () => {
   if (serverProcess) serverProcess.kill();
   if (process.platform !== 'darwin') app.quit();
+});
+
+// Handle process termination signals for clean shutdown
+process.on('SIGTERM', () => {
+  console.log('Received SIGTERM, shutting down gracefully');
+  if (serverProcess) serverProcess.kill();
+  app.quit();
+});
+
+process.on('SIGINT', () => {
+  console.log('Received SIGINT, shutting down gracefully');
+  if (serverProcess) serverProcess.kill();
+  app.quit();
 });
