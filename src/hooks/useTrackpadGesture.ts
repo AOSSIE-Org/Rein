@@ -254,12 +254,41 @@ export const useTrackpadGesture = (
 		}
 	}
 
+	const handleTouchCancel = () => {
+		// Clear all active touches
+		ongoingTouches.current.clear()
+
+		// Reset gesture state
+		setIsTracking(false)
+		moved.current = false
+		releasedCount.current = 0
+
+		// Reset pinch state
+		lastPinchDist.current = null
+		pinching.current = false
+
+		// Clear dragging timeout if exists
+		if (draggingTimeout.current) {
+			clearTimeout(draggingTimeout.current)
+			draggingTimeout.current = null
+		}
+
+		// Release drag if active
+		if (dragging.current) {
+			dragging.current = false
+		}
+
+		// 🔥 Safety: ensure no stuck mouse state
+		send({ type: "click", button: "left", press: false })
+	}
+
 	return {
 		isTracking,
 		handlers: {
 			onTouchStart: handleTouchStart,
 			onTouchMove: handleTouchMove,
 			onTouchEnd: handleTouchEnd,
+			onTouchCancel: handleTouchCancel,
 		},
 	}
 }
