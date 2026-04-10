@@ -20,17 +20,22 @@ pkgs.mkShell {
     nodejs_24
     procps
     appimage-run
+    kmod
   ] ++ sharedLibs;
 
   shellHook = ''
     export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath sharedLibs}:$LD_LIBRARY_PATH
     alias g="git"
-    # git clone https://github.com/AOSSIE-Org/Rein .
-    npm i
-    npm run dist
-    appimage-run ./dist/Rein-1.0.0.AppImage
-    # npm run electron-dev
+
+    if command -v modprobe >/dev/null 2>&1; then
+      sudo modprobe uinput || true
+    fi
+
+    if [ -e /dev/uinput ]; then
+      echo "/dev/uinput is available"
+      ls -l /dev/uinput
+    else
+      echo "/dev/uinput is not available"
+    fi
   '';
 }
-
-
