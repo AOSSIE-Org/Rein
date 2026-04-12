@@ -46,6 +46,20 @@ export const useTrackpadGesture = (
 	const lastPinchDist = useRef<number | null>(null)
 	const pinching = useRef(false)
 
+	const resetGestureState = () => {
+		ongoingTouches.current.clear()
+		moved.current = false
+		releasedCount.current = 0
+		dragging.current = false
+		lastPinchDist.current = null
+		pinching.current = false
+
+		if (draggingTimeout.current) {
+			clearTimeout(draggingTimeout.current)
+			draggingTimeout.current = null
+		}
+	}
+
 	const processMovement = (sumX: number, sumY: number) => {
 		const touchCount = ongoingTouches.current.size
 		if (dragging.current) {
@@ -222,36 +236,40 @@ export const useTrackpadGesture = (
 		if (ongoingTouches.current.size === 0 && releasedCount.current >= 1) {
 			setIsTracking(false)
 
-			// Release drag if active
-			if (dragging.current) {
-				dragging.current = false
+			// Capture state before reset
+			const wasDragging = dragging.current
+			const wasNotMoved = !moved.current
+			const elapsed = e.timeStamp - startTimeStamp.current
+			const button = BUTTON_MAP[releasedCount.current]
+
+			// Reset all gesture state in one place
+			resetGestureState()
+
+			// Release drag if was active
+			if (wasDragging) {
 				send({ type: "click", button: "left", press: false })
 			}
 
 			// Handle tap/click if not moved and within timeout
-			if (
-				!moved.current &&
-				e.timeStamp - startTimeStamp.current < TOUCH_TIMEOUT
-			) {
-				const button = BUTTON_MAP[releasedCount.current]
+			if (wasNotMoved && elapsed < TOUCH_TIMEOUT && button) {
+				send({ type: "click", button, press: true })
 
-				if (button) {
-					send({ type: "click", button, press: true })
-
-					// For left click, set up drag timeout
-					if (button === "left") {
-						draggingTimeout.current = setTimeout(
-							handleDraggingTimeout,
-							TOUCH_TIMEOUT,
-						)
-					} else {
-						send({ type: "click", button, press: false })
-					}
+				// For left click, set up drag timeout
+				if (button === "left") {
+					draggingTimeout.current = setTimeout(
+						handleDraggingTimeout,
+						TOUCH_TIMEOUT,
+					)
+				} else {
+					send({ type: "click", button, press: false })
 				}
 			}
-
-			releasedCount.current = 0
 		}
+	}
+
+	const handleTouchCancel = () => {
+		setIsTracking(false)
+		resetGestureState()
 	}
 
 	return {
@@ -260,6 +278,7 @@ export const useTrackpadGesture = (
 			onTouchStart: handleTouchStart,
 			onTouchMove: handleTouchMove,
 			onTouchEnd: handleTouchEnd,
+			onTouchCancel: handleTouchCancel,
 		},
 	}
 }
