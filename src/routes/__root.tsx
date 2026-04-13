@@ -6,7 +6,7 @@ import {
 	createRootRoute,
 } from "@tanstack/react-router"
 import { useEffect, useRef } from "react"
-import { APP_CONFIG, THEMES } from "../config"
+import { APP_CONFIG, THEMES, NAV_LABELS } from "../config"
 import "../styles.css"
 import {
 	ConnectionProvider,
@@ -125,9 +125,12 @@ function LatencyBadge() {
 
 function Navbar() {
 	return (
-		<div className="navbar bg-base-100 border-b border-base-300 min-h-12 h-12 z-50 px-4">
+		<div className="glass-navbar navbar min-h-16 h-16 z-50 px-4 md:px-6">
 			<div className="flex-1">
-				<Link to="/trackpad" className="btn btn-ghost text-xl normal-case">
+				<Link
+					to="/trackpad"
+					className="glass-btn glass-btn-neutral btn btn-sm md:btn-md text-xl font-semibold normal-case rounded-xl"
+				>
 					<img
 						src="/app_icon/IconLine.png"
 						height={32}
@@ -137,21 +140,34 @@ function Navbar() {
 					Rein
 				</Link>
 			</div>
-			<div className="flex-none flex items-center gap-2">
+			<div className="flex-none flex items-center gap-2 md:gap-3">
 				<LatencyBadge />
 				<Link
-					to="/trackpad"
-					className="btn btn-ghost btn-sm"
-					activeProps={{ className: "btn-active bg-base-200" }}
+					to="/"
+					className="glass-btn glass-btn-neutral btn btn-sm rounded-xl"
+					activeProps={{
+						className: "glass-btn glass-btn-primary btn btn-sm rounded-xl",
+					}}
 				>
-					Trackpad
+					{NAV_LABELS.HOME}
+				</Link>
+				<Link
+					to="/trackpad"
+					className="glass-btn glass-btn-neutral btn btn-sm rounded-xl"
+					activeProps={{
+						className: "glass-btn glass-btn-primary btn btn-sm rounded-xl",
+					}}
+				>
+					{NAV_LABELS.TRACKPAD}
 				</Link>
 				<Link
 					to="/settings"
-					className="btn btn-ghost btn-sm"
-					activeProps={{ className: "btn-active bg-base-200" }}
+					className="glass-btn glass-btn-neutral btn btn-sm rounded-xl"
+					activeProps={{
+						className: "glass-btn glass-btn-primary btn btn-sm rounded-xl",
+					}}
 				>
-					Settings
+					{NAV_LABELS.SETTINGS}
 				</Link>
 			</div>
 		</div>

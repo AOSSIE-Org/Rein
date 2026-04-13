@@ -6,3 +6,229 @@
     dracula --default --prefersdark,
     cupcake;
 }
+
+.home-shell {
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background:
+    radial-gradient(circle at 15% 10%, color-mix(in oklab, var(--color-primary) 18%, transparent), transparent 40%),
+    radial-gradient(circle at 85% 90%, color-mix(in oklab, var(--color-secondary) 18%, transparent), transparent 42%),
+    linear-gradient(180deg, color-mix(in oklab, var(--color-base-100) 92%, transparent), var(--color-base-200));
+}
+
+.glass-navbar {
+  position: relative;
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--color-base-100) 78%, transparent),
+    color-mix(in oklab, var(--color-base-100) 60%, transparent)
+  );
+  backdrop-filter: blur(16px) saturate(128%);
+  border-bottom: 1px solid color-mix(in oklab, var(--color-base-content) 15%, transparent);
+  box-shadow:
+    0 12px 28px -18px color-mix(in oklab, var(--color-base-content) 38%, transparent),
+    inset 0 1px 0 color-mix(in oklab, white 28%, transparent);
+}
+
+.glass-navbar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--color-primary) 45%, transparent),
+    transparent
+  );
+  opacity: 0.6;
+}
+
+.glass-btn {
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 12%, transparent);
+  background: color-mix(in oklab, var(--color-base-100) 58%, transparent);
+  backdrop-filter: blur(10px) saturate(120%);
+  box-shadow:
+    0 10px 24px -18px color-mix(in oklab, var(--color-base-content) 45%, transparent),
+    inset 0 1px 0 color-mix(in oklab, white 20%, transparent);
+  transition:
+    border-color 160ms ease,
+    transform 140ms ease,
+    background-color 160ms ease,
+    box-shadow 180ms ease;
+}
+
+.glass-btn:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklab, var(--color-primary) 38%, var(--color-base-content) 26%);
+  background: color-mix(in oklab, var(--color-base-100) 70%, transparent);
+  box-shadow:
+    0 16px 30px -18px color-mix(in oklab, var(--color-primary) 36%, transparent),
+    inset 0 1px 0 color-mix(in oklab, white 25%, transparent);
+}
+
+.glass-btn-primary {
+  border: 1px solid color-mix(in oklab, var(--color-primary) 42%, var(--color-base-content) 28%);
+  background: linear-gradient(
+    130deg,
+    color-mix(in oklab, var(--color-primary) 24%, var(--color-base-100) 80%),
+    color-mix(in oklab, var(--color-base-100) 70%, transparent)
+  );
+  box-shadow:
+    0 16px 30px -18px color-mix(in oklab, var(--color-primary) 34%, transparent),
+    inset 0 1px 0 color-mix(in oklab, white 26%, transparent);
+}
+
+.glass-btn-neutral {
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 14%, transparent);
+  background: linear-gradient(
+    145deg,
+    color-mix(in oklab, var(--color-base-100) 74%, transparent),
+    color-mix(in oklab, var(--color-base-100) 58%, transparent)
+  );
+}
+
+.glass-nav-link {
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 12%, transparent);
+  background: color-mix(in oklab, var(--color-base-100) 58%, transparent);
+  backdrop-filter: blur(10px) saturate(120%);
+  transition: border-color 160ms ease, transform 140ms ease, background-color 160ms ease;
+}
+
+.glass-nav-link:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklab, var(--color-primary) 38%, var(--color-base-content) 26%);
+  background: color-mix(in oklab, var(--color-base-100) 70%, transparent);
+}
+
+.glass-nav-link-active {
+  border: 1px solid color-mix(in oklab, var(--color-primary) 42%, var(--color-base-content) 28%);
+  background: linear-gradient(
+    130deg,
+    color-mix(in oklab, var(--color-primary) 24%, var(--color-base-100) 80%),
+    color-mix(in oklab, var(--color-base-100) 70%, transparent)
+  );
+  box-shadow: inset 0 1px 0 color-mix(in oklab, white 26%, transparent);
+}
+
+.glass-card {
+  background: linear-gradient(
+    140deg,
+    color-mix(in oklab, var(--color-base-100) 84%, transparent),
+    color-mix(in oklab, var(--color-base-100) 62%, transparent)
+  );
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 16%, transparent);
+  backdrop-filter: blur(20px) saturate(130%);
+  box-shadow:
+    0 16px 36px -22px color-mix(in oklab, var(--color-base-content) 46%, transparent),
+    inset 0 1px 0 color-mix(in oklab, white 26%, transparent);
+}
+
+.glass-subcard {
+  background: linear-gradient(
+    155deg,
+    color-mix(in oklab, var(--color-base-100) 78%, transparent),
+    color-mix(in oklab, var(--color-base-200) 80%, transparent)
+  );
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 14%, transparent);
+  backdrop-filter: blur(12px) saturate(120%);
+}
+
+.glass-hover {
+  transition: transform 160ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.glass-hover:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklab, var(--color-primary) 45%, var(--color-base-content) 30%);
+  box-shadow: 0 18px 30px -22px color-mix(in oklab, var(--color-primary) 30%, transparent);
+}
+
+.home-ambient::before,
+.home-ambient::after {
+  content: "";
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(48px);
+  opacity: 0.45;
+  animation: home-float 9s ease-in-out infinite;
+}
+
+.home-ambient::before {
+  left: -84px;
+  top: -66px;
+  width: 280px;
+  height: 280px;
+  background: color-mix(in oklab, var(--color-primary) 26%, transparent);
+}
+
+.home-ambient::after {
+  right: -72px;
+  bottom: -90px;
+  width: 310px;
+  height: 310px;
+  background: color-mix(in oklab, var(--color-secondary) 22%, transparent);
+  animation-delay: -2.8s;
+}
+
+.home-grid {
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in oklab, var(--color-base-content) 12%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--color-base-content) 12%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 32px 32px;
+  mask-image: radial-gradient(circle at center, black 35%, transparent 80%);
+}
+
+.home-enter-up {
+  animation: home-enter-up 500ms ease-out both;
+}
+
+.home-enter-up-delay {
+  animation: home-enter-up 600ms ease-out both;
+  animation-delay: 120ms;
+}
+
+@keyframes home-float {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0) scale(1.03);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes home-enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-ambient::before,
+  .home-ambient::after,
+  .home-enter-up,
+  .home-enter-up-delay {
+    animation: none;
+    animation-delay: 0;
+  }
+}
