@@ -9,16 +9,13 @@
 
 .home-shell {
   position: relative;
-  overflow: hidden;
-  scrollbar-width: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background:
     radial-gradient(circle at 15% 10%, color-mix(in oklab, var(--color-primary) 18%, transparent), transparent 40%),
     radial-gradient(circle at 85% 90%, color-mix(in oklab, var(--color-secondary) 18%, transparent), transparent 42%),
     linear-gradient(180deg, color-mix(in oklab, var(--color-base-100) 92%, transparent), var(--color-base-200));
-}
-
-.home-shell::-webkit-scrollbar {
-  display: none;
 }
 
 .glass-navbar {
@@ -223,5 +220,15 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-ambient::before,
+  .home-ambient::after,
+  .home-enter-up,
+  .home-enter-up-delay {
+    animation: none;
+    animation-delay: 0;
   }
 }

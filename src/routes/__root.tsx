@@ -6,7 +6,7 @@ import {
 	createRootRoute,
 } from "@tanstack/react-router"
 import { useEffect, useRef } from "react"
-import { APP_CONFIG, THEMES } from "../config"
+import { APP_CONFIG, THEMES, NAV_LABELS } from "../config"
 import "../styles.css"
 import {
 	ConnectionProvider,
@@ -149,7 +149,7 @@ function Navbar() {
 						className: "glass-btn glass-btn-primary btn btn-sm rounded-xl",
 					}}
 				>
-					Home
+					{NAV_LABELS.HOME}
 				</Link>
 				<Link
 					to="/trackpad"
@@ -158,7 +158,7 @@ function Navbar() {
 						className: "glass-btn glass-btn-primary btn btn-sm rounded-xl",
 					}}
 				>
-					Trackpad
+					{NAV_LABELS.TRACKPAD}
 				</Link>
 				<Link
 					to="/settings"
@@ -167,7 +167,7 @@ function Navbar() {
 						className: "glass-btn glass-btn-primary btn btn-sm rounded-xl",
 					}}
 				>
-					Settings
+					{NAV_LABELS.SETTINGS}
 				</Link>
 			</div>
 		</div>
