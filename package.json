@@ -9,7 +9,7 @@
 		"dev": "vite dev --host",
 		"start": "vite preview --host --open",
 		"build": "vite build",
-		"electron": "npx electron .",
+		"electron": "bunx electron .",
 		"electron-dev": "concurrently \"vite\" \"wait-on http://localhost:3000 && VITE_DEV_SERVER_URL=http://localhost:3000 electron .\"",
 		"dist": "electron-builder",
 		"preview": "vite preview",
@@ -81,7 +81,7 @@
 			"electron/**/*",
 			"package.json"
 		],
-		"npmRebuild": true,
+		"npmRebuild": false,
 		"linux": {
 			"target": "AppImage"
 		},

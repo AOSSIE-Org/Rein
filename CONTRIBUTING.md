@@ -71,8 +71,7 @@ What we expect:
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18 or higher recommended)
-- npm (comes with Node.js)
+- [Bun](https://bun.sh/) (v1.0 or higher recommended)
 - Access to Windows, Linux Wayland, and macOS (either on bare metal or via VM) is mandatory to fully test the app's cross-platform functionality.
 
 ### Setup
@@ -98,12 +97,12 @@ What we expect:
 
 5. **Install Dependencies**
    ```bash
-   npm install
+   bun install
    ```
 
 6. **Run the Project**
    ```bash
-   npm run dev
+   bun run dev
    ```
 
 ## 🔄 Development Workflow
@@ -131,13 +130,13 @@ We use Vitest for testing and Biome for formatting/linting:
 
 ```bash
 # Run tests
-npm run test
+bun run test
 
 # Format & Lint code
-npm run check
+bun run check
 
 # Auto-fix formatting & linting issues
-npm run check:fix
+bun run check:fix
 ```
 
 ### 4. Commit Your Changes
@@ -177,8 +176,8 @@ git push origin feature/your-feature-name
 
 ### Before Submitting
 
-- [ ] Your code follows the project's style guidelines (`npm run check`)
-- [ ] You've tested your changes thoroughly (`npm run test`)
+- [ ] Your code follows the project's style guidelines (`bun run check`)
+- [ ] You've tested your changes thoroughly (`bun run test`)
 - [ ] You've updated relevant documentation
 - [ ] Your commits are clean and well-organized
 - [ ] You've rebased with the latest upstream changes
@@ -238,7 +237,7 @@ The project uses [Biome](https://biomejs.dev/) for formatting and linting.
 
 ### General Guidelines
 
-- Run `npm run check` (or `npm run check:fix` to auto-fix) before committing your code.
+- Run `bun run check` (or `bun run check:fix` to auto-fix) before committing your code.
 - Use meaningful variable and function names.
 - Keep functions small and focused.
 - Add comments for complex logic.
