@@ -33,15 +33,22 @@ function waitForServer(url, timeout = 15000) {
     const start = Date.now();
 
     const check = () => {
-      http
-        .get(url, () => resolve())
-        .on('error', () => {
-          if (Date.now() - start > timeout) {
-            reject(new Error('Server did not start within timeout'));
-          } else {
-            setTimeout(check, 500);
-          }
-        });
+      const req = http.get(url, (res) => {
+        res.resume();
+        resolve();
+      });
+
+      req.setTimeout(2000, () => {
+        req.destroy();
+      });
+
+      req.on('error', () => {
+        if (Date.now() - start > timeout) {
+          reject(new Error('Server did not start within timeout'));
+        } else {
+          setTimeout(check, 500);
+        }
+      });
     };
 
     check();
@@ -111,6 +118,7 @@ app.whenReady().then(async () => {
     createWindow();
   } catch (e) {
     console.error('Startup failed:', e);
+    if (serverProcess) serverProcess.kill();
     app.quit();
   }
 });
