@@ -28,20 +28,29 @@ if (!gotLock) {
 }
 
 // Wait until server is ready
-function waitForServer(url) {
-  return new Promise((resolve) => {
+function waitForServer(url, timeout = 15000) {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+
     const check = () => {
       http
         .get(url, () => resolve())
-        .on('error', () => setTimeout(check, 500));
+        .on('error', () => {
+          if (Date.now() - start > timeout) {
+            reject(new Error('Server did not start within timeout'));
+          } else {
+            setTimeout(check, 500);
+          }
+        });
     };
+
     check();
   });
 }
 
 // Start Nitro server (production)
 function startServer() {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const serverPath = path.join(
       process.resourcesPath,
       'app.asar.unpacked',
@@ -62,7 +71,13 @@ function startServer() {
       },
     });
 
-    waitForServer(`http://localhost:${serverPort}`).then(resolve);
+    waitForServer(`http://localhost:${serverPort}`)
+      .then(resolve)
+      .catch((err) => {
+        console.error('Server failed to start:', err);
+        if (serverProcess) serverProcess.kill();
+        reject(err)
+      });
   });
 }
 
@@ -91,8 +106,13 @@ function createWindow() {
 
 // App start
 app.whenReady().then(async () => {
-  await startServer();
-  createWindow();
+  try {
+    await startServer();
+    createWindow();
+  } catch (e) {
+    console.error('Startup failed:', e);
+    app.quit();
+  }
 });
 
 // Cleanup
