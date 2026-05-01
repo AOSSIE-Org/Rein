@@ -14,8 +14,11 @@ export interface InputMessage {
 		| "text"
 		| "zoom"
 		| "combo"
+		| "absolute"
 	dx?: number
 	dy?: number
+	x?: number
+	y?: number
 	button?: "left" | "right" | "middle"
 	press?: boolean
 	key?: string
@@ -58,6 +61,7 @@ export class InputHandler {
 		}
 
 		const MAX_COORD = 2000
+		const MAX_ABS_COORD = 10000
 		if (this.isFiniteNumber(msg.dx)) {
 			msg.dx = this.clamp(msg.dx, -MAX_COORD, MAX_COORD)
 		} else {
@@ -67,6 +71,16 @@ export class InputHandler {
 			msg.dy = this.clamp(msg.dy, -MAX_COORD, MAX_COORD)
 		} else {
 			msg.dy = 0
+		}
+		if (this.isFiniteNumber(msg.x)) {
+			msg.x = this.clamp(msg.x, -MAX_ABS_COORD, MAX_ABS_COORD)
+		} else {
+			msg.x = undefined
+		}
+		if (this.isFiniteNumber(msg.y)) {
+			msg.y = this.clamp(msg.y, -MAX_ABS_COORD, MAX_ABS_COORD)
+		} else {
+			msg.y = undefined
 		}
 		if (this.isFiniteNumber(msg.delta)) {
 			msg.delta = this.clamp(msg.delta, -MAX_COORD, MAX_COORD)
@@ -140,6 +154,29 @@ export class InputHandler {
 						}
 					} catch (err) {
 						console.error("Move event failed:", err)
+					}
+				}
+				break
+
+			case "absolute":
+				if (
+					typeof msg.x === "number" &&
+					typeof msg.y === "number" &&
+					Number.isFinite(msg.x) &&
+					Number.isFinite(msg.y)
+				) {
+					try {
+						// Attempt ydotool absolute movement first
+						const success = await moveRelative(msg.x, msg.y, true)
+
+						// Fallback to absolute positioning if ydotool is unavailable or fails
+						if (!success) {
+							await mouse.setPosition(
+								new Point(Math.round(msg.x), Math.round(msg.y)),
+							)
+						}
+					} catch (err) {
+						console.error("Absolute move event failed:", err)
 					}
 				}
 				break

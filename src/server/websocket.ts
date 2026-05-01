@@ -345,6 +345,7 @@ export async function createWsServer(
 						"combo",
 						"copy",
 						"paste",
+						"absolute",
 					]
 					if (!msg.type || !VALID_INPUT_TYPES.includes(msg.type)) {
 						logger.warn(`Unknown message type: ${msg.type}`)

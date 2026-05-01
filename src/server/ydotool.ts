@@ -50,20 +50,23 @@ export async function checkYdotool(): Promise<boolean> {
  * @param dy Y offset
  * @returns true if successful, false otherwise
  */
-export async function moveRelative(dx: number, dy: number): Promise<boolean> {
+export async function moveRelative(
+	dx: number,
+	dy: number,
+	absolute = false,
+): Promise<boolean> {
 	if (!(await checkYdotool()) || !ydotoolPath) {
 		return false
 	}
 
 	try {
-		// ydotool mousemove -x <dx> -y <dy>
-		await execFileAsync(ydotoolPath, [
-			"mousemove",
-			"-x",
-			String(dx),
-			"-y",
-			String(dy),
-		])
+		const args = ["mousemove"]
+		if (absolute) {
+			args.push("--absolute")
+		}
+		args.push("-x", String(dx), "-y", String(dy))
+
+		await execFileAsync(ydotoolPath, args)
 		return true
 	} catch (err) {
 		console.error("[ydotool] Error executing mousemove:", err)

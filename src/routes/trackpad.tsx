@@ -224,11 +224,7 @@ function TrackpadPage() {
 					scrollMode={scrollMode}
 					handlers={handlers}
 				/>
-				<ScreenMirror
-					isTracking={isTracking}
-					scrollMode={scrollMode}
-					handlers={handlers}
-				/>
+				<ScreenMirror isTracking={isTracking} scrollMode={scrollMode} />
 				{bufferText !== "" && <BufferBar bufferText={bufferText} />}
 			</div>
 
