@@ -7,7 +7,7 @@
 
 # Rein
 
-A cross-platform, LAN-based remote desktop utilizing touch-screen devices following the **KISS principle**. It allows touchscreen devices to act as a trackpad and keyboard for a desktop system through a locally served web interface. This can serve as a standard open interface for upcoming cloud gaming services. The project also bring better STT for Linux via phone and other platforms.
+A cross-platform, LAN-based remote desktop utilizing touch-screen devices following the **KISS principle**. It allows touchscreen devices to act as a trackpad and keyboard for a desktop system through a locally served web interface. This can serve as a standard open interface for upcoming cloud PC/gaming services. The project also bring better STT for Linux via phone and other platforms.
 
 > Contributions are welcome! Please leave a star ⭐ to show your support.
 
