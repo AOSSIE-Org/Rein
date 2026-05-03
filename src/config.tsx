@@ -10,3 +10,9 @@ export const THEMES = {
 	DARK: "dracula",
 	DEFAULT: "dracula",
 }
+
+export const NAV_LABELS = {
+	HOME: "Home",
+	TRACKPAD: "Trackpad",
+	SETTINGS: "Settings",
+}
