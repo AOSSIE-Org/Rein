@@ -23,6 +23,7 @@ function isLocalhost(request: IncomingMessage): boolean {
 interface ExtWebSocket extends WebSocket {
 	isConsumer?: boolean
 	isProvider?: boolean
+	isWebRTCConsumer?: boolean
 }
 
 export async function createWsServer(
@@ -227,6 +228,75 @@ export async function createWsServer(
 					if (msg.type === "start-provider") {
 						;(ws as ExtWebSocket).isProvider = true
 						logger.info("Client registered as Screen Provider")
+						return
+					}
+
+					if (msg.type === "start-webrtc-consumer") {
+						;(ws as ExtWebSocket).isWebRTCConsumer = true
+						logger.info("Client registered as WebRTC Consumer")
+						return
+					}
+
+					if (msg.type === "stop-webrtc-provider") {
+						;(ws as ExtWebSocket).isProvider = false
+						logger.info("Client unregistered as WebRTC Provider")
+						return
+					}
+
+					if (msg.type === "webrtc-offer") {
+						logger.info("Received WebRTC offer, relaying to consumer")
+						for (const client of wss.clients) {
+							if (
+								(client as ExtWebSocket).isWebRTCConsumer &&
+								client.readyState === WebSocket.OPEN
+							) {
+								client.send(
+									JSON.stringify({
+										type: "webrtc-offer",
+										payload: msg.payload,
+									}),
+								)
+							}
+						}
+						return
+					}
+
+					if (msg.type === "webrtc-answer") {
+						logger.info("Received WebRTC answer, relaying to provider")
+						for (const client of wss.clients) {
+							if (
+								(client as ExtWebSocket).isProvider &&
+								client.readyState === WebSocket.OPEN
+							) {
+								client.send(
+									JSON.stringify({
+										type: "webrtc-answer",
+										payload: msg.payload,
+									}),
+								)
+							}
+						}
+						return
+					}
+
+					if (msg.type === "webrtc-ice") {
+						const isFromProvider = (ws as ExtWebSocket).isProvider
+						const targetRole = isFromProvider ? "consumer" : "provider"
+
+						for (const client of wss.clients) {
+							const isTarget = isFromProvider
+								? (client as ExtWebSocket).isWebRTCConsumer
+								: (client as ExtWebSocket).isProvider
+
+							if (isTarget && client.readyState === WebSocket.OPEN) {
+								client.send(
+									JSON.stringify({
+										type: "webrtc-ice",
+										payload: msg.payload,
+									}),
+								)
+							}
+						}
 						return
 					}
 

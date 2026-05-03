@@ -4,6 +4,7 @@ import type React from "react"
 import { useRef } from "react"
 import { useConnection } from "../../contexts/ConnectionProvider"
 import { useMirrorStream } from "../../hooks/useMirrorStream"
+import { useWebRTCStream } from "../../hooks/useWebRTCStream"
 
 interface ScreenMirrorProps {
 	scrollMode: boolean
@@ -23,7 +24,13 @@ export const ScreenMirror = ({
 }: ScreenMirrorProps) => {
 	const { wsRef, status } = useConnection()
 	const canvasRef = useRef<HTMLCanvasElement>(null)
-	const { hasFrame } = useMirrorStream(wsRef, canvasRef, status)
+
+	// Try WebRTC first (PoC #208), fall back to old method
+	const { hasFrame: hasWebRTCFrame } = useWebRTCStream(wsRef, canvasRef, status)
+	const { hasFrame: hasLegacyFrame } = useMirrorStream(wsRef, canvasRef, status)
+
+	// Prefer WebRTC if connected
+	const hasFrame = status === "connected" ? hasWebRTCFrame : hasLegacyFrame
 
 	return (
 		<div className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden select-none touch-none">
