@@ -29,41 +29,30 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: "npm"
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
 
-      - name: Clean node_modules and npm cache (Windows)
+      - name: Clean node_modules (Windows)
         if: runner.os == 'Windows'
         run: |
           if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
-          npm cache clean --force
         shell: pwsh
 
-      - name: Clean node_modules and npm cache (macOS/Linux)
+      - name: Clean node_modules (macOS/Linux)
         if: runner.os != 'Windows'
-        run: |
-          rm -rf node_modules package-lock.json || true
-          npm cache clean --force
+        run: rm -rf node_modules || true
 
-      - name: Install dependencies (Windows)
-        if: runner.os == 'Windows'
-        run: npm ci --include=optional
-
-      - name: Install dependencies (macOS/Linux)
-        if: runner.os != 'Windows'
-        run: npm install --include=optional --force
+      - name: Install dependencies
+        run: bun install
 
       - name: Rebuild native dependencies
-        run: npx electron-builder install-app-deps
+        run: bunx electron-builder install-app-deps
 
       - name: Build frontend
-        run: npm run build
+        run: bun run build
 
       - name: Package Electron app
-        run: npm run dist -- --publish=never
+        run: bun run dist -- --publish=never
 
       - name: Upload Electron Artifacts
         uses: actions/upload-artifact@v4
