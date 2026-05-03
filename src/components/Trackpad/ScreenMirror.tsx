@@ -63,8 +63,9 @@ export const ScreenMirror = ({ scrollMode, isTracking }: ScreenMirrorProps) => {
 		if (!coords) return
 
 		e.currentTarget.setPointerCapture(e.pointerId)
-		send({ type: "absolute", x: coords.x, y: coords.y })
-
+		if (e.pointerType === "mouse" || !scrollMode) {
+			send({ type: "absolute", x: coords.x, y: coords.y })
+		}
 		if (e.pointerType === "mouse") {
 			const button =
 				e.button === 0 ? "left" : e.button === 2 ? "right" : "middle"
@@ -93,7 +94,7 @@ export const ScreenMirror = ({ scrollMode, isTracking }: ScreenMirrorProps) => {
 				const dy = e.clientY - lastPos.current.y
 				send({ type: "scroll", dx: -dx * 1.5, dy: -dy * 1.5 })
 				lastPos.current = { x: e.clientX, y: e.clientY }
-			} else if (lastPos.current) {
+			} else if (lastPos.current && !scrollMode) {
 				send({ type: "absolute", x: coords.x, y: coords.y })
 			}
 		}
