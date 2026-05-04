@@ -341,7 +341,7 @@ function SettingsPage() {
 										const newHostname = window.location.hostname
 										const newUrl = `${newProtocol}//${newHostname}:${frontendPort}/settings`
 										window.location.href = newUrl
-									}, 1000)
+									}, 2500)
 								}
 							}}
 						>

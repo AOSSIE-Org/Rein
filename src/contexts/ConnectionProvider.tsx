@@ -32,7 +32,9 @@ export const useConnection = () => {
 
 export function ConnectionProvider({
 	children,
-}: { children: React.ReactNode }) {
+}: {
+	children: React.ReactNode
+}) {
 	const wsRef = useRef<WebSocket | null>(null)
 	const [status, setStatus] = useState<ConnectionStatus>("disconnected")
 	const [platform, setPlatform] = useState<string | null>(null)
@@ -66,7 +68,7 @@ export function ConnectionProvider({
 		let storedToken: string | null = null
 		try {
 			storedToken = localStorage.getItem("rein_auth_token")
-		} catch (e) {
+		} catch (_e) {
 			// Restricted context (e.g. private mode)
 		}
 
@@ -75,7 +77,7 @@ export function ConnectionProvider({
 		if (urlToken && urlToken !== storedToken) {
 			try {
 				localStorage.setItem("rein_auth_token", urlToken)
-			} catch (e) {
+			} catch (_e) {
 				// Failed to store
 			}
 		}
@@ -122,7 +124,7 @@ export function ConnectionProvider({
 						callback(msg)
 					}
 				}
-			} catch (e) {
+			} catch (_e) {
 				// Not JSON or silent error
 			}
 		}
