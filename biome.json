@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.4.14/schema.json",
 
 	"vcs": {
 		"enabled": false,
@@ -9,8 +9,14 @@
 
 	"files": {
 		"ignoreUnknown": false,
-		"include": ["src/**/*", ".vscode/**/*", "index.html", "vite.config.ts"],
-		"ignore": ["src/routeTree.gen.ts", "src/styles.css"]
+		"includes": [
+			"src/**/*",
+			".vscode/**/*",
+			"index.html",
+			"vite.config.ts",
+			"!src/routeTree.gen.ts",
+			"!src/styles.css"
+		]
 	},
 
 	"formatter": {
@@ -18,9 +24,7 @@
 		"indentStyle": "tab"
 	},
 
-	"organizeImports": {
-		"enabled": false
-	},
+	"assist": { "actions": { "source": { "organizeImports": "off" } } },
 
 	"linter": {
 		"enabled": true,

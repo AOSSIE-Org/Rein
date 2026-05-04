@@ -16,7 +16,7 @@ const TEXTS = {
 	AUTOMATIC: "Mirroring will start automatically",
 }
 
-export const ScreenMirror = ({ scrollMode, isTracking }: ScreenMirrorProps) => {
+export const ScreenMirror = ({ scrollMode }: ScreenMirrorProps) => {
 	const { wsRef, status } = useConnection()
 	const canvasRef = useRef<HTMLCanvasElement>(null)
 	const { hasFrame } = useMirrorStream(wsRef, canvasRef, status)
@@ -121,8 +121,9 @@ export const ScreenMirror = ({ scrollMode, isTracking }: ScreenMirrorProps) => {
 			{/* Mirror Canvas */}
 			<canvas
 				ref={canvasRef}
-				className={`w-full h-full object-contain transition-opacity duration-500 ${hasFrame ? "opacity-100" : "opacity-0"
-					}`}
+				className={`w-full h-full object-contain transition-opacity duration-500 ${
+					hasFrame ? "opacity-100" : "opacity-0"
+				}`}
 			/>
 
 			{/* Standby UI */}
@@ -137,8 +138,10 @@ export const ScreenMirror = ({ scrollMode, isTracking }: ScreenMirrorProps) => {
 			)}
 
 			{/* Transparent Gesture Overlay */}
+			{/* biome-ignore lint/a11y/noStaticElementInteractions: gesture overlay */}
 			<div
 				className="absolute inset-0 z-10"
+				role="presentation"
 				onPointerDown={handlePointerDown}
 				onPointerMove={handlePointerMove}
 				onPointerUp={handlePointerUp}

@@ -11,8 +11,6 @@ import {
 	FaArrowLeft,
 	FaArrowRight,
 	FaLevelDownAlt,
-	FaBackward,
-	FaForward,
 } from "react-icons/fa"
 import { FaBackwardStep, FaForwardStep } from "react-icons/fa6"
 import { MdSpaceBar } from "react-icons/md"

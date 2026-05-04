@@ -32,7 +32,7 @@ export async function checkYdotool(): Promise<boolean> {
 		if (isYdotoolAvailable) {
 			console.log(`[ydotool] Found at ${ydotoolPath}`)
 		}
-	} catch (err) {
+	} catch (_err) {
 		isYdotoolAvailable = false
 		lastFailureTime = now
 		console.warn(

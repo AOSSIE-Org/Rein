@@ -18,12 +18,25 @@ export const Route = createRootRoute({
 	component: AppWithConnection,
 	errorComponent: (props) => {
 		return (
-			<RootDocument>
-				<div>Error: {props.error.message}</div>
-			</RootDocument>
+			<ConnectionProvider>
+				<RootDocument>
+					<div className="p-4 text-red-500">
+						<h1 className="text-xl font-bold mb-2">Something went wrong!</h1>
+						<pre className="text-sm bg-base-300 p-4 rounded overflow-auto">
+							{props.error.message}
+						</pre>
+					</div>
+				</RootDocument>
+			</ConnectionProvider>
 		)
 	},
-	notFoundComponent: () => <div>Not Found</div>,
+	notFoundComponent: () => (
+		<ConnectionProvider>
+			<RootDocument>
+				<div className="p-4 text-center text-xl mt-10">404 - Not Found</div>
+			</RootDocument>
+		</ConnectionProvider>
+	),
 })
 
 function AppWithConnection() {
