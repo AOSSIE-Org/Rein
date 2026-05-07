@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
 	PINCH_THRESHOLD,
 	TOUCH_MOVE_THRESHOLD,
@@ -253,6 +253,14 @@ export const useTrackpadGesture = (
 			releasedCount.current = 0
 		}
 	}
+
+	useEffect(() => {
+		return () => {
+			if (draggingTimeout.current) {
+				clearTimeout(draggingTimeout.current)
+			}
+		}
+	}, [])
 
 	return {
 		isTracking,
