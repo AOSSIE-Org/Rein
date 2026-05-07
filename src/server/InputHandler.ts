@@ -3,11 +3,18 @@ import { KEY_MAP } from "./KeyMap"
 import { moveRelative } from "./ydotool"
 import os from "node:os"
 
+type ServerToClientMessage = {
+	type: "clipboard-text"
+	text: string
+}
+
 export interface InputMessage {
 	type:
 		| "move"
 		| "paste"
 		| "copy"
+		| "clipboard-push"
+		| "clipboard-pull"
 		| "click"
 		| "scroll"
 		| "key"
@@ -34,7 +41,10 @@ export class InputHandler {
 	private throttleMs: number
 	private modifier: Key
 
-	constructor(throttleMs = 8) {
+	constructor(
+		private sendToClient: (msg: ServerToClientMessage) => void,
+		throttleMs = 8,
+	) {
 		mouse.config.mouseSpeed = 1000
 		this.modifier = os.platform() === "darwin" ? Key.LeftSuper : Key.LeftControl
 		this.throttleMs = throttleMs
@@ -193,6 +203,41 @@ export class InputHandler {
 						keyboard.releaseKey(this.modifier),
 					])
 				}
+				break
+			}
+
+			case "clipboard-push": {
+				if (msg.text) {
+					// TEMP: fallback using typing instead of real clipboard
+					// TODO: Replace with native clipboard write
+					try {
+						await keyboard.type(msg.text)
+					} catch (err) {
+						console.error("Clipboard push failed:", err)
+					}
+				}
+				break
+			}
+
+			case "clipboard-pull": {
+				// simulate Ctrl+C to get current clipboard
+				try {
+					await keyboard.pressKey(this.modifier, Key.C)
+				} finally {
+					await Promise.allSettled([
+						keyboard.releaseKey(Key.C),
+						keyboard.releaseKey(this.modifier),
+					])
+				}
+
+				// small delay to allow clipboard update
+				await new Promise((r) => setTimeout(r, 100))
+
+				// ❗ send back to client (IMPORTANT)
+				this.sendToClient({
+					type: "clipboard-text",
+					text: "Clipboard data temporarily unavailable",
+				})
 				break
 			}
 
