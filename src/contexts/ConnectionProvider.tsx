@@ -9,6 +9,7 @@ import {
 	useState,
 	useCallback,
 } from "react"
+import { safeGetItem, safeSetItem } from "../utils/storage"
 
 type ConnectionStatus = "connecting" | "connected" | "disconnected"
 
@@ -63,21 +64,12 @@ export function ConnectionProvider({
 		const urlParams = new URLSearchParams(window.location.search)
 		const urlToken = urlParams.get("token")
 
-		let storedToken: string | null = null
-		try {
-			storedToken = localStorage.getItem("rein_auth_token")
-		} catch (e) {
-			// Restricted context (e.g. private mode)
-		}
+		const storedToken = safeGetItem("rein_auth_token")
 
 		const token = urlToken || storedToken
 
 		if (urlToken && urlToken !== storedToken) {
-			try {
-				localStorage.setItem("rein_auth_token", urlToken)
-			} catch (e) {
-				// Failed to store
-			}
+			safeSetItem("rein_auth_token", urlToken)
 		}
 
 		let wsUrl = `${protocol}//${host}/ws`

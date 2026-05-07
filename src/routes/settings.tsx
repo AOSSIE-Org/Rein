@@ -3,6 +3,12 @@ import QRCode from "qrcode"
 import { useEffect, useState } from "react"
 import { APP_CONFIG, THEMES } from "../config"
 import serverConfig from "../server-config.json"
+import {
+	getStoredBoolean,
+	getStoredNumber,
+	safeGetItem,
+	safeSetItem,
+} from "../utils/storage"
 
 export const Route = createFileRoute("/settings")({
 	component: SettingsPage,
@@ -19,40 +25,25 @@ function SettingsPage() {
 
 	// Client Side Settings (LocalStorage)
 	const [invertScroll, setInvertScroll] = useState(() => {
-		if (typeof window === "undefined") return false
-		try {
-			const saved = localStorage.getItem("rein_invert")
-			return saved === "true"
-		} catch {
-			return false
-		}
+		return getStoredBoolean("rein_invert", false)
 	})
 
 	const [sensitivity, setSensitivity] = useState(() => {
-		if (typeof window === "undefined") return 1.0
-		const saved = localStorage.getItem("rein_sensitivity")
-		const parsed = saved ? Number.parseFloat(saved) : Number.NaN
-		return Number.isFinite(parsed) ? parsed : 1.0
+		return getStoredNumber("rein_sensitivity", 1.0)
 	})
 
 	const [theme, setTheme] = useState(() => {
-		if (typeof window === "undefined") return THEMES.DEFAULT
-		try {
-			const saved = localStorage.getItem(APP_CONFIG.THEME_STORAGE_KEY)
-			return saved === THEMES.LIGHT || saved === THEMES.DARK
-				? saved
-				: THEMES.DEFAULT
-		} catch {
-			return THEMES.DEFAULT
-		}
+		const saved = safeGetItem(APP_CONFIG.THEME_STORAGE_KEY)
+		return saved === THEMES.LIGHT || saved === THEMES.DARK
+			? saved
+			: THEMES.DEFAULT
 	})
 
 	const [qrData, setQrData] = useState("")
 
 	// Load initial state (IP is not stored in localStorage; only sensitivity, invert, theme are client settings)
 	const [authToken, setAuthToken] = useState(() => {
-		if (typeof window === "undefined") return ""
-		return localStorage.getItem("rein_auth_token") || ""
+		return safeGetItem("rein_auth_token") || ""
 	})
 
 	// Derive URLs once at the top
@@ -92,7 +83,7 @@ function SettingsPage() {
 				if (data.type === "token-generated" && data.token) {
 					if (isMounted) {
 						setAuthToken(data.token)
-						localStorage.setItem("rein_auth_token", data.token)
+						safeSetItem("rein_auth_token", data.token)
 					}
 					socket.close()
 				}
@@ -114,17 +105,17 @@ function SettingsPage() {
 
 	// Effect: Update LocalStorage when settings change
 	useEffect(() => {
-		localStorage.setItem("rein_sensitivity", String(sensitivity))
+		safeSetItem("rein_sensitivity", String(sensitivity))
 	}, [sensitivity])
 
 	useEffect(() => {
-		localStorage.setItem("rein_invert", JSON.stringify(invertScroll))
+		safeSetItem("rein_invert", JSON.stringify(invertScroll))
 	}, [invertScroll])
 
 	// Effect: Theme
 	useEffect(() => {
 		if (typeof window === "undefined") return
-		localStorage.setItem(APP_CONFIG.THEME_STORAGE_KEY, theme)
+		safeSetItem(APP_CONFIG.THEME_STORAGE_KEY, theme)
 		document.documentElement.setAttribute("data-theme", theme)
 	}, [theme])
 

@@ -13,6 +13,7 @@ import {
 	useConnection,
 } from "../contexts/ConnectionProvider"
 import { useCaptureProvider } from "../hooks/useCaptureProvider"
+import { safeGetItem } from "../utils/storage"
 
 export const Route = createRootRoute({
 	component: AppWithConnection,
@@ -67,8 +68,7 @@ function DesktopCaptureProvider() {
 
 function ThemeInit() {
 	useEffect(() => {
-		if (typeof localStorage === "undefined") return
-		const saved = localStorage.getItem(APP_CONFIG.THEME_STORAGE_KEY)
+		const saved = safeGetItem(APP_CONFIG.THEME_STORAGE_KEY)
 		const theme =
 			saved === THEMES.LIGHT || saved === THEMES.DARK ? saved : THEMES.DEFAULT
 		document.documentElement.setAttribute("data-theme", theme)
