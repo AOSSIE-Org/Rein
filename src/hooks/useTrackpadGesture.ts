@@ -254,12 +254,51 @@ export const useTrackpadGesture = (
 		}
 	}
 
+	const handleTouchCancel = (e: React.TouchEvent) => {
+		// touchcancel fires when the browser interrupts the touch sequence
+		// (e.g., OS notification, system gesture, loss of focus)
+		// We must clean up all gesture state to prevent stuck drag/press
+
+		const touches = e.changedTouches
+
+		// Remove all cancelled touches
+		for (let i = 0; i < touches.length; i++) {
+			ongoingTouches.current.delete(touches[i].identifier)
+		}
+
+		// Clear drag timeout to prevent spurious click events
+		if (draggingTimeout.current) {
+			clearTimeout(draggingTimeout.current)
+			draggingTimeout.current = null
+		}
+
+		// Release any active drag state
+		if (dragging.current) {
+			dragging.current = false
+			send({ type: "click", button: "left", press: false })
+		}
+
+		// Reset all gesture state if no touches remain
+		if (ongoingTouches.current.size === 0) {
+			setIsTracking(false)
+			moved.current = false
+			releasedCount.current = 0
+			lastPinchDist.current = null
+			pinching.current = false
+		} else if (ongoingTouches.current.size < 2) {
+			// If we still have touches but less than 2, reset pinch state
+			lastPinchDist.current = null
+			pinching.current = false
+		}
+	}
+
 	return {
 		isTracking,
 		handlers: {
 			onTouchStart: handleTouchStart,
 			onTouchMove: handleTouchMove,
 			onTouchEnd: handleTouchEnd,
+			onTouchCancel: handleTouchCancel,
 		},
 	}
 }

@@ -7,6 +7,7 @@ interface TouchAreaProps {
 		onTouchStart: (e: React.TouchEvent) => void
 		onTouchMove: (e: React.TouchEvent) => void
 		onTouchEnd: (e: React.TouchEvent) => void
+		onTouchCancel: (e: React.TouchEvent) => void
 	}
 }
 
@@ -32,6 +33,7 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
 			onTouchStart={handleStart}
 			onTouchMove={handlers.onTouchMove}
 			onTouchEnd={handlers.onTouchEnd}
+			onTouchCancel={handlers.onTouchCancel}
 			onMouseDown={handlePreventFocus}
 		>
 			<div className="text-neutral-600 text-center pointer-events-none">
