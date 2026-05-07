@@ -52,7 +52,7 @@ function startServer() {
 
     console.log("Starting server from:", serverPath);
 
-    serverProcess = spawn('node', [serverPath], {
+    serverProcess = spawn('bun', [serverPath], {
       stdio: 'ignore',       // no terminal
       windowsHide: true,     // hide CMD
       env: {

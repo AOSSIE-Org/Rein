@@ -32,11 +32,11 @@ Quality couch keyboards are not so accessible, STT on Linux isn’t in a good st
 
 1.  Install dependencies:
     ```bash
-    npm install
+    bun install
     ```
 2.  Start the development server:
     ```bash
-    npm run dev
+    bun run dev
     ```
 3.  Open the local app: `http://localhost:3000`
 
