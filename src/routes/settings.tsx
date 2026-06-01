@@ -3,6 +3,7 @@ import QRCode from "qrcode"
 import { useEffect, useState } from "react"
 import { APP_CONFIG, THEMES } from "../config"
 import serverConfig from "../server-config.json"
+import { safeGetItem, safeSetItem } from "../utils/safeStorage"
 
 export const Route = createFileRoute("/settings")({
 	component: SettingsPage,
@@ -30,7 +31,7 @@ function SettingsPage() {
 
 	const [sensitivity, setSensitivity] = useState(() => {
 		if (typeof window === "undefined") return 1.0
-		const saved = localStorage.getItem("rein_sensitivity")
+		const saved = safeGetItem("rein_sensitivity")
 		const parsed = saved ? Number.parseFloat(saved) : Number.NaN
 		return Number.isFinite(parsed) ? parsed : 1.0
 	})
@@ -52,7 +53,7 @@ function SettingsPage() {
 	// Load initial state (IP is not stored in localStorage; only sensitivity, invert, theme are client settings)
 	const [authToken, setAuthToken] = useState(() => {
 		if (typeof window === "undefined") return ""
-		return localStorage.getItem("rein_auth_token") || ""
+		return safeGetItem("rein_auth_token") || ""
 	})
 
 	// Derive URLs once at the top
@@ -92,7 +93,7 @@ function SettingsPage() {
 				if (data.type === "token-generated" && data.token) {
 					if (isMounted) {
 						setAuthToken(data.token)
-						localStorage.setItem("rein_auth_token", data.token)
+						safeSetItem("rein_auth_token", data.token)
 					}
 					socket.close()
 				}
@@ -114,17 +115,17 @@ function SettingsPage() {
 
 	// Effect: Update LocalStorage when settings change
 	useEffect(() => {
-		localStorage.setItem("rein_sensitivity", String(sensitivity))
+		safeSetItem("rein_sensitivity", String(sensitivity))
 	}, [sensitivity])
 
 	useEffect(() => {
-		localStorage.setItem("rein_invert", JSON.stringify(invertScroll))
+		safeSetItem("rein_invert", JSON.stringify(invertScroll))
 	}, [invertScroll])
 
 	// Effect: Theme
 	useEffect(() => {
 		if (typeof window === "undefined") return
-		localStorage.setItem(APP_CONFIG.THEME_STORAGE_KEY, theme)
+		safeSetItem(APP_CONFIG.THEME_STORAGE_KEY, theme)
 		document.documentElement.setAttribute("data-theme", theme)
 	}, [theme])
 
