@@ -52,7 +52,7 @@ export class InputHandler {
 		return Math.max(min, Math.min(max, value))
 	}
 
-	async handleMessage(msg: InputMessage) {
+	async handleMessage(msg: InputMessage, internal = false) {
 		if (msg.text && typeof msg.text === "string" && msg.text.length > 500) {
 			msg.text = msg.text.substring(0, 500)
 		}
@@ -75,7 +75,7 @@ export class InputHandler {
 		}
 
 		// Throttling: Limit high-frequency events (configurable via inputThrottleMs)
-		if (msg.type === "move") {
+		if (!internal && msg.type === "move") {
 			const now = Date.now()
 			if (now - this.lastMoveTime < this.throttleMs) {
 				this.pendingMove = msg
@@ -85,7 +85,7 @@ export class InputHandler {
 						if (this.pendingMove) {
 							const pending = this.pendingMove
 							this.pendingMove = null
-							this.handleMessage(pending).catch((err) => {
+							this.handleMessage(pending, true).catch((err) => {
 								console.error("Error processing pending move event:", err)
 							})
 						}
@@ -94,7 +94,7 @@ export class InputHandler {
 				return
 			}
 			this.lastMoveTime = now
-		} else if (msg.type === "scroll") {
+		} else if (!internal && msg.type === "scroll") {
 			const now = Date.now()
 			if (now - this.lastScrollTime < this.throttleMs) {
 				this.pendingScroll = msg
@@ -104,7 +104,7 @@ export class InputHandler {
 						if (this.pendingScroll) {
 							const pending = this.pendingScroll
 							this.pendingScroll = null
-							this.handleMessage(pending).catch((err) => {
+							this.handleMessage(pending, true).catch((err) => {
 								console.error("Error processing pending move event:", err)
 							})
 						}
