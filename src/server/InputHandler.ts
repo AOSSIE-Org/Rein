@@ -1,6 +1,14 @@
 import { Button, Key, Point, keyboard, mouse } from "@nut-tree-fork/nut-js"
 import { KEY_MAP } from "./KeyMap"
-import { moveRelative } from "./ydotool"
+import { moveRelative as moveRelativeYdotool } from "./ydotool"
+import {
+	moveRelative as moveRelativeUinput,
+	pressButton as pressButtonUinput,
+	scroll as scrollUinput,
+	pressKey as pressKeyUinput,
+	releaseKey as releaseKeyUinput,
+	typeText as typeTextUinput,
+} from "./uinput"
 import os from "node:os"
 
 export interface InputMessage {
@@ -124,19 +132,20 @@ export class InputHandler {
 					Number.isFinite(msg.dy)
 				) {
 					try {
-						// Attempt ydotool relative movement first
-						const success = await moveRelative(msg.dx, msg.dy)
+						const success = await moveRelativeUinput(msg.dx, msg.dy)
 
-						// Fallback to absolute positioning if ydotool is unavailable or fails
 						if (!success) {
-							const currentPos = await mouse.getPosition()
+							const fallbackSuccess = await moveRelativeYdotool(msg.dx, msg.dy)
+							if (!fallbackSuccess) {
+								const currentPos = await mouse.getPosition()
 
-							await mouse.setPosition(
-								new Point(
-									Math.round(currentPos.x + msg.dx),
-									Math.round(currentPos.y + msg.dy),
-								),
-							)
+								await mouse.setPosition(
+									new Point(
+										Math.round(currentPos.x + msg.dx),
+										Math.round(currentPos.y + msg.dy),
+									),
+								)
+							}
 						}
 					} catch (err) {
 						console.error("Move event failed:", err)
@@ -147,22 +156,32 @@ export class InputHandler {
 			case "click": {
 				const VALID_BUTTONS = ["left", "right", "middle"]
 				if (msg.button && VALID_BUTTONS.includes(msg.button)) {
-					const btn =
-						msg.button === "left"
-							? Button.LEFT
-							: msg.button === "right"
-								? Button.RIGHT
-								: Button.MIDDLE
-
 					try {
-						if (msg.press) {
-							await mouse.pressButton(btn)
-						} else {
-							await mouse.releaseButton(btn)
+						const uinputSuccess = await pressButtonUinput(msg.button, msg.press)
+
+						if (!uinputSuccess) {
+							const btn =
+								msg.button === "left"
+									? Button.LEFT
+									: msg.button === "right"
+										? Button.RIGHT
+										: Button.MIDDLE
+
+							if (msg.press) {
+								await mouse.pressButton(btn)
+							} else {
+								await mouse.releaseButton(btn)
+							}
 						}
 					} catch (err) {
 						console.error("Click event failed:", err)
-						// ensure release just in case
+						const btn =
+							msg.button === "left"
+								? Button.LEFT
+								: msg.button === "right"
+									? Button.RIGHT
+									: Button.MIDDLE
+
 						await mouse.releaseButton(btn).catch(() => {})
 					}
 				}
@@ -198,35 +217,42 @@ export class InputHandler {
 
 			case "scroll": {
 				const MAX_SCROLL = 100
-				const promises: Promise<unknown>[] = []
 
-				// Vertical scroll
-				if (this.isFiniteNumber(msg.dy) && Math.round(msg.dy) !== 0) {
-					const amount = this.clamp(Math.round(msg.dy), -MAX_SCROLL, MAX_SCROLL)
-					if (amount > 0) {
-						promises.push(mouse.scrollDown(amount))
-					} else if (amount < 0) {
-						promises.push(mouse.scrollUp(-amount))
-					}
-				}
+				const clampedDx = this.isFiniteNumber(msg.dx)
+					? this.clamp(Math.round(msg.dx), -MAX_SCROLL, MAX_SCROLL)
+					: 0
+				const clampedDy = this.isFiniteNumber(msg.dy)
+					? this.clamp(Math.round(msg.dy), -MAX_SCROLL, MAX_SCROLL)
+					: 0
 
-				// Horizontal scroll
-				if (this.isFiniteNumber(msg.dx) && Math.round(msg.dx) !== 0) {
-					const amount = this.clamp(Math.round(msg.dx), -MAX_SCROLL, MAX_SCROLL)
-					if (amount > 0) {
-						promises.push(mouse.scrollRight(amount))
-					} else if (amount < 0) {
-						promises.push(mouse.scrollLeft(-amount))
-					}
-				}
+				try {
+					const uinputSuccess = await scrollUinput(clampedDx, clampedDy)
 
-				if (promises.length) {
-					const results = await Promise.allSettled(promises)
-					for (const result of results) {
-						if (result.status === "rejected") {
-							console.error("Scroll event failed:", result.reason)
+					if (!uinputSuccess) {
+						const promises: Promise<unknown>[] = []
+
+						if (clampedDy !== 0) {
+							if (clampedDy > 0) {
+								promises.push(mouse.scrollDown(clampedDy))
+							} else {
+								promises.push(mouse.scrollUp(-clampedDy))
+							}
+						}
+
+						if (clampedDx !== 0) {
+							if (clampedDx > 0) {
+								promises.push(mouse.scrollRight(clampedDx))
+							} else {
+								promises.push(mouse.scrollLeft(-clampedDx))
+							}
+						}
+
+						if (promises.length) {
+							await Promise.allSettled(promises)
 						}
 					}
+				} catch (err) {
+					console.error("Scroll event failed:", err)
 				}
 				break
 			}
@@ -260,24 +286,33 @@ export class InputHandler {
 			case "key":
 				if (msg.key && typeof msg.key === "string" && msg.key.length <= 50) {
 					console.log(`Processing key: ${msg.key}`)
-					const nutKey = KEY_MAP[msg.key.toLowerCase()]
 
 					try {
-						if (nutKey !== undefined) {
-							await keyboard.pressKey(nutKey)
-							await keyboard.releaseKey(nutKey)
-						} else if (msg.key === " " || msg.key?.toLowerCase() === "space") {
-							const spaceKey = KEY_MAP.space
-							await keyboard.pressKey(spaceKey)
-							await keyboard.releaseKey(spaceKey)
-						} else if (msg.key.length === 1) {
-							await keyboard.type(msg.key)
+						const uinputSuccess = await pressKeyUinput(msg.key)
+						if (uinputSuccess) {
+							await releaseKeyUinput(msg.key)
 						} else {
-							console.log(`Unmapped key: ${msg.key}`)
+							const nutKey = KEY_MAP[msg.key.toLowerCase()]
+
+							if (nutKey !== undefined) {
+								await keyboard.pressKey(nutKey)
+								await keyboard.releaseKey(nutKey)
+							} else if (
+								msg.key === " " ||
+								msg.key?.toLowerCase() === "space"
+							) {
+								const spaceKey = KEY_MAP.space
+								await keyboard.pressKey(spaceKey)
+								await keyboard.releaseKey(spaceKey)
+							} else if (msg.key.length === 1) {
+								await keyboard.type(msg.key)
+							} else {
+								console.log(`Unmapped key: ${msg.key}`)
+							}
 						}
 					} catch (err) {
 						console.warn("Key press failed:", err)
-						// ensure release just in case
+						const nutKey = KEY_MAP[msg.key.toLowerCase()]
 						if (nutKey !== undefined)
 							await keyboard.releaseKey(nutKey).catch(() => {})
 						if (msg.key === " " || msg.key?.toLowerCase() === "space")
@@ -343,7 +378,11 @@ export class InputHandler {
 			case "text":
 				if (msg.text && typeof msg.text === "string") {
 					try {
-						await keyboard.type(msg.text)
+						const uinputSuccess = await typeTextUinput(msg.text)
+
+						if (!uinputSuccess) {
+							await keyboard.type(msg.text)
+						}
 					} catch (err) {
 						console.error("Failed to type text:", err)
 					}
