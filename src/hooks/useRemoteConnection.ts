@@ -3,7 +3,8 @@
 import { useConnection } from "../contexts/ConnectionProvider"
 
 export const useRemoteConnection = () => {
-	const { wsRef, status, platform, send, subscribe } = useConnection()
+	const { wsRef, status, platform, send, sendInput, subscribe } =
+		useConnection()
 
 	const sendCombo = (msg: string[]) => {
 		send({
@@ -12,5 +13,5 @@ export const useRemoteConnection = () => {
 		})
 	}
 
-	return { status, platform, send, sendCombo, wsRef, subscribe }
+	return { status, platform, send: sendInput, sendCombo, wsRef, subscribe }
 }

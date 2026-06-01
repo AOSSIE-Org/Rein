@@ -21,22 +21,27 @@ export const ScreenMirror = ({
 	isTracking,
 	handlers,
 }: ScreenMirrorProps) => {
-	const { wsRef, status } = useConnection()
-	const canvasRef = useRef<HTMLCanvasElement>(null)
-	const { hasFrame } = useMirrorStream(wsRef, canvasRef, status)
+	const { status } = useConnection()
+	const videoRef = useRef<HTMLVideoElement>(null)
+	const { hasStream } = useMirrorStream(videoRef, status)
 
 	return (
 		<div className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden select-none touch-none">
 			{/* Mirror Canvas */}
-			<canvas
-				ref={canvasRef}
+			<video
+				ref={videoRef}
+				aria-label="Screen Share Video"
+				autoPlay
+				playsInline
+				muted
+				onError={handleVideoError}
 				className={`w-full h-full object-contain transition-opacity duration-500 ${
-					hasFrame ? "opacity-100" : "opacity-0"
+					hasStream ? "opacity-100" : "opacity-0"
 				}`}
 			/>
 
 			{/* Standby UI */}
-			{!hasFrame && (
+			{!hasStream && (
 				<div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-4">
 					<div className="loading loading-spinner loading-lg text-primary" />
 					<div className="text-center px-6">
@@ -56,4 +61,8 @@ export const ScreenMirror = ({
 			/>
 		</div>
 	)
+}
+
+const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+	console.error("[RTC] Video playback error", e.currentTarget.error)
 }

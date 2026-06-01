@@ -60,7 +60,7 @@ export async function createWsServer(
 	} else {
 		logger.info(`Resolved LAN IP: ${LAN_IP}`)
 	}
-	const MAX_PAYLOAD_SIZE = 10 * 1024 // 10KB limit
+	const MAX_PAYLOAD_SIZE = 64 * 1024 // 64KB limit
 
 	logger.info("WebSocket server initialized")
 
@@ -135,6 +135,25 @@ export async function createWsServer(
 				logger.info("Client registered as Screen Consumer")
 			}
 
+			const getConsumerCount = (exclude?: WebSocket) =>
+				Array.from(wss.clients).filter(
+					(client) =>
+						client !== exclude &&
+						(client as ExtWebSocket).isConsumer &&
+						client.readyState === WebSocket.OPEN,
+				).length
+
+			const notifyProviders = (type: "consumer_joined" | "consumer_left") => {
+				for (const client of wss.clients) {
+					if (
+						(client as ExtWebSocket).isProvider &&
+						client.readyState === WebSocket.OPEN
+					) {
+						client.send(JSON.stringify({ type }))
+					}
+				}
+			}
+
 			const stopMirror = () => {
 				;(ws as ExtWebSocket).isConsumer = false
 				logger.info("Client unregistered as Screen Consumer")
@@ -143,18 +162,6 @@ export async function createWsServer(
 			ws.on("message", async (data: WebSocket.RawData, isBinary: boolean) => {
 				try {
 					if (isBinary) {
-						// Relay frames from Providers to Consumers
-						if ((ws as ExtWebSocket).isProvider) {
-							for (const client of wss.clients) {
-								if (
-									client !== ws &&
-									(client as ExtWebSocket).isConsumer &&
-									client.readyState === WebSocket.OPEN
-								) {
-									client.send(data, { binary: true })
-								}
-							}
-						}
 						return
 					}
 					const raw = data.toString()
@@ -173,6 +180,20 @@ export async function createWsServer(
 							lastTokenTouch = now
 							touchToken(token)
 						}
+					}
+
+					if (
+						msg.type === "offer" ||
+						msg.type === "answer" ||
+						msg.type === "ice-candidate" ||
+						msg.type === "lan-info"
+					) {
+						for (const client of wss.clients) {
+							if (client !== ws && client.readyState === WebSocket.OPEN) {
+								client.send(JSON.stringify(msg))
+							}
+						}
+						return
 					}
 
 					if (msg.type === "get-ip") {
@@ -208,25 +229,37 @@ export async function createWsServer(
 						return
 					}
 
-					// Ping/Pong for latency measurement — echo timestamp back immediately
 					if (msg.type === "ping") {
 						ws.send(JSON.stringify({ type: "pong", timestamp: msg.timestamp }))
 						return
 					}
 
 					if (msg.type === "start-mirror") {
+						const hadConsumers = getConsumerCount() > 0
 						startMirror()
+						if (!hadConsumers) {
+							notifyProviders("consumer_joined")
+						}
 						return
 					}
 
 					if (msg.type === "stop-mirror") {
 						stopMirror()
+						if (getConsumerCount() === 0) {
+							notifyProviders("consumer_left")
+						}
 						return
 					}
 
 					if (msg.type === "start-provider") {
 						;(ws as ExtWebSocket).isProvider = true
 						logger.info("Client registered as Screen Provider")
+						const hasConsumer = Array.from(wss.clients).some(
+							(c) => (c as ExtWebSocket).isConsumer,
+						)
+						if (hasConsumer) {
+							ws.send(JSON.stringify({ type: "consumer_joined" }))
+						}
 						return
 					}
 
@@ -362,7 +395,11 @@ export async function createWsServer(
 			})
 
 			ws.on("close", () => {
+				const wasConsumer = (ws as ExtWebSocket).isConsumer
 				stopMirror()
+				if (wasConsumer && getConsumerCount() === 0) {
+					notifyProviders("consumer_left")
+				}
 				logger.info("Client disconnected")
 			})
 

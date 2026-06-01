@@ -1,136 +1,188 @@
 "use client"
+/**
+ * Screen Capture Provider Hook
+ * This hook manages the logic for capturing the provider's screen, handling WebRTC data channels,
+ * and streaming video to a remote consumer.
+ */
 
-import { useEffect, useRef, useState } from "react"
+import { useConnection } from "../contexts/ConnectionProvider"
+import { useEffect, useRef, useState, useCallback } from "react"
 
-export function useCaptureProvider(wsRef: React.RefObject<WebSocket | null>) {
+interface ElectronWindow extends Window {
+	electron?: {
+		showSourcePicker: () => Promise<string | null>
+	}
+}
+
+interface ElectronDesktopConstraints {
+	audio?: {
+		mandatory: {
+			chromeMediaSource: "desktop"
+		}
+	}
+	video: {
+		mandatory: {
+			chromeMediaSource: "desktop"
+			chromeMediaSourceId: string
+		}
+	}
+}
+
+export function useCaptureProvider() {
+	const {
+		pcRef,
+		send,
+		subscribe,
+		createPeerConnection,
+		status,
+		configureMediaSender,
+		closePeerConnection,
+	} = useConnection()
 	const [isSharing, setIsSharing] = useState(false)
-	const videoRef = useRef<HTMLVideoElement | null>(null)
-	const canvasRef = useRef<HTMLCanvasElement | null>(null)
+	const senderRef = useRef<RTCRtpSender | null>(null)
 	const streamRef = useRef<MediaStream | null>(null)
-	const timerRef = useRef<number | null>(null)
+	const isRequestingRef = useRef(false)
 
-	const stopSharing = () => {
-		if (timerRef.current) {
-			clearInterval(timerRef.current)
-			timerRef.current = null
+	const stopSharing = useCallback(() => {
+		if (senderRef.current && pcRef.current) {
+			try {
+				pcRef.current.removeTrack(senderRef.current)
+			} catch {}
+			senderRef.current = null
+		}
+		if (pcRef.current) {
+			closePeerConnection()
 		}
 		if (streamRef.current) {
 			for (const track of streamRef.current.getTracks()) track.stop()
 			streamRef.current = null
 		}
-		if (videoRef.current) {
-			videoRef.current.pause()
-			videoRef.current.srcObject = null
-		}
-		if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-			wsRef.current.send(JSON.stringify({ type: "stop-mirror" }))
-		}
 		setIsSharing(false)
-	}
+	}, [pcRef, closePeerConnection])
 
-	const captureFrame = () => {
-		if (!videoRef.current || !canvasRef.current || !wsRef.current) return
-		if (wsRef.current.readyState !== WebSocket.OPEN) return
+	const handleConsumerJoined = useCallback(async () => {
+		if (isRequestingRef.current) return
 
-		// Backpressure: Skip frame if buffer is filling up (> 1MB)
-		if (wsRef.current.bufferedAmount > 1024 * 1024) return
-
-		const video = videoRef.current
-		const canvas = canvasRef.current
-		const ctx = canvas.getContext("2d", { alpha: false })
-		if (!ctx) return
-
-		// Latency Optimization: Cap resolution to 720p (ish)
-		const MAX_DIM = 1280
-		let width = video.videoWidth
-		let height = video.videoHeight
-
-		if (width > MAX_DIM || height > MAX_DIM) {
-			const ratio = Math.min(MAX_DIM / width, MAX_DIM / height)
-			width = Math.floor(width * ratio)
-			height = Math.floor(height * ratio)
-		}
-
-		if (canvas.width !== width || canvas.height !== height) {
-			canvas.width = width
-			canvas.height = height
-		}
-
-		ctx.drawImage(video, 0, 0, width, height)
-
-		// Adaptive Format/Quality: WebP is smaller, JPEG is faster to encode
-		// We use slightly lower quality (0.5) for better latency
-		const format = "image/webp"
-		const quality = 1
-
-		canvas.toBlob(
-			(blob) => {
-				if (blob && wsRef.current?.readyState === WebSocket.OPEN) {
-					wsRef.current.send(blob)
-				}
-			},
-			format,
-			quality,
-		)
-	}
-
-	const startSharing = async () => {
 		try {
-			const stream = await navigator.mediaDevices.getDisplayMedia({
-				video: {
-					displaySurface: "monitor",
-					// frameRate: { ideal: 30 },
-				},
+			let stream = streamRef.current
+			if (!stream?.active) {
+				isRequestingRef.current = true // Set lock
+
+				// ── Electron Native Sniffing Flow ──
+				const electron = (window as ElectronWindow).electron
+				if (electron?.showSourcePicker) {
+					const sourceId = await electron.showSourcePicker()
+					if (sourceId) {
+						const constraints: ElectronDesktopConstraints = {
+							audio: {
+								mandatory: {
+									chromeMediaSource: "desktop",
+								},
+							},
+							video: {
+								mandatory: {
+									chromeMediaSource: "desktop",
+									chromeMediaSourceId: sourceId,
+								},
+							},
+						}
+						stream = await navigator.mediaDevices.getUserMedia(
+							constraints as MediaStreamConstraints,
+						)
+					} else {
+						// Fallback if dialog dismissed with no ID
+						stream = await navigator.mediaDevices.getDisplayMedia({
+							video: true,
+							audio: true,
+						})
+					}
+				} else {
+					// ── Standard Browser Fallback Flow ──
+					stream = await navigator.mediaDevices.getDisplayMedia({
+						video: true,
+						audio: true,
+					})
+				}
+
+				streamRef.current = stream
+				stream
+					.getVideoTracks()[0]
+					?.addEventListener("ended", stopSharing, { once: true })
+			}
+
+			if (pcRef.current) closePeerConnection()
+			pcRef.current = createPeerConnection()
+
+			const dcUnordered = pcRef.current.createDataChannel("dc-unordered", {
+				ordered: false,
+				maxRetransmits: 0,
+			})
+			const dcOrdered = pcRef.current.createDataChannel("dc-ordered", {
+				ordered: true,
 			})
 
-			// Create hidden video to consume the stream
-			if (!videoRef.current) {
-				videoRef.current = document.createElement("video")
-				videoRef.current.muted = true
-				videoRef.current.playsInline = true
+			const handleIncomingInput = (event: MessageEvent) => {
+				try {
+					const msg = JSON.parse(event.data)
+					if (!msg || typeof msg !== "object" || !msg.type) {
+						console.warn("[RTC] Invalid message format:", msg)
+						return
+					}
+					send(msg)
+				} catch (err) {
+					console.error("[RTC] Failed to relay input", err)
+				}
+			}
+			dcUnordered.onmessage = handleIncomingInput
+			dcOrdered.onmessage = handleIncomingInput
+
+			const track = stream.getVideoTracks()[0]
+			const sender = pcRef.current.addTrack(track, stream)
+			senderRef.current = sender
+
+			// Apply bitrate caps and codec preferences immediately if optimization engine is exposed
+			if (configureMediaSender) {
+				configureMediaSender(pcRef.current, sender)
 			}
 
-			// Create hidden canvas for capturing frames
-			if (!canvasRef.current) {
-				canvasRef.current = document.createElement("canvas")
-			}
-
-			const video = videoRef.current
-			video.srcObject = stream
-			await video.play()
-
-			streamRef.current = stream
 			setIsSharing(true)
-
-			if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-				wsRef.current.send(JSON.stringify({ type: "start-provider" }))
-			}
-
-			// Start capture loop (approx 12 FPS)
-			timerRef.current = window.setInterval(captureFrame, 80)
-
-			// Handle stream termination (e.g. user clicks "Stop Sharing")
-			stream.getVideoTracks()[0].onended = () => {
-				stopSharing()
-			}
 		} catch (err) {
 			console.error("Failed to start screen capture:", err)
-			setIsSharing(false)
+			stopSharing()
+		} finally {
+			isRequestingRef.current = false // Release lock
 		}
-	}
-
-	useEffect(() => {
-		return () => {
-			if (timerRef.current) clearInterval(timerRef.current)
-			if (streamRef.current) {
-				for (const track of streamRef.current.getTracks()) track.stop()
-			}
-		}
-	}, [])
-
-	return {
-		isSharing,
-		startSharing,
+	}, [
+		createPeerConnection,
+		closePeerConnection,
+		pcRef,
 		stopSharing,
-	}
+		send,
+		configureMediaSender,
+	])
+
+	// Register as provider when WebSocket connects
+	useEffect(() => {
+		if (status === "connected") {
+			send({ type: "start-provider" })
+		}
+	}, [status, send])
+
+	// Event-driven lifecycle bindings
+	useEffect(() => {
+		const unsubJoined = subscribe("consumer_joined", handleConsumerJoined)
+		const unsubLeft = subscribe("consumer_left", stopSharing)
+
+		return () => {
+			unsubJoined()
+			unsubLeft()
+		}
+	}, [subscribe, handleConsumerJoined, stopSharing])
+
+	// Cleanup on unmount
+	useEffect(() => {
+		return () => stopSharing()
+	}, [stopSharing])
+
+	return { isSharing }
 }

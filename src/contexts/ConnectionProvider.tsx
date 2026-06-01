@@ -1,8 +1,14 @@
 "use client"
-
 import type React from "react"
-import { createContext, useContext, useEffect, useRef, useState } from "react"
-
+import {
+	createContext,
+	useCallback,
+	useContext,
+	useEffect,
+	useRef,
+	useState,
+} from "react"
+import { useWebRTC } from "../hooks/useWebRTC"
 type ConnectionStatus = "connecting" | "connected" | "disconnected"
 
 interface ConnectionContextType {
@@ -10,7 +16,15 @@ interface ConnectionContextType {
 	status: ConnectionStatus
 	platform: string | null
 	latency: number | null
+	pcRef: React.RefObject<RTCPeerConnection | null>
+	subscribeMirrorStream: (
+		cb: (stream: MediaStream | null) => void,
+	) => () => void
+	createPeerConnection: () => RTCPeerConnection
+	closePeerConnection: () => void
 	send: (msg: unknown) => void
+	sendInput: (msg: unknown) => void
+	configureMediaSender: (pc: RTCPeerConnection, sender: RTCRtpSender) => void
 	subscribe: (type: string, callback: (msg: unknown) => void) => () => void
 }
 
@@ -34,21 +48,48 @@ export function ConnectionProvider({
 	const [latency, setLatency] = useState<number | null>(null)
 	const isMountedRef = useRef(true)
 	const subscribersRef = useRef<Record<string, Set<(msg: unknown) => void>>>({})
-
-	const subscribe = (type: string, callback: (msg: unknown) => void) => {
-		if (!subscribersRef.current[type]) {
-			subscribersRef.current[type] = new Set()
-		}
-
-		subscribersRef.current[type].add(callback)
-
-		return () => {
-			subscribersRef.current[type].delete(callback)
-		}
-	}
+	const mirrorStreamSubscribersRef = useRef<
+		Set<(stream: MediaStream | null) => void>
+	>(new Set())
 
 	const reconnectCountRef = useRef(0)
 	const reconnectTimerRef = useRef<number | null>(null)
+
+	const subscribe = useCallback(
+		(type: string, callback: (msg: unknown) => void) => {
+			if (!subscribersRef.current[type]) {
+				subscribersRef.current[type] = new Set()
+			}
+
+			subscribersRef.current[type].add(callback)
+
+			return () => {
+				subscribersRef.current[type].delete(callback)
+			}
+		},
+		[],
+	)
+
+	const send = useCallback((msg: unknown) => {
+		if (wsRef.current?.readyState === WebSocket.OPEN) {
+			wsRef.current.send(JSON.stringify(msg))
+		}
+	}, [])
+
+	const handleTrackReceived = useCallback((stream: MediaStream | null) => {
+		for (const cb of mirrorStreamSubscribersRef.current) {
+			cb(stream)
+		}
+	}, [])
+
+	const {
+		pcRef,
+		createPeerConnection,
+		handleSignalingMessage,
+		sendInput,
+		configureMediaSender,
+		closePeerConnection,
+	} = useWebRTC(send, handleTrackReceived)
 
 	useEffect(() => {
 		isMountedRef.current = true
@@ -69,7 +110,7 @@ export function ConnectionProvider({
 			try {
 				storedToken = localStorage.getItem("rein_auth_token")
 			} catch (_e) {
-				// Restricted context (e.g. private mode)
+				// Restricted context
 			}
 
 			const token = urlToken || storedToken
@@ -77,9 +118,7 @@ export function ConnectionProvider({
 			if (urlToken && urlToken !== storedToken) {
 				try {
 					localStorage.setItem("rein_auth_token", urlToken)
-				} catch (_e) {
-					// Failed to store
-				}
+				} catch (_e) {}
 			}
 
 			let wsUrl = `${protocol}//${host}/ws`
@@ -97,10 +136,11 @@ export function ConnectionProvider({
 			setStatus("connecting")
 			const socket = new WebSocket(wsUrl)
 
-			socket.onopen = () => {
+			socket.onopen = async () => {
 				if (isMountedRef.current) {
 					setStatus("connected")
-					reconnectCountRef.current = 0 // Reset on successful connect
+					reconnectCountRef.current = 0
+
 					if (reconnectTimerRef.current) {
 						clearTimeout(reconnectTimerRef.current)
 						reconnectTimerRef.current = null
@@ -108,39 +148,41 @@ export function ConnectionProvider({
 				}
 			}
 
-			socket.onmessage = (event) => {
+			socket.onmessage = async (event) => {
 				if (!isMountedRef.current) return
 
-				// Handle binary data separately (frames)
 				if (event.data instanceof Blob) {
-					// Relayed directly via internal listeners in hooks
 					return
 				}
 
 				try {
 					const msg = JSON.parse(event.data)
+
 					if (msg.type === "connected") {
 						setPlatform(msg.platform || null)
 					}
+
+					if (
+						msg.type === "offer" ||
+						msg.type === "answer" ||
+						msg.type === "ice-candidate"
+					) {
+						handleSignalingMessage(msg)
+					}
+
 					const typeSubscribers = subscribersRef.current[msg.type]
 					if (typeSubscribers) {
 						for (const callback of typeSubscribers) {
 							callback(msg)
 						}
 					}
-				} catch (_e) {
-					// Not JSON or silent error
-				}
+				} catch (_e) {}
 			}
 
 			socket.onclose = () => {
 				if (isMountedRef.current) {
 					setStatus("disconnected")
-					// Exponential Backoff
-					const delay = Math.min(
-						1000 * 2 ** reconnectCountRef.current,
-						30000, // Max 30s
-					)
+					const delay = Math.min(1000 * 2 ** reconnectCountRef.current, 30000)
 					reconnectCountRef.current += 1
 
 					if (reconnectTimerRef.current) {
@@ -157,6 +199,7 @@ export function ConnectionProvider({
 			wsRef.current = socket
 		}
 		connect()
+
 		return () => {
 			isMountedRef.current = false
 			if (reconnectTimerRef.current) {
@@ -171,15 +214,9 @@ export function ConnectionProvider({
 				wsRef.current = null
 			}
 		}
-	}, [])
+	}, [handleSignalingMessage]) // Depend on handleSignalingMessage
 
-	const send = (msg: unknown) => {
-		if (wsRef.current?.readyState === WebSocket.OPEN) {
-			wsRef.current.send(JSON.stringify(msg))
-		}
-	}
-
-	// Ping/Pong heartbeat for latency measurement
+	// Ping/Pong heartbeat
 	useEffect(() => {
 		if (status !== "connected") {
 			setLatency(null)
@@ -199,7 +236,6 @@ export function ConnectionProvider({
 		}
 		subscribersRef.current.pong.add(handlePong)
 
-		// Send a ping immediately, then every 2 seconds
 		const sendPing = () => {
 			if (ws.readyState === WebSocket.OPEN) {
 				ws.send(
@@ -221,7 +257,23 @@ export function ConnectionProvider({
 
 	return (
 		<ConnectionContext.Provider
-			value={{ wsRef, status, platform, latency, send, subscribe }}
+			value={{
+				wsRef,
+				status,
+				platform,
+				latency,
+				pcRef,
+				subscribeMirrorStream: (cb) => {
+					mirrorStreamSubscribersRef.current.add(cb)
+					return () => mirrorStreamSubscribersRef.current.delete(cb)
+				},
+				createPeerConnection,
+				closePeerConnection,
+				send,
+				sendInput,
+				configureMediaSender,
+				subscribe,
+			}}
 		>
 			{children}
 		</ConnectionContext.Provider>
