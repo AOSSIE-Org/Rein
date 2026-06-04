@@ -2,32 +2,14 @@ const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
-const fs = require('fs');
 
 let mainWindow;
 let serverProcess;
-let serverHost = '0.0.0.0';
-let serverPort = 3000;
+const isDev = !app.isPackaged;
 
-try {
-  const configPath = './src/server-config.json';
-  if (fs.existsSync(configPath)) {
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    if (config.host) serverHost = config.host;
-    if (config.frontendPort) serverPort = config.frontendPort;
-  }
-} catch (e) {
-  console.warn('Failed to load server config:', e);
-}
+const DEV_URL = process.env.VITE_DEV_SERVER_URL || 'http://localhost:3000';
 
-// Prevent multiple instances
-const gotLock = app.requestSingleInstanceLock();
-if (!gotLock) {
-  app.quit();
-  process.exit(0);
-}
-
-// Wait until server is ready
+// Wait for server
 function waitForServer(url) {
   return new Promise((resolve) => {
     const check = () => {
@@ -35,68 +17,98 @@ function waitForServer(url) {
         .get(url, () => resolve())
         .on('error', () => setTimeout(check, 500));
     };
+
     check();
   });
 }
 
-// Start Nitro server (production)
-function startServer() {
-  return new Promise((resolve) => {
-    const serverPath = path.join(
-      process.resourcesPath,
-      'app.asar.unpacked',
-      '.output',
-      'server',
-      'index.mjs'
-    );
+// Start production Nitro server
+async function startProductionServer() {
+  const serverPath = path.join(
+    process.resourcesPath,
+    'app.asar.unpacked',
+    '.output',
+    'server',
+    'index.mjs'
+  );
 
-    console.log("Starting server from:", serverPath);
+  console.log('Starting production server:', serverPath);
 
-    serverProcess = spawn('node', [serverPath], {
-      stdio: 'ignore',       // no terminal
-      windowsHide: true,     // hide CMD
-      env: {
-        ...process.env,
-        HOST: serverHost,
-        PORT: serverPort.toString(),
-      },
-    });
-
-    waitForServer(`http://localhost:${serverPort}`).then(resolve);
+  serverProcess = spawn('node', [serverPath], {
+    stdio: 'inherit',
+    windowsHide: true,
+    env: {
+      ...process.env,
+      HOST: '0.0.0.0',
+      PORT: '3000',
+    },
   });
+
+  await waitForServer('http://localhost:3000');
 }
 
-// Create window
-function createWindow() {
-  if (mainWindow) return;
-
+// Create Electron window
+async function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    show: false,
+
+    // IMPORTANT
+    show: true,
+
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+    },
   });
 
-  mainWindow.loadURL(`http://localhost:${serverPort}`);
+  mainWindow.webContents.openDevTools();
 
-  // Show when ready
-  mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
+  try {
+    if (isDev) {
+      console.log("Loading DEV URL:", DEV_URL);
+
+      await waitForServer(DEV_URL);
+
+      await mainWindow.loadURL(DEV_URL);
+    } else {
+      console.log("Loading PROD URL");
+
+      await startProductionServer();
+
+      await mainWindow.loadURL("http://localhost:3000");
+    }
+
+    console.log("WINDOW LOADED");
+  } catch (err) {
+    console.error("LOAD ERROR:", err);
+  }
+
+  mainWindow.on("closed", () => {
+    mainWindow = null;
   });
 
-  // Debug only if needed
-  mainWindow.webContents.on('did-fail-load', (e, code, desc) => {
-    console.log("LOAD FAILED:", code, desc);
-  });
+  mainWindow.webContents.on(
+    "did-fail-load",
+    (_, code, desc) => {
+      console.log("FAILED LOAD:", code, desc);
+    }
+  );
+
+  mainWindow.webContents.on(
+    "render-process-gone",
+    (_, details) => {
+      console.log("RENDER GONE:", details);
+    }
+  );
 }
 
-// App start
-app.whenReady().then(async () => {
-  await startServer();
-  createWindow();
-});
+app.whenReady().then(createWindow);
 
-// Cleanup
 app.on('window-all-closed', () => {
   if (serverProcess) serverProcess.kill();
-  if (process.platform !== 'darwin') app.quit();
+
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
 });
