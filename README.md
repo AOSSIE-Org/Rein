@@ -13,7 +13,7 @@ A cross-platform, remote desktop (started as a couch keyboard replacement utiliz
 
 ## Why?
 
-Quality couch keyboards are not so accessible, STT on Linux isn’t in a good state, so we can take advantage of STT on mobile, plus use the phone as a controller for casual gaming.
+Quality couch keyboards are not so accessible, STT on Linux isn't in a good state, so we can take advantage of STT on mobile, plus use the phone as a controller for casual gaming.
 
 ## Tech Stack
 
@@ -27,17 +27,58 @@ Quality couch keyboards are not so accessible, STT on Linux isn’t in a good st
 > [!NOTE]
 > **For Linux:** On Wayland, the `ydotoold` daemon must be running and your user must be part of the `ydotool` group. Additionally, some native dependencies are required : install them via your package manager (see [`shell.nix`](shell.nix) for the list), or use `nix-shell` directly.
 
+### NixOS
+
+Rein provides a `shell.nix` for a fully reproducible NixOS development environment.
+
+**Enter the dev shell:**
+```bash
+nix-shell
+```
+
+This sets up all required native libraries and makes `ydotool`, `appimage-run`, and `nodejs_24` available automatically.
+
+**Wayland input setup (one time only):**
+```bash
+# Add your user to the ydotool group
+sudo usermod -aG ydotool $USER
+
+# Re-login, then enable the daemon
+sudo systemctl enable --now ydotoold
+```
+
+**Running the built AppImage on NixOS:**
+```bash
+npm run dist
+appimage-run ./dist/Rein-*.AppImage
+```
+
+**Firewall (nftables):**
+
+Add to your `configuration.nix`, then run `sudo nixos-rebuild switch`:
+```nix
+networking.firewall.allowedTCPPorts = [ 3000 ];
+```
+
+**Troubleshooting:**
+
+| Error | Fix |
+|-------|-----|
+| `Failed to open /dev/uinput` | Run `sudo systemctl start ydotoold` |
+| `error while loading shared libraries: libX11.so` | Make sure you are inside `nix-shell` |
+| Electron crashes on launch | `LD_LIBRARY_PATH` must be set — the `shellHook` does this automatically |
+| AppImage won't start | Use `appimage-run ./dist/Rein-*.AppImage`, not `./dist/Rein-*.AppImage` directly |
 
 ### Quick Start
 
 1.  Install dependencies:
-    ```bash
+```bash
     npm install
-    ```
+```
 2.  Start the development server:
-    ```bash
+```bash
     npm run dev
-    ```
+```
 3.  Open the local app: `http://localhost:3000`
 
 ## How to Use (Remote Control)
@@ -69,7 +110,6 @@ Visit the [Discord Channel](https://discord.com/invite/C8wHmwtczs) for interacti
 
 ---
 
-
 ## Testing Rein on Virtual Machines
 
 When testing Rein inside a Virtual Machine (VirtualBox), the VM must allow devices on the same network to access the server.
@@ -86,7 +126,6 @@ This allows devices on the same LAN to connect to the Rein server running inside
 ### For MacOS
 
 Grant Accessibility permission to your terminal/IDE in System Settings → Privacy & Security → Accessibility.
-
 
 ---
 
@@ -199,5 +238,3 @@ flowchart TD
 | **Client settings** | Sensitivity, scroll invert, and theme are stored in `localStorage` on the phone only — no server round-trip. |
 | **Server settings** | Port changes call `POST /api/config`, which writes `server-config.json`. The client redirects to the new port URL. The change is picked up on the next server start. |
 | **Input injection** | Input events arrive at the server via the DataChannel bridge, dispatched through `InputHandler` (throttle + validation), and injected at OS level via a virtual input device. |
-
-
