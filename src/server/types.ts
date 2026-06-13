@@ -35,12 +35,7 @@ export interface InputMessage {
 	keys?: string[]
 	text?: string
 	delta?: number
-	contacts?: Array<{
-		id: number
-		x: number
-		y: number
-		state: "down" | "move" | "up"
-	}>
+	contacts?: TouchContact[]
 }
 
 export type PlatformInjector = {

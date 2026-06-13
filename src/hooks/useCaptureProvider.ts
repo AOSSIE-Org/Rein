@@ -103,6 +103,12 @@ export function useCaptureProvider(wsRef: React.RefObject<WebSocket | null>) {
 
 			const video = videoRef.current
 			const track = stream.getVideoTracks()[0]
+			if (!track) {
+				console.error("No video track found in stream")
+				stream.getTracks().map((t) => t.stop())
+				setIsSharing(false)
+				return
+			}
 			const settings = track.getSettings()
 			video.srcObject = stream
 			await video.play()
@@ -116,8 +122,8 @@ export function useCaptureProvider(wsRef: React.RefObject<WebSocket | null>) {
 						type: "start-provider",
 						config: {
 							...getConfig(),
-							screenWidth: settings.width,
-							screenHeight: settings.height,
+							screenWidth: settings.width ?? 1920,
+							screenHeight: settings.height ?? 1080,
 						},
 					}),
 				)

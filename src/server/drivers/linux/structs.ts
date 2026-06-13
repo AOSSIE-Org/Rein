@@ -68,7 +68,9 @@ export function openUinput(path: string): number {
 	}
 	const fd = _open(path, O_WRONLY | O_NONBLOCK) as number
 	if (fd < 0) {
-		throw new Error(`Failed to open ${path}, got fd ${fd} (check permissions and /dev/uinput availability)`)
+		throw new Error(
+			`Failed to open ${path}, got fd ${fd} (check permissions and /dev/uinput availability)`,
+		)
 	}
 	return fd
 }

@@ -69,24 +69,18 @@ export class LinuxKeyboard {
 				console.warn("[LinuxKeyboard] No key mapping for char:", ch)
 				continue
 			}
-
 			if (shifted) {
 				const shiftCode = LINUX_KEY_MAP.shift
 				if (shiftCode === undefined) {
 					console.warn("[LinuxKeyboard] Shift key code not defined in key map")
 					continue
 				}
-				this.sendKeyEvent(LINUX_KEY_MAP.shift ?? 0, KEY_PRESS)
+				this.sendKeyEvent(shiftCode, KEY_PRESS)
 			}
 			this.sendKeyEvent(code, KEY_PRESS)
 			this.sendKeyEvent(code, KEY_RELEASE)
 			if (shifted) {
-				const shiftCode = LINUX_KEY_MAP.shift
-				if (shiftCode === undefined) {
-					console.warn("[LinuxKeyboard] Shift key code not defined in key map")
-					continue
-				}
-				this.sendKeyEvent(LINUX_KEY_MAP.shift ?? 0, KEY_RELEASE)
+				this.sendKeyEvent(LINUX_KEY_MAP.shift, KEY_RELEASE)
 			}
 			this.sync()
 		}

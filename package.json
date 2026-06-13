@@ -18,7 +18,6 @@
 		"check:fix": "biome check . --write"
 	},
 	"dependencies": {
-		"@nut-tree-fork/nut-js": "^4.2.6",
 		"@tanstack/react-router": "^1.169.2",
 		"@tanstack/react-router-ssr-query": "^1.166.12",
 		"@tanstack/react-start": "^1.167.61",
@@ -93,5 +92,12 @@
 		"mac": {
 			"target": "dmg"
 		}
+	},
+	"allowScripts": {
+		"electron@40.10.3": true,
+		"electron-winstaller@5.4.0": true,
+		"esbuild@0.28.0": true,
+		"esbuild@0.27.7": true,
+		"koffi@2.16.2": true
 	}
 }
