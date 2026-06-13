@@ -39,10 +39,14 @@ function waitForServer(url) {
   });
 }
 
-// Start Nitro server (production)
+// Start Nitro server (development or production)
 function startServer() {
   return new Promise((resolve) => {
-    const serverPath = path.join(
+    // Try development path first (after npm run build)
+    const devPath = path.join(process.cwd(), '.output', 'server', 'index.mjs');
+
+    // Fallback to production path (after npm run dist)
+    const prodPath = path.join(
       process.resourcesPath,
       'app.asar.unpacked',
       '.output',
@@ -50,11 +54,29 @@ function startServer() {
       'index.mjs'
     );
 
-    console.log("Starting server from:", serverPath);
+    // Determine which path to use
+    let serverPath;
+    let isDevelopment = false;
+
+    if (fs.existsSync(devPath)) {
+      serverPath = devPath;
+      isDevelopment = true;
+      console.log("Starting server in DEVELOPMENT mode from:", serverPath);
+    } else if (fs.existsSync(prodPath)) {
+      serverPath = prodPath;
+      console.log("Starting server in PRODUCTION mode from:", serverPath);
+    } else {
+      console.error("ERROR: Server build not found!");
+      console.error("Tried development path:", devPath);
+      console.error("Tried production path:", prodPath);
+      console.error("Please run 'npm run build' first.");
+      app.quit();
+      return;
+    }
 
     serverProcess = spawn('node', [serverPath], {
-      stdio: 'ignore',       // no terminal
-      windowsHide: true,     // hide CMD
+      stdio: isDevelopment ? 'inherit' : 'ignore',  // show logs in dev
+      windowsHide: !isDevelopment,                  // show terminal in dev
       env: {
         ...process.env,
         HOST: serverHost,
