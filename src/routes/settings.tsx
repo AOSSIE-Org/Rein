@@ -367,10 +367,14 @@ function SettingsPage() {
 									<button
 										type="button"
 										className="btn btn-sm btn-outline w-full max-w-xs"
-										onClick={() => {
-											navigator.clipboard.writeText(shareUrl)
-											setCopied(true)
-											setTimeout(() => setCopied(false), 2000)
+										onClick={async () => {
+											try {
+												await navigator.clipboard.writeText(shareUrl)
+												setCopied(true)
+												setTimeout(() => setCopied(false), 2000)
+											} catch (err) {
+												console.error("Failed to copy URL:", err)
+											}
 										}}
 									>
 										{copied ? "Copied! ✅" : "Copy Link"}
