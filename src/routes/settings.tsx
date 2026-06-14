@@ -9,6 +9,7 @@ export const Route = createFileRoute("/settings")({
 
 function SettingsPage() {
 	const [ip, setIp] = useState("")
+	const [copied, setCopied] = useState(false)
 	const [frontendPort, setFrontendPort] = useState("")
 	const [originalPort] = useState(String(serverConfig.frontendPort))
 	const serverConfigChanged =
@@ -356,12 +357,25 @@ function SettingsPage() {
 									</div>
 								)}
 
-								<a
-									className="link link-primary mt-2 break-all text-lg font-mono bg-base-100 px-4 py-2 rounded-lg inline-block max-w-full overflow-hidden text-ellipsis"
-									href={shareUrl}
-								>
-									{shareUrl.replace(`${protocol}//`, "")}
-								</a>
+								<div className="flex flex-col gap-2 mt-2 w-full px-4 items-center">
+									<a
+										className="link link-primary break-all text-lg font-mono bg-base-100 px-4 py-2 rounded-lg inline-block max-w-full overflow-hidden text-ellipsis"
+										href={shareUrl}
+									>
+										{shareUrl.replace(`${protocol}//`, "")}
+									</a>
+									<button
+										type="button"
+										className="btn btn-sm btn-outline w-full max-w-xs"
+										onClick={() => {
+											navigator.clipboard.writeText(shareUrl)
+											setCopied(true)
+											setTimeout(() => setCopied(false), 2000)
+										}}
+									>
+										{copied ? "Copied! ✅" : "Copy Link"}
+									</button>
+								</div>
 							</div>
 						</div>
 
