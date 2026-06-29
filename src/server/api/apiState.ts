@@ -5,7 +5,7 @@
 import type { ServerResponse } from "node:http"
 import { getActiveToken, generateToken, storeToken } from "../tokenStore"
 import { HostRunner } from "../gstreamer/hostRunner"
-import type { InputPeerConnection } from "../InputPeerConnection"
+import type { InputPeerConnection } from "./InputPeerConnection"
 import logger from "../../utils/logger"
 
 export type SessionState =

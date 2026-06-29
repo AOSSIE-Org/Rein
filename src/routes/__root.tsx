@@ -5,7 +5,7 @@ import {
 	Scripts,
 	createRootRoute,
 } from "@tanstack/react-router"
-import { useEffect, useRef } from "react"
+import { useEffect } from "react"
 import { APP_CONFIG, THEMES } from "../config"
 import "../styles.css"
 import {

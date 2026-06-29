@@ -11,7 +11,7 @@ import os from "node:os"
 import fs from "node:fs"
 import path from "node:path"
 import logger from "../../utils/logger"
-import { type CaptureProvider, CaptureProviderFactory } from "./captureProvider"
+import { type CaptureProvider, createCaptureProvider } from "./captureProvider"
 
 export class GstManager extends EventEmitter {
 	private process: ChildProcess | null = null
@@ -96,7 +96,7 @@ export class GstManager extends EventEmitter {
 		logger.info("Spawning GStreamer WHIP engine")
 
 		try {
-			this.provider = CaptureProviderFactory.create()
+			this.provider = createCaptureProvider()
 			await this.provider.initialize()
 			const sourceBlocks = await this.provider.getGStreamerSource()
 			const pipelineArgs = this.buildPipelineArgs(sourceBlocks, token, whipPort)
@@ -134,7 +134,13 @@ export class GstManager extends EventEmitter {
 		}
 
 		this.process = spawn("gst-launch-1.0", pipelineArgs, { env: spawnedEnv })
-
+		this.process.on("error", async (err) => {
+			logger.error(`GStreamer spawn failed: ${err.message}`)
+			this.process = null
+			await this.cleanup()
+			this.emit("capture-failure", err)
+			return
+		})
 		this.process.stdout?.on("data", (data: Buffer) => {
 			const output = data.toString()
 			if (output.includes("State change") && output.includes("PLAYING")) {
@@ -143,7 +149,8 @@ export class GstManager extends EventEmitter {
 		})
 
 		this.process.stderr?.on("data", (data: Buffer) => {
-			const logStr = data.toString()
+			let logStr = data.toString()
+			logStr = logStr.replace(/auth-token=\S+/g, "auth-token=REDACTED")
 			if (
 				logStr.includes("ERROR") &&
 				logStr.includes("pipeline doesn't want to preroll")

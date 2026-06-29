@@ -1,3 +1,4 @@
+"use client"
 import { useConnection } from "../contexts/ConnectionProvider"
 
 export const useRemoteConnection = () => {

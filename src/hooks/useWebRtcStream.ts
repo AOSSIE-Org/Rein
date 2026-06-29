@@ -106,24 +106,10 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 			}).catch(console.error)
 		}
 
-		// Send input PC offer to server immediately
-		const sendInputOffer = async () => {
-			const offer = await inputPc.createOffer()
-			await inputPc.setLocalDescription(offer)
-			await fetch("/api/webrtc/input-offer", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					...(token ? { Authorization: `Bearer ${token}` } : {}),
-				},
-				body: JSON.stringify({ sessionId: activeSessionId, sdp: offer.sdp }),
-			})
-		}
-
-		sendInputOffer().catch(console.error)
-
 		// ── SSE bridge: handles both video offer and input-answer ────────────
-		const sseUrl = `/api/webrtc/events?sessionId=${activeSessionId}${token ? `&token=${token}` : ""}`
+		const sseParams = new URLSearchParams({ sessionId: activeSessionId })
+		if (token) sseParams.set("token", token)
+		const sseUrl = `/api/webrtc/events?${sseParams.toString()}`
 		const sse = new EventSource(sseUrl)
 		sseSourceRef.current = sse
 
@@ -226,6 +212,20 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 				inputIceQueue.push(candidateInit)
 			}
 		})
+		const sendInputOffer = async () => {
+			const offer = await inputPc.createOffer()
+			await inputPc.setLocalDescription(offer)
+			await fetch("/api/webrtc/input-offer", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					...(token ? { Authorization: `Bearer ${token}` } : {}),
+				},
+				body: JSON.stringify({ sessionId: activeSessionId, sdp: offer.sdp }),
+			})
+		}
+
+		sendInputOffer().catch(console.error)
 
 		return () => {
 			sse.close()

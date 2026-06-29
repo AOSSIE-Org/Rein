@@ -100,6 +100,9 @@ function startWhipInternalServer(): void {
 			`WHIP internal endpoint listening on port ${WHIP_INTERNAL_PORT}`,
 		)
 	})
+	server.on("error", (err) => {
+		logger.error(`WHIP internal server failed to start: ${String(err)}`)
+	})
 }
 
 export function attachSignalingRoutes(

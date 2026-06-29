@@ -47,7 +47,11 @@ export function ConnectionProvider({
 				: null
 
 		// High frequency mouse/touch inputs go to unordered; keyboard/clicks and others go to ordered.
-		const isUnordered = type === "move" || type === "scroll" || type === "touch"
+		const isUnordered =
+			type === "move" ||
+			type === "scroll" ||
+			type === "touch" ||
+			type === "zoom"
 		const targetDc = isUnordered ? unorderedDcRef.current : orderedDcRef.current
 
 		if (targetDc?.readyState === "open") {

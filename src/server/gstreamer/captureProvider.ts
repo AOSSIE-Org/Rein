@@ -97,28 +97,26 @@ export class LinuxWaylandPortalCaptureProvider implements CaptureProvider {
 		logger.info("Wayland portal disposed")
 	}
 }
-export class CaptureProviderFactory {
-	public static create(): CaptureProvider {
-		const platform = os.platform()
+export function createCaptureProvider(): CaptureProvider {
+	const platform = os.platform()
 
-		if (platform === "win32") {
-			return new WindowsCaptureProvider()
-		}
-
-		if (platform === "darwin") {
-			return new MacOSCaptureProvider()
-		}
-
-		if (platform === "linux") {
-			const isWayland =
-				process.env.XDG_SESSION_TYPE === "wayland" ||
-				!!process.env.WAYLAND_DISPLAY
-			if (isWayland) {
-				return new LinuxWaylandPortalCaptureProvider()
-			}
-			return new LinuxX11CaptureProvider()
-		}
-
-		throw new Error(`Unsupported OS platform: ${platform}`)
+	if (platform === "win32") {
+		return new WindowsCaptureProvider()
 	}
+
+	if (platform === "darwin") {
+		return new MacOSCaptureProvider()
+	}
+
+	if (platform === "linux") {
+		const isWayland =
+			process.env.XDG_SESSION_TYPE === "wayland" ||
+			!!process.env.WAYLAND_DISPLAY
+		if (isWayland) {
+			return new LinuxWaylandPortalCaptureProvider()
+		}
+		return new LinuxX11CaptureProvider()
+	}
+
+	throw new Error(`Unsupported OS platform: ${platform}`)
 }

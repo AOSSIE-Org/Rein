@@ -13,7 +13,7 @@ interface ScreenMirrorProps {
 
 const TEXTS = {
 	WAITING: "Connecting to host desktop...",
-	AUTOMATIC: "Establishing secure low-latency WebRTC connection",
+	AUTOMATIC: "Establishing secure connection",
 }
 
 export const ScreenMirror = ({
@@ -24,11 +24,15 @@ export const ScreenMirror = ({
 	trackActive,
 }: ScreenMirrorProps) => {
 	const videoElementRef = useRef<HTMLVideoElement | null>(null)
-
 	useEffect(() => {
-		if (videoElementRef.current && videoStream) {
-			videoElementRef.current.srcObject = videoStream
-			videoElementRef.current.play().catch(() => {})
+		const video = videoElementRef.current
+		if (!video) return
+		video.srcObject = videoStream
+		if (videoStream) {
+			video.play().catch(() => {})
+		}
+		return () => {
+			video.srcObject = null
 		}
 	}, [videoStream])
 
@@ -37,6 +41,7 @@ export const ScreenMirror = ({
 			{/* Hardware Accelerated Video Renderer */}
 			<video
 				ref={videoElementRef}
+				aria-label="Remote desktop screen share"
 				autoPlay
 				playsInline
 				muted

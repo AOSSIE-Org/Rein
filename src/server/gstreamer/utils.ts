@@ -7,11 +7,22 @@
 
 import logger from "../../utils/logger"
 import { generateToken } from "../tokenStore"
+import type * as DBus from "dbus-next"
+import type { Message } from "dbus-next"
+
+declare module "dbus-next" {
+	interface MessageBus {
+		name: string | null
+		on(event: "close", listener: () => void): this
+	}
+}
+
+type SessionBus = ReturnType<typeof DBus.sessionBus>
 
 export class ImplementDbus {
 	private sessionPath: string | null = null
-	public dbusConnection: any = null
-	private dbusModule: any = null
+	public dbusConnection: SessionBus | null = null
+	private dbusModule: typeof import("dbus-next") | null = null
 	public pipewireNodeId: number | null = null
 
 	public dispose() {
@@ -35,15 +46,17 @@ export class ImplementDbus {
 		await this.negotiateScreenCastPortal()
 	}
 
-	private async waitForPortalResponse(requestPath: string): Promise<any> {
+	private async waitForPortalResponse(
+		requestPath: string,
+	): Promise<Record<string, DBus.Variant>> {
 		return Promise.race([
-			new Promise((resolve, reject) => {
-				const handler = (msg: any) => {
+			new Promise<Record<string, DBus.Variant>>((resolve, reject) => {
+				if (!this.dbusConnection) return
+				const handler = (msg: Message) => {
 					if (msg.path !== requestPath) return
 					if (msg.interface !== "org.freedesktop.portal.Request") return
 					if (msg.member !== "Response") return
-
-					this.dbusConnection.removeListener("message", handler)
+					this.dbusConnection?.removeListener("message", handler)
 
 					const [responseCode, results] = msg.body
 					if (responseCode === 0) resolve(results)
@@ -58,18 +71,20 @@ export class ImplementDbus {
 				}
 				this.dbusConnection.on("message", handler)
 			}),
-			new Promise((_, reject) =>
+			new Promise<Record<string, DBus.Variant>>((_, reject) =>
 				setTimeout(() => reject(new Error("Portal request timeout")), 30000),
 			),
 		])
 	}
-	private getDbusId(): string {
+	private getDbusId(): string | null {
+		if (!this.dbusConnection) return null
 		const uniqueName: string = this.dbusConnection.name ?? ""
 		// ":1.88" -> "1_88"
 		return uniqueName.replace(":", "").replace(/\./g, "_")
 	}
 
 	private async negotiateScreenCastPortal(): Promise<void> {
+		if (!this.dbusConnection || !this.dbusModule) return
 		const portalDest = "org.freedesktop.portal.Desktop"
 		const portalPath = "/org/freedesktop/portal/desktop"
 		const obj = await this.dbusConnection.getProxyObject(portalDest, portalPath)
@@ -90,7 +105,7 @@ export class ImplementDbus {
 			),
 		})
 		const sessionResults = await sessionResponsePromise
-		this.sessionPath = sessionResults["session_handle"].value
+		this.sessionPath = sessionResults.session_handle.value
 
 		if (!this.sessionPath) {
 			throw new Error(
@@ -121,7 +136,7 @@ export class ImplementDbus {
 		})
 		const startResults = await startResponsePromise
 
-		const streamsVariant = startResults["streams"]
+		const streamsVariant = startResults.streams
 		if (streamsVariant?.value && streamsVariant?.value.length > 0) {
 			this.pipewireNodeId = streamsVariant.value[0][0]
 			logger.info(

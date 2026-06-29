@@ -89,7 +89,10 @@ export async function readBody(req: IncomingMessage): Promise<string> {
 		req.setEncoding("utf-8")
 		req.on("data", (chunk: string) => {
 			raw += chunk
-			if (raw.length > 64 * 1024) reject(new Error("Request body too large"))
+			if (raw.length > 64 * 1024) {
+				req.destroy()
+				reject(new Error("Request body too large"))
+			}
 		})
 		req.on("end", () => resolve(raw))
 		req.on("error", reject)
@@ -706,4 +709,5 @@ export async function handleWhipSignalingExchange(
 			res.end(JSON.stringify({ error: "WHIP signaling handshake timeout" }))
 		}
 	}, 100)
+	req.on("close", () => clearInterval(answerCheckInterval))
 }
