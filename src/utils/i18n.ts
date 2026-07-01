@@ -11,7 +11,7 @@ export const i18n = {
 			connectedButNoVideo: "Establishing stream...",
 			establishingSecure: "Establishing secure connection",
 			settingUpScreen: "Setting up screen sharing",
-			checkNetwork: "Please check your network or token",
+			checkNetwork: "Attempting to connect to the host.",
 		},
 	},
 } as const

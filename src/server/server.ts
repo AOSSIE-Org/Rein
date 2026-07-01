@@ -103,13 +103,18 @@ export function attachSignalingRoutes(
 				const match = pathname.match(route.pattern)
 				if (!match) continue
 
-				const anyRes = res as ServerResponse & { __handledByRein?: boolean }
+				const anyRes = res as ServerResponse & {
+					__handledByRein?: boolean
+					__reinOriginalWrite?: typeof originalWrite
+				}
 				anyRes.__handledByRein = true
 
 				const originalSetHeader = res.setHeader.bind(res)
 				const originalWriteHead = res.writeHead.bind(res)
 				const originalWrite = res.write.bind(res)
 				const originalEnd = res.end.bind(res)
+
+				anyRes.__reinOriginalWrite = originalWrite
 
 				res.setHeader = ((...args: Parameters<typeof res.setHeader>) => {
 					if (anyRes.__handledByRein && !reinStorage.getStore()) {
@@ -144,16 +149,18 @@ export function attachSignalingRoutes(
 				}) as typeof res.end
 
 				const params = match.slice(1)
-				Promise.resolve(
-					reinStorage.run(true, () => route.handler(req, res, ...params)),
-				).catch((err) => {
-					logger.error(`Signaling route error: ${String(err)}`)
-					if (!res.headersSent) {
-						reinStorage.run(true, () => {
-							json(res, 500, { error: "Internal server error" })
-						})
-					}
-				})
+				Promise.resolve()
+					.then(() =>
+						reinStorage.run(true, () => route.handler(req, res, ...params)),
+					)
+					.catch((err) => {
+						logger.error(`Signaling route error: ${String(err)}`)
+						if (!res.headersSent) {
+							reinStorage.run(true, () => {
+								json(res, 500, { error: "Internal server error" })
+							})
+						}
+					})
 				return
 			}
 		},

@@ -81,12 +81,7 @@ class UinputDevice {
 			console.error(
 				`[${this.name}] Ensure /dev/uinput exists and the process has write permission.`,
 			)
-			console.error(
-				`[${this.name}] Run: sudo chown root:input /dev/uinput && sudo chmod 0660 /dev/uinput  or add udev rule.`,
-			)
-			throw new Error(
-				`Failed to open /dev/uinput. Ensure your user has write permissions (run: sudo chown root:input /dev/uinput && sudo chmod 0660 /dev/uinput)`,
-			)
+			return false
 		}
 	}
 

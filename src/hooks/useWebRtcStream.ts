@@ -215,7 +215,7 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 		const sendInputOffer = async () => {
 			const offer = await inputPc.createOffer()
 			await inputPc.setLocalDescription(offer)
-			await fetch("/api/webrtc/input-offer", {
+			const response = await fetch("/api/webrtc/input-offer", {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
@@ -223,6 +223,9 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 				},
 				body: JSON.stringify({ sessionId: activeSessionId, sdp: offer.sdp }),
 			})
+			if (!response.ok) {
+				throw new Error(`[WebRTC] Input offer failed: ${response.status}`)
+			}
 		}
 
 		sendInputOffer().catch(console.error)
