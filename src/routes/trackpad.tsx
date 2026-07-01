@@ -41,7 +41,7 @@ function TrackpadPage() {
 	const isComposingRef = useRef(false)
 	const [keyboardOpen, setKeyboardOpen] = useState(false)
 	const [extraKeysVisible, setExtraKeysVisible] = useState(true)
-	const { send, sendCombo } = useRemoteConnection()
+	const { status, send, sendCombo } = useRemoteConnection()
 	const { trackActive, videoStream } = useWebRtcStream({
 		token,
 	})
@@ -215,6 +215,7 @@ function TrackpadPage() {
 					handlers={handlers}
 					videoStream={videoStream}
 					trackActive={trackActive}
+					status={status}
 				/>
 				{bufferText !== "" && <BufferBar bufferText={bufferText} />}
 			</div>

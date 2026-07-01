@@ -98,11 +98,5 @@
 			"target": "dmg"
 		}
 	},
-	"allowScripts": {
-		"electron@40.10.3": true,
-		"electron-winstaller@5.4.0": true,
-		"esbuild@0.28.0": true,
-		"esbuild@0.27.7": true,
-		"koffi@2.16.2": true
-	}
+	"allowScripts": {}
 }

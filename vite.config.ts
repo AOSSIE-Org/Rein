@@ -37,12 +37,17 @@ const config = defineConfig({
 		}),
 	],
 	ssr: {
-		external: ["dbus-next", "eventsource"],
+		external: ["node-datachannel", "dbus-next", "eventsource"],
 		noExternal: ["tailwindcss", "@tailwindcss/postcss"],
 	},
 	server: {
 		host: serverConfig.host === "0.0.0.0" ? true : serverConfig.host,
 		port: serverConfig.frontendPort,
+	},
+	build: {
+		rollupOptions: {
+			external: ["node-datachannel"],
+		},
 	},
 })
 

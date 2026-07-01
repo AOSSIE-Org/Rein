@@ -672,6 +672,21 @@ export async function handleWhipSignalingExchange(
 		return
 	}
 
+	let token = url.searchParams.get("token")
+	if (!token) {
+		const authHeader = req.headers.authorization ?? ""
+		if (authHeader.startsWith("Bearer ")) {
+			token = authHeader.slice(7).trim()
+		} else if (authHeader.startsWith("Bearer_")) {
+			token = authHeader.slice(7).trim()
+		}
+	}
+
+	if (!token || !isKnownToken(token)) {
+		json(res, 401, { error: "Unauthorized" })
+		return
+	}
+
 	const hostOfferSdp = await readBody(req)
 	logger.info(`WHIP offer received for session: ${sessionId}`)
 

@@ -3,9 +3,8 @@
  */
 
 import type { IncomingMessage, ServerResponse } from "node:http"
-import http from "node:http"
+import { AsyncLocalStorage } from "node:async_hooks"
 import logger from "../utils/logger"
-import { WHIP_INTERNAL_PORT } from "./api/apiState"
 import {
 	handleCreateSession,
 	handleGetSession,
@@ -85,25 +84,7 @@ const routes: Route[] = [
 	},
 ]
 
-function startWhipInternalServer(): void {
-	const server = http.createServer((req, res) => {
-		const url = new URL(req.url ?? "", `http://127.0.0.1:${WHIP_INTERNAL_PORT}`)
-		if (req.method === "POST" && url.pathname === "/api/webrtc/whip") {
-			handleWhipSignalingExchange(req, res)
-		} else {
-			res.writeHead(404)
-			res.end()
-		}
-	})
-	server.listen(WHIP_INTERNAL_PORT, "127.0.0.1", () => {
-		logger.info(
-			`WHIP internal endpoint listening on port ${WHIP_INTERNAL_PORT}`,
-		)
-	})
-	server.on("error", (err) => {
-		logger.error(`WHIP internal server failed to start: ${String(err)}`)
-	})
-}
+const reinStorage = new AsyncLocalStorage<boolean>()
 
 export function attachSignalingRoutes(
 	server: NonNullable<import("vite").ViteDevServer["httpServer"]>,
@@ -124,30 +105,61 @@ export function attachSignalingRoutes(
 				const match = pathname.match(route.pattern)
 				if (!match) continue
 
+				const anyRes = res as ServerResponse & { __handledByRein?: boolean }
+				anyRes.__handledByRein = true
+
 				const originalSetHeader = res.setHeader.bind(res)
 				const originalWriteHead = res.writeHead.bind(res)
-				res.setHeader = (...args: Parameters<typeof res.setHeader>) => {
+				const originalWrite = res.write.bind(res)
+				const originalEnd = res.end.bind(res)
+
+				res.setHeader = ((...args: Parameters<typeof res.setHeader>) => {
+					if (anyRes.__handledByRein && !reinStorage.getStore()) {
+						return res
+					}
 					if (res.headersSent) return res
 					return originalSetHeader(...args)
-				}
+				}) as typeof res.setHeader
+
 				res.writeHead = ((...args: unknown[]) => {
+					if (anyRes.__handledByRein && !reinStorage.getStore()) {
+						return res
+					}
 					if (res.writableEnded) return res
 					return (originalWriteHead as (...a: unknown[]) => ServerResponse)(
 						...args,
 					)
 				}) as typeof res.writeHead
 
+				res.write = ((...args: unknown[]) => {
+					if (anyRes.__handledByRein && !reinStorage.getStore()) {
+						return true
+					}
+					return (originalWrite as (...a: unknown[]) => boolean)(...args)
+				}) as typeof res.write
+
+				res.end = ((...args: unknown[]) => {
+					if (anyRes.__handledByRein && !reinStorage.getStore()) {
+						return res
+					}
+					return (originalEnd as (...a: unknown[]) => ServerResponse)(...args)
+				}) as typeof res.end
+
 				const params = match.slice(1)
-				Promise.resolve(route.handler(req, res, ...params)).catch((err) => {
+				Promise.resolve(
+					reinStorage.run(true, () => route.handler(req, res, ...params)),
+				).catch((err) => {
 					logger.error(`Signaling route error: ${String(err)}`)
-					if (!res.headersSent)
-						json(res, 500, { error: "Internal server error" })
+					if (!res.headersSent) {
+						reinStorage.run(true, () => {
+							json(res, 500, { error: "Internal server error" })
+						})
+					}
 				})
 				return
 			}
 		},
 	)
-	startWhipInternalServer()
 	logger.info("Signaling HTTP routes attached")
 }
 

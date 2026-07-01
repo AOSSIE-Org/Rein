@@ -81,17 +81,16 @@ export class GstManager extends EventEmitter {
 		args.push(
 			"!",
 			"whipclientsink",
-			`signaller::whip-endpoint=http://localhost:${whipPort}/api/webrtc/whip?sessionId=${this.sessionId}`,
+			`signaller::whip-endpoint=http://localhost:${whipPort}/api/webrtc/whip?sessionId=${this.sessionId}&token=${token}`,
 			`signaller::auth-token=Bearer_${token}`,
 		)
 
 		return args
 	}
 
-	public async start(token: string): Promise<void> {
+	public async start(token: string, whipPort: number): Promise<void> {
 		if (this.process) return
 		this.intentionalStop = false
-		const whipPort = 8001
 
 		logger.info("Spawning GStreamer WHIP engine")
 
@@ -199,7 +198,7 @@ export class GstManager extends EventEmitter {
 			"target-bitrate=2500000",
 			"!",
 			"whipclientsink",
-			`signaller::whip-endpoint=http://localhost:${serverPort}/api/webrtc/whip?sessionId=${this.sessionId}`,
+			`signaller::whip-endpoint=http://localhost:${serverPort}/api/webrtc/whip?sessionId=${this.sessionId}&token=${token}`,
 			`signaller::auth-token=Bearer_${token}`,
 		]
 

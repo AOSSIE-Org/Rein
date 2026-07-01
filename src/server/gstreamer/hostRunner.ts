@@ -45,7 +45,7 @@ export class HostRunner {
 			this.activeSessions.delete(sessionId)
 		})
 
-		gst.start(this.token).catch((err) => {
+		gst.start(this.token, this.serverPort).catch((err) => {
 			logger.error(`Failed to launch GstManager: ${String(err)}`)
 		})
 	}

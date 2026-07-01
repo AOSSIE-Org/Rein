@@ -36,7 +36,6 @@ export type HostStatus = "stopped" | "starting" | "running" | "error"
 export const sessions = new Map<string, Session>()
 export const sseClients = new Map<string, Set<ServerResponse>>()
 export const inputConnections = new Map<string, InputPeerConnection>()
-export const WHIP_INTERNAL_PORT = 8001
 
 export let hostStatus: HostStatus = "stopped"
 export let runnerInstance: HostRunner | null = null

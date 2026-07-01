@@ -3,17 +3,21 @@
 import type React from "react"
 import { useEffect, useRef } from "react"
 
+import { t } from "../../utils/i18n"
+
 interface ScreenMirrorProps {
 	scrollMode: boolean
 	isTracking: boolean
 	handlers: React.HTMLAttributes<HTMLDivElement>
 	videoStream: MediaStream | null
 	trackActive: boolean
+	status: "connecting" | "connected" | "disconnected"
 }
 
 const TEXTS = {
-	WAITING: "Connecting to host desktop...",
-	AUTOMATIC: "Establishing secure connection",
+	get AUTOMATIC() {
+		return t("screenMirror", "establishingSecure")
+	},
 }
 
 export const ScreenMirror = ({
@@ -22,6 +26,7 @@ export const ScreenMirror = ({
 	handlers,
 	videoStream,
 	trackActive,
+	status,
 }: ScreenMirrorProps) => {
 	const videoElementRef = useRef<HTMLVideoElement | null>(null)
 	useEffect(() => {
@@ -32,16 +37,40 @@ export const ScreenMirror = ({
 			video.play().catch(() => {})
 		}
 		return () => {
-			video.srcObject = null
+			if (video) {
+				video.srcObject = null
+			}
 		}
 	}, [videoStream])
+
+	const getWaitingText = () => {
+		switch (status) {
+			case "disconnected":
+				return t("screenMirror", "disconnected")
+			case "connected":
+				return t("screenMirror", "connectedButNoVideo")
+			default:
+				return t("screenMirror", "connecting")
+		}
+	}
+
+	const getSubText = () => {
+		switch (status) {
+			case "disconnected":
+				return t("screenMirror", "checkNetwork")
+			case "connected":
+				return t("screenMirror", "settingUpScreen")
+			default:
+				return TEXTS.AUTOMATIC
+		}
+	}
 
 	return (
 		<div className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden select-none touch-none">
 			{/* Hardware Accelerated Video Renderer */}
 			<video
 				ref={videoElementRef}
-				aria-label="Remote desktop screen share"
+				aria-label={t("screenMirror", "ariaLabel")}
 				autoPlay
 				playsInline
 				muted
@@ -56,8 +85,8 @@ export const ScreenMirror = ({
 				<div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-4 bg-base-300">
 					<div className="loading loading-spinner loading-lg text-primary" />
 					<div className="text-center px-6">
-						<p className="font-semibold text-lg">{TEXTS.WAITING}</p>
-						<p className="text-sm opacity-60">{TEXTS.AUTOMATIC}</p>
+						<p className="font-semibold text-lg">{getWaitingText()}</p>
+						<p className="text-sm opacity-60">{getSubText()}</p>
 					</div>
 				</div>
 			)}
