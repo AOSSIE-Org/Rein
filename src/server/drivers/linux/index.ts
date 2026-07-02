@@ -72,19 +72,17 @@ class UinputDevice {
 	}
 
 	open(): boolean {
-		const fd = openUinput(UINPUT_PATH)
-		if (fd < 0) {
-			console.error(`[${this.name}] Failed to open ${UINPUT_PATH} (fd=${fd})`)
+		try {
+			const fd = openUinput(UINPUT_PATH)
+			this.fd = fd
+			return true
+		} catch (err) {
+			console.error(`[${this.name}] Failed to open ${UINPUT_PATH}:`, err)
 			console.error(
 				`[${this.name}] Ensure /dev/uinput exists and the process has write permission.`,
 			)
-			console.error(
-				`[${this.name}] Run: sudo chmod 0660 /dev/uinput  or add udev rule.`,
-			)
 			return false
 		}
-		this.fd = fd
-		return true
 	}
 
 	create(deviceName: string): boolean {

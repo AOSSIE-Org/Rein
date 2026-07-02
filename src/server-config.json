@@ -3,6 +3,6 @@
 	"frontendPort": 3000,
 	"address": "rein.local",
 	"inputThrottleMs": 8,
-	"sensitivity": 4.8,
+	"sensitivity": 2.1,
 	"invertScroll": false
 }

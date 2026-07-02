@@ -45,23 +45,30 @@ export class InputHandler {
 		this.config = { ...this.config, ...config }
 
 		const plat = os.platform()
-
-		if (plat === "win32") {
-			this.platform = "win32"
-			const { WindowsInputInjector } = require("./drivers/windows")
-			this.injector = new WindowsInputInjector(this.config) as PlatformInjector
-		} else if (plat === "linux") {
-			this.platform = "linux"
-			const { LinuxInputInjector } = require("./drivers/linux")
-			this.injector = new LinuxInputInjector(this.config) as PlatformInjector
-		} else if (plat === "darwin") {
-			this.platform = "darwin"
-			const { MacInputInjector } = require("./drivers/mac")
-			this.injector = new MacInputInjector(this.config) as PlatformInjector
-		} else {
-			this.platform = "other"
-			console.warn(`[InputHandler] Unsupported platform: ${plat}`)
+		try {
+			if (plat === "win32") {
+				this.platform = "win32"
+				const { WindowsInputInjector } = require("./drivers/windows")
+				this.injector = new WindowsInputInjector(
+					this.config,
+				) as PlatformInjector
+			} else if (plat === "linux") {
+				this.platform = "linux"
+				const { LinuxInputInjector } = require("./drivers/linux")
+				this.injector = new LinuxInputInjector(this.config) as PlatformInjector
+			} else if (plat === "darwin") {
+				this.platform = "darwin"
+				const { MacInputInjector } = require("./drivers/mac")
+				this.injector = new MacInputInjector(this.config) as PlatformInjector
+			} else {
+				this.platform = "other"
+				console.warn(`[InputHandler] Unsupported platform: ${plat}`)
+				this.injector = createStubInjector()
+			}
+		} catch (e) {
 			this.injector = createStubInjector()
+			this.platform = "other"
+			console.warn(e)
 		}
 	}
 
@@ -154,11 +161,6 @@ export class InputHandler {
 
 	private dispatch(msg: InputMessage): void {
 		switch (msg.type) {
-			case "update-settings": {
-				console.log("[InputHandler] Updating config:", msg.config)
-				this.updateConfig(msg.config ?? {})
-				break
-			}
 			case "move": {
 				if (msg.dx === 0 && msg.dy === 0) break
 				const { ax, ay } = applyMotion(msg.dx ?? 0, msg.dy ?? 0, this.config)

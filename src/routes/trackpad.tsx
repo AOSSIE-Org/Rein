@@ -8,26 +8,52 @@ import { TouchArea } from "../components/Trackpad/TouchArea"
 import { useRemoteConnection } from "../hooks/useRemoteConnection"
 import { useTrackpadGesture } from "../hooks/useTrackpadGesture"
 import { ScreenMirror } from "../components/Trackpad/ScreenMirror"
+import { useWebRtcStream } from "../hooks/useWebRtcStream"
+
 export const Route = createFileRoute("/trackpad")({
 	component: TrackpadPage,
 })
 
 function TrackpadPage() {
+	const searchParams = new URLSearchParams(
+		typeof window !== "undefined" ? window.location.search : "",
+	)
+
+	// Scan standard URL parameter fields to locate token strings passed from settings QR codes
+	const urlToken = searchParams.get("token")
+	const token =
+		urlToken ||
+		(typeof window !== "undefined"
+			? localStorage.getItem("rein_auth_token")
+			: null)
+
+	// Save token internally if extracted directly from the URL scan pass
+	useEffect(() => {
+		if (urlToken) {
+			localStorage.setItem("rein_auth_token", urlToken)
+		}
+	}, [urlToken])
 	const [scrollMode, setScrollMode] = useState(false)
 	const [modifier, setModifier] = useState<ModifierState>("Release")
 	const [buffer, setBuffer] = useState<string[]>([])
 	const bufferText = buffer.join(" + ")
 	const hiddenInputRef = useRef<HTMLInputElement>(null)
-	const canvasRef = useRef<HTMLCanvasElement>(null)
 	const isComposingRef = useRef(false)
 	const [keyboardOpen, setKeyboardOpen] = useState(false)
 	const [extraKeysVisible, setExtraKeysVisible] = useState(true)
-	const { send, sendCombo } = useRemoteConnection()
-	const gesture = useTrackpadGesture(send, scrollMode)
+	const { status, send, sendCombo } = useRemoteConnection()
+	const { trackActive, videoStream } = useWebRtcStream({
+		token,
+	})
 
+	// Send input actions safely over WebRTC DataChannels
+	const broadcastMessage = (payload: unknown) => {
+		send(payload)
+	}
+
+	const gesture = useTrackpadGesture(broadcastMessage, scrollMode)
 	const { isTracking, handlers } = gesture
 
-	// When keyboardOpen changes, focus or blur the hidden input
 	useEffect(() => {
 		if (keyboardOpen) {
 			hiddenInputRef.current?.focus()
@@ -36,27 +62,19 @@ function TrackpadPage() {
 		}
 	}, [keyboardOpen])
 
-	const toggleKeyboard = () => {
-		setKeyboardOpen((prev) => !prev)
-	}
-
-	const focusInput = () => {
-		hiddenInputRef.current?.focus()
-	}
+	const toggleKeyboard = () => setKeyboardOpen((prev) => !prev)
+	const focusInput = () => hiddenInputRef.current?.focus()
 
 	const handleClick = (button: "left" | "right") => {
-		send({ type: "click", button, press: true })
-		// Release after short delay to simulate click
-		setTimeout(() => send({ type: "click", button, press: false }), 50)
+		broadcastMessage({ type: "click", button, press: true })
+		setTimeout(
+			() => broadcastMessage({ type: "click", button, press: false }),
+			50,
+		)
 	}
 
-	const handleCopy = () => {
-		send({ type: "copy" })
-	}
-
-	const handlePaste = async () => {
-		send({ type: "paste" })
-	}
+	const handleCopy = () => broadcastMessage({ type: "copy" })
+	const handlePaste = async () => broadcastMessage({ type: "paste" })
 
 	const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const nativeEvent = e.nativeEvent as InputEvent
@@ -71,23 +89,15 @@ function TrackpadPage() {
 			}
 		}
 
-		// 1. Backspace
 		if (inputType === "deleteContentBackward" || val.length === 0) {
-			send({ type: "key", key: "backspace" })
+			broadcastMessage({ type: "key", key: "backspace" })
 			resetInput()
 			return
 		}
 
-		// 2. Enter
 		if (inputType === "insertLineBreak" || inputType === "insertParagraph") {
-			send({ type: "key", key: "enter" })
+			broadcastMessage({ type: "key", key: "enter" })
 			resetInput()
-			return
-		}
-
-		// 3. Text
-		// Early return only for EXPLICIT composition text that isn't finished
-		if (isComposingRef.current && inputType === "insertCompositionText") {
 			return
 		}
 
@@ -98,9 +108,9 @@ function TrackpadPage() {
 				handleModifier(textToSend)
 			} else {
 				if (textToSend === " ") {
-					send({ type: "key", key: "space" })
+					broadcastMessage({ type: "key", key: "space" })
 				} else {
-					send({ type: "text", text: textToSend })
+					broadcastMessage({ type: "text", text: textToSend })
 				}
 			}
 			resetInput()
@@ -116,14 +126,13 @@ function TrackpadPage() {
 	) => {
 		isComposingRef.current = false
 		const val = (e.target as HTMLInputElement).value
-
 		const textToSend = val.startsWith(" ") ? val.slice(1) : val
 
 		if (textToSend) {
 			if (modifier !== "Release") {
 				handleModifier(textToSend)
 			} else {
-				send({ type: "text", text: textToSend })
+				broadcastMessage({ type: "text", text: textToSend })
 			}
 		}
 
@@ -136,16 +145,12 @@ function TrackpadPage() {
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
 		const key = e.key.toLowerCase()
 
-		// 1. Enter key fallback
 		if (key === "enter") {
-			send({ type: "key", key: "enter" })
-			if (hiddenInputRef.current) {
-				hiddenInputRef.current.value = " "
-			}
+			broadcastMessage({ type: "key", key: "enter" })
+			if (hiddenInputRef.current) hiddenInputRef.current.value = " "
 			return
 		}
 
-		// 2. Modifier Logic
 		if (modifier !== "Release") {
 			if (key === "escape") {
 				e.preventDefault()
@@ -160,14 +165,13 @@ function TrackpadPage() {
 			}
 		}
 
-		// 3. Special keys (Arrows, Tab, etc.)
 		if (
 			key.length > 1 &&
 			key !== "unidentified" &&
 			key !== "backspace" &&
 			key !== "process"
 		) {
-			send({ type: "key", key })
+			broadcastMessage({ type: "key", key })
 		}
 	}
 
@@ -199,7 +203,6 @@ function TrackpadPage() {
 
 	return (
 		<div className="flex flex-col h-full min-h-0 bg-base-300 overflow-hidden">
-			{/* TOUCH AREA */}
 			<div className="flex-1 min-h-0 relative flex flex-col border-b border-base-200">
 				<TouchArea
 					isTracking={isTracking}
@@ -210,12 +213,13 @@ function TrackpadPage() {
 					isTracking={isTracking}
 					scrollMode={scrollMode}
 					handlers={handlers}
-					canvasRef={canvasRef}
+					videoStream={videoStream}
+					trackActive={trackActive}
+					status={status}
 				/>
 				{bufferText !== "" && <BufferBar bufferText={bufferText} />}
 			</div>
 
-			{/* CONTROL BAR */}
 			<div className="shrink-0 border-b border-base-200">
 				<ControlBar
 					onCopy={handleCopy}
@@ -235,23 +239,21 @@ function TrackpadPage() {
 			</div>
 
 			<div
-				className={`shrink-0 overflow-hidden transition-all duration-300
-                ${
-									!extraKeysVisible || keyboardOpen
-										? "max-h-0 opacity-0 pointer-events-none"
-										: "max-h-[50vh] opacity-100"
-								}`}
+				className={`shrink-0 overflow-hidden transition-all duration-300 ${
+					!extraKeysVisible || keyboardOpen
+						? "max-h-0 opacity-0 pointer-events-none"
+						: "max-h-[50vh] opacity-100"
+				}`}
 			>
 				<ExtraKeys
 					sendKey={(k) => {
 						if (modifier !== "Release") handleModifier(k)
-						else send({ type: "key", key: k })
+						else broadcastMessage({ type: "key", key: k })
 					}}
 					onInputFocus={focusInput}
 				/>
 			</div>
 
-			{/* Hidden Input for Mobile Keyboard */}
 			<input
 				ref={hiddenInputRef}
 				className="opacity-0 absolute bottom-0 pointer-events-none h-0 w-0"

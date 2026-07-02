@@ -22,10 +22,13 @@
 		"@tanstack/react-router-ssr-query": "^1.166.12",
 		"@tanstack/react-start": "^1.167.61",
 		"@tanstack/router-plugin": "^1.167.32",
+		"dbus-next": "^0.10.2",
+		"eventsource": "^4.1.0",
 		"koffi": "^2.16.2",
 		"lucide-react": "^0.561.0",
 		"nitro": "^3.0.260429-beta",
 		"nitro-nightly": "^3.0.1-20260501-164602-aee73f19",
+		"node-datachannel": "^0.32.3",
 		"qrcode": "^1.5.4",
 		"react": "^19.2.5",
 		"react-dom": "^19.2.5",
@@ -35,6 +38,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.14",
+		"@rolldown/plugin-babel": "^0.2.3",
 		"@tailwindcss/postcss": "^4.1.18",
 		"@tailwindcss/typography": "^0.5.19",
 		"@tanstack/devtools-vite": "^0.6.0",
@@ -49,6 +53,7 @@
 		"@types/ws": "^8.5.14",
 		"@vitejs/plugin-react": "^5.2.0",
 		"autoprefixer": "^10.4.23",
+		"babel-plugin-react-compiler": "^1.0.0",
 		"concurrently": "^9.2.1",
 		"daisyui": "^5.5.14",
 		"electron": "^40.6.1",
@@ -94,10 +99,10 @@
 		}
 	},
 	"allowScripts": {
-		"electron@40.10.3": true,
+		"electron@40.10.5": true,
 		"electron-winstaller@5.4.0": true,
-		"esbuild@0.28.0": true,
-		"esbuild@0.27.7": true,
-		"koffi@2.16.2": true
+		"esbuild@0.28.1": true,
+		"koffi@2.16.2": true,
+		"node-datachannel@0.32.3": true
 	}
 }

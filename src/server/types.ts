@@ -25,7 +25,6 @@ export interface InputMessage {
 		| "zoom"
 		| "combo"
 		| "touch"
-		| "update-settings"
 	dx?: number
 	dy?: number
 	config?: Partial<InputConfig>

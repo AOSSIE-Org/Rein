@@ -25,8 +25,42 @@ Quality couch keyboards are not so accessible, STT on Linux isn’t in a good st
 ## Development Setup
 
 > [!NOTE]
-> **For Linux:** On Wayland, the `ydotoold` daemon must be running and your user must be part of the `ydotool` group. Additionally, some native dependencies are required : install them via your package manager (see [`shell.nix`](shell.nix) for the list), or use `nix-shell` directly.
-
+> **For Linux**
+>
+> Rein uses a virtual input device (`/dev/uinput`) for keyboard and mouse injection.
+>
+> On Wayland, screen capture requires a working PipeWire + XDG Desktop Portal setup (typically provided by your desktop environment).
+>
+> Your user must also have permission to access `/dev/uinput`. A recommended setup is:
+>
+> ```bash
+> sudo groupadd -f uinput
+>
+> sudo tee /etc/udev/rules.d/99-rein.rules <<EOF
+> KERNEL=="uinput", MODE="0660", GROUP="uinput"
+> EOF
+>
+> sudo usermod -aG uinput $USER
+>
+> sudo udevadm control --reload-rules
+> sudo udevadm trigger
+> ```
+>
+> Log out and back in after running the commands above.
+>
+> You can verify access with:
+>
+> ```bash
+> ls -l /dev/uinput
+> ```
+>
+> which should show:
+>
+> ```text
+> crw-rw---- 1 root uinput ... /dev/uinput
+> ```
+>
+> Additionally, some native dependencies are required. Install them via your package manager (see [`shell.nix`](shell.nix) for the list), or use `nix-shell` directly.
 
 ### Quick Start
 
