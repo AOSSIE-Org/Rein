@@ -4,6 +4,10 @@
 
 export const i18n = {
 	en: {
+		settings: {
+			copyLink: "Copy Link",
+			copied: "Copied!",
+		},
 		screenMirror: {
 			ariaLabel: "Remote desktop screen share",
 			connecting: "Connecting to host...",

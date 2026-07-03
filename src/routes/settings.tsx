@@ -3,6 +3,7 @@ import QRCode from "qrcode"
 import { useEffect, useState, useRef } from "react"
 import { APP_CONFIG, THEMES } from "../config"
 import serverConfig from "../server-config.json"
+import { t } from "../utils/i18n"
 export const Route = createFileRoute("/settings")({
 	component: SettingsPage,
 })
@@ -377,7 +378,7 @@ function SettingsPage() {
 											}
 										}}
 									>
-										{copied ? "Copied! ✅" : "Copy Link"}
+										{copied ? t("settings", "copied") : t("settings", "copyLink")}
 									</button>
 								</div>
 							</div>
