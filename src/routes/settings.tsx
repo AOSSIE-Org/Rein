@@ -11,6 +11,7 @@ export const Route = createFileRoute("/settings")({
 function SettingsPage() {
 	const [ip, setIp] = useState("")
 	const [copied, setCopied] = useState(false)
+	const [copyError, setCopyError] = useState("")
 	const [frontendPort, setFrontendPort] = useState("")
 	const [originalPort] = useState(String(serverConfig.frontendPort))
 	const serverConfigChanged =
@@ -151,6 +152,23 @@ function SettingsPage() {
 			})
 			.catch((e) => console.error("IP fetch error:", e))
 	}, [])
+
+	const copyWithFallback = (text: string) => {
+		const textArea = document.createElement("textarea")
+		textArea.value = text
+		textArea.setAttribute("readonly", "")
+		textArea.style.position = "absolute"
+		textArea.style.left = "-9999px"
+
+		document.body.appendChild(textArea)
+		textArea.select()
+		textArea.setSelectionRange(0, text.length)
+
+		const copiedText = document.execCommand("copy")
+		document.body.removeChild(textArea)
+
+		return copiedText
+	}
 
 	return (
 		<div className="h-full overflow-y-auto w-full">
@@ -369,17 +387,34 @@ function SettingsPage() {
 										type="button"
 										className="btn btn-sm btn-outline w-full max-w-xs"
 										onClick={async () => {
+											setCopyError("")
+
 											try {
-												await navigator.clipboard.writeText(shareUrl)
+												if (
+													window.isSecureContext &&
+													navigator.clipboard?.writeText
+												) {
+													await navigator.clipboard.writeText(shareUrl)
+												} else if (!copyWithFallback(shareUrl)) {
+													throw new Error("Clipboard copy failed")
+												}
+
 												setCopied(true)
 												setTimeout(() => setCopied(false), 2000)
 											} catch (err) {
 												console.error("Failed to copy URL:", err)
+												setCopied(false)
+												setCopyError(t("settings", "copyFailed"))
 											}
 										}}
 									>
 										{copied ? t("settings", "copied") : t("settings", "copyLink")}
 									</button>
+									{copyError && (
+										<p className="text-error text-xs text-center max-w-xs">
+											{copyError}
+										</p>
+									)}
 								</div>
 							</div>
 						</div>

@@ -7,6 +7,7 @@ export const i18n = {
 		settings: {
 			copyLink: "Copy Link",
 			copied: "Copied!",
+			copyFailed: "Could not copy the link automatically. Please copy it manually.",
 		},
 		screenMirror: {
 			ariaLabel: "Remote desktop screen share",
