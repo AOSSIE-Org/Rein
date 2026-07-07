@@ -50,7 +50,7 @@ jobs:
 
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
-        run: npm ci --include=optional
+        run: npm ci
 
       - name: Install dependencies (macOS/Linux)
         if: runner.os != 'Windows'
