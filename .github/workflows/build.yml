@@ -39,6 +39,7 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
+          if (Test-Path package-lock.json) { Remove-Item -Force package-lock.json }
           npm cache clean --force
         shell: pwsh
 
@@ -50,7 +51,7 @@ jobs:
 
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
-        run: npm ci
+        run: npm install --include=optional --force
 
       - name: Install dependencies (macOS/Linux)
         if: runner.os != 'Windows'
