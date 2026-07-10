@@ -178,8 +178,6 @@ function SettingsPage() {
 			.catch((e) => console.error("IP fetch error:", e))
 	}, [])
 
-
-
 	return (
 		<div className="h-full overflow-y-auto w-full">
 			<div className="p-6 pb-safe max-w-5xl mx-auto min-h-full">
@@ -410,7 +408,8 @@ function SettingsPage() {
 												}
 
 												setCopied(true)
-												if (copyTimerRef.current) clearTimeout(copyTimerRef.current)
+												if (copyTimerRef.current)
+													clearTimeout(copyTimerRef.current)
 												copyTimerRef.current = setTimeout(() => {
 													setCopied(false)
 													copyTimerRef.current = null
