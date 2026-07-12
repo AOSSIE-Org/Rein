@@ -9,6 +9,7 @@ import { useRemoteConnection } from "../hooks/useRemoteConnection"
 import { useTrackpadGesture } from "../hooks/useTrackpadGesture"
 import { ScreenMirror } from "../components/Trackpad/ScreenMirror"
 import { ErrorComponent } from "../components/Trackpad/ErrorComponent"
+import { ScreenShareConsent } from "../components/Trackpad/ScreenShareConsent"
 import { useWebRtcStream } from "../hooks/useWebRtcStream"
 
 export const Route = createFileRoute("/trackpad")({
@@ -42,10 +43,11 @@ function TrackpadPage() {
 	const isComposingRef = useRef(false)
 	const [keyboardOpen, setKeyboardOpen] = useState(false)
 	const [extraKeysVisible, setExtraKeysVisible] = useState(true)
+	const [screenShareConsented, setScreenShareConsented] = useState(false)
 	const { status, send, sendCombo } = useRemoteConnection()
 	const { trackActive, videoStream, error, errorHandle, reconnect } =
 		useWebRtcStream({
-			token,
+			token: screenShareConsented ? token : null,
 		})
 
 	// Send input actions safely over WebRTC DataChannels
@@ -211,7 +213,9 @@ function TrackpadPage() {
 					scrollMode={scrollMode}
 					handlers={handlers}
 				/>
-				{error && errorHandle ? (
+				{!screenShareConsented ? (
+					<ScreenShareConsent onAllow={() => setScreenShareConsented(true)} />
+				) : error && errorHandle ? (
 					<ErrorComponent
 						error={error}
 						errorHandle={errorHandle}

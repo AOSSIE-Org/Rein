@@ -17,6 +17,17 @@ export const i18n = {
 			unknownError: "Unknown Error",
 			unexpectedNetworkError: "An unexpected network error occurred.",
 		},
+		screenShareConsent: {
+			title: "Allow Screen Sharing?",
+			description:
+				"This device wants to view and control the host's screen. Only allow this if you trust the source.",
+			allow: "Allow",
+			deny: "Deny",
+			deniedTitle: "Screen Sharing Denied",
+			deniedDescription:
+				"You denied the screen sharing request. You can allow it below to continue.",
+			tryAgain: "Try Again",
+		},
 	},
 } as const
 
