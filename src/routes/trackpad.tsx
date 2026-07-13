@@ -67,15 +67,31 @@ function TrackpadPage() {
 	// Keep the mobile screen awake while using the trackpad
 	useEffect(() => {
 		let wakeLock: WakeLockSentinel | null = null
+		let isMounted = true
 
 		const requestWakeLock = async () => {
-			if (typeof window !== "undefined" && "wakeLock" in navigator) {
-				try {
-					wakeLock = await navigator.wakeLock.request("screen")
-					console.log("[WakeLock] Screen Wake Lock acquired")
-				} catch (err) {
-					console.warn("[WakeLock] Failed to acquire screen wake lock:", err)
+			if (typeof window === "undefined" || !("wakeLock" in navigator)) {
+				return
+			}
+			if (wakeLock && !wakeLock.released) {
+				return
+			}
+
+			try {
+				const sentinel = await navigator.wakeLock.request("screen")
+
+				if (!isMounted) {
+					sentinel.release().catch(() => {})
+					return
 				}
+
+				if (wakeLock && !wakeLock.released) {
+					wakeLock.release().catch(() => {})
+				}
+
+				wakeLock = sentinel
+			} catch (err) {
+				console.warn("[WakeLock] Failed to acquire screen wake lock:", err)
 			}
 		}
 
@@ -90,17 +106,10 @@ function TrackpadPage() {
 		document.addEventListener("visibilitychange", handleVisibilityChange)
 
 		return () => {
+			isMounted = false
 			document.removeEventListener("visibilitychange", handleVisibilityChange)
-			if (wakeLock) {
-				wakeLock
-					.release()
-					.then(() => {
-						wakeLock = null
-						console.log("[WakeLock] Screen Wake Lock released")
-					})
-					.catch((err) => {
-						console.error("[WakeLock] Failed to release wake lock:", err)
-					})
+			if (wakeLock && !wakeLock.released) {
+				wakeLock.release().catch(() => {})
 			}
 		}
 	}, [])
