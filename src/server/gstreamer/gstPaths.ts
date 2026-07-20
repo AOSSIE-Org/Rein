@@ -77,11 +77,18 @@ function bundledPaths(): GstPaths {
 		const existingPath = process.env.PATH ?? ""
 		env.PATH = `${binDir};${existingPath}`
 	}
-	if (os.platform() === "linux") {
+	else if (os.platform() === "linux") {
 		const existingLdPath = process.env.LD_LIBRARY_PATH ?? ""
 		env.LD_LIBRARY_PATH = existingLdPath
 			? `${binDir}:${existingLdPath}`
 			: binDir
+	}
+	else if (os.platform() === "darwin") {
+		const existingDyldPath = process.env.DYLD_LIBRARY_PATH ?? ""
+		const libDir = path.join(BUNDLED_GSTREAMER_ROOT, "lib")
+		env.DYLD_LIBRARY_PATH = existingDyldPath
+			? `${libDir}:${existingDyldPath}`
+			: libDir
 	}
 
 	return {

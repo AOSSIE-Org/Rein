@@ -223,6 +223,12 @@ export class GstManager extends EventEmitter {
 		this.process = proc
 		this.intentionalStop = false
 
+		proc.on("error", (err) => {
+			logger.error(`GStreamer fallback spawn failed: ${err.message}`)
+			this.process = null
+			this.emit("capture-failure", err)
+		})
+
 		proc.stderr?.on("data", (data: Buffer) => {
 			logger.warn(
 				`GStreamer fallback [${this.sessionId}]: ${data.toString().trim()}`,

@@ -9,7 +9,7 @@
  * Skips download if the binaries already exist locally.
  */
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -25,7 +25,7 @@ const RELEASE_BASE_URL =
 	"https://github.com/AOSSIE-Org/Rein/releases/download/Dependencies";
 
 const PLATFORM_ARCHIVES = {
-	win32: `${RELEASE_BASE_URL}/gstreamer-windows-x64.rar`,
+	win32: `${RELEASE_BASE_URL}/gstreamer-windows-x64.zip`,
 	linux: `${RELEASE_BASE_URL}/gstreamer-linux-x64.tar.xz`,
 	darwin: `${RELEASE_BASE_URL}/gstreamer-macos-x64.tar.xz`,
 };
@@ -89,19 +89,24 @@ async function downloadFile(url, destPath) {
 
 async function extractZip(archivePath, destDir) {
 	if (process.platform === "win32") {
-		execSync(
-			`powershell -NoProfile -Command "Expand-Archive -Path '${archivePath}' -DestinationPath '${destDir}' -Force"`,
-			{ stdio: "inherit" },
+		execFileSync(
+			"powershell",
+			[
+				"-NoProfile",
+				"-Command",
+				`Expand-Archive -LiteralPath '${archivePath.replace(/'/g, "''")}' -DestinationPath '${destDir.replace(/'/g, "''")}' -Force`
+			],
+			{ stdio: "inherit" }
 		);
 	} else {
-		execSync(`unzip -o "${archivePath}" -d "${destDir}"`, {
+		execFileSync("unzip", ["-o", archivePath, "-d", destDir], {
 			stdio: "inherit",
 		});
 	}
 }
 
 async function extractTarGz(archivePath, destDir) {
-	execSync(`tar -xf "${archivePath}" -C "${destDir}"`, {
+	execFileSync("tar", ["-xf", archivePath, "-C", destDir], {
 		stdio: "inherit",
 	});
 }
