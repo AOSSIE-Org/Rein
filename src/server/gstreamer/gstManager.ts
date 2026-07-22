@@ -12,6 +12,7 @@ import fs from "node:fs"
 import path from "node:path"
 import logger from "../../utils/logger"
 import { type CaptureProvider, createCaptureProvider } from "./captureProvider"
+import { resolveGstPaths } from "./gstPaths"
 
 export class GstManager extends EventEmitter {
 	private process: ChildProcess | null = null
@@ -122,7 +123,8 @@ export class GstManager extends EventEmitter {
 		whipPort: number,
 		token: string,
 	): void {
-		const spawnedEnv = { ...process.env }
+		const gst = resolveGstPaths()
+		const spawnedEnv = { ...process.env, ...gst.env }
 		if (!spawnedEnv.DISPLAY) spawnedEnv.DISPLAY = ":0"
 		if (!spawnedEnv.XAUTHORITY) {
 			const homeDir = os.homedir()
@@ -142,7 +144,7 @@ export class GstManager extends EventEmitter {
 			}
 		}
 
-		this.process = spawn("gst-launch-1.0", pipelineArgs, { env: spawnedEnv })
+		this.process = spawn(gst.gstLaunch, pipelineArgs, { env: spawnedEnv })
 		this.process.on("error", async (err) => {
 			logger.error(`GStreamer spawn failed: ${err.message}`)
 			this.process = null
@@ -212,13 +214,20 @@ export class GstManager extends EventEmitter {
 			`signaller::auth-token=Bearer_${token}`,
 		]
 
-		const spawnedEnv = { ...process.env }
+		const gst = resolveGstPaths()
+		const spawnedEnv = { ...process.env, ...gst.env }
 		delete spawnedEnv.DISPLAY
 		delete spawnedEnv.XAUTHORITY
 
-		const proc = spawn("gst-launch-1.0", pipelineArgs, { env: spawnedEnv })
+		const proc = spawn(gst.gstLaunch, pipelineArgs, { env: spawnedEnv })
 		this.process = proc
 		this.intentionalStop = false
+
+		proc.on("error", (err) => {
+			logger.error(`GStreamer fallback spawn failed: ${err.message}`)
+			this.process = null
+			this.emit("capture-failure", err)
+		})
 
 		proc.stderr?.on("data", (data: Buffer) => {
 			logger.warn(
