@@ -23,6 +23,8 @@ import {
 	handleWhipSignalingExchange,
 	handleGetIp,
 	handleUpdateConfig,
+	handleClipboardCopy,
+	handleClipboardPaste,
 	json,
 } from "./api/apiHandlers"
 
@@ -81,6 +83,16 @@ const routes: Route[] = [
 		method: "POST",
 		pattern: /^\/api\/webrtc\/whip$/,
 		handler: handleWhipSignalingExchange,
+	},
+	{
+		method: "POST",
+		pattern: /^\/api\/clipboard\/copy$/,
+		handler: handleClipboardCopy,
+	},
+	{
+		method: "POST",
+		pattern: /^\/api\/clipboard\/paste$/,
+		handler: handleClipboardPaste,
 	},
 ]
 

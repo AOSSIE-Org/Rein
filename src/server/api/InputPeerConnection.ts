@@ -150,6 +150,10 @@ export class InputPeerConnection {
 		this.inputHandler.updateConfig(config)
 	}
 
+	async handleMessage(msg: InputMessage): Promise<void> {
+		await this.inputHandler.handleMessage(msg)
+	}
+
 	close(): void {
 		try {
 			this.pc.close()

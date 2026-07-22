@@ -3,6 +3,8 @@
  */
 
 import type { IncomingMessage, ServerResponse } from "node:http"
+import { spawnSync } from "node:child_process"
+import os from "node:os"
 import fs from "node:fs"
 import crypto from "node:crypto"
 import logger from "../../utils/logger"
@@ -751,4 +753,117 @@ export async function handleWhipSignalingExchange(
 		})
 	}, 100)
 	req.on("close", () => clearInterval(answerCheckInterval))
+}
+
+function writeHostClipboard(text: string): void {
+	const platform = os.platform()
+	if (platform === "darwin") {
+		spawnSync("pbcopy", { input: text })
+	} else if (platform === "win32") {
+		spawnSync("clip", { input: text })
+	} else {
+		const procWl = spawnSync("wl-copy", { input: text })
+		if (procWl.status !== 0) {
+			const procXclip = spawnSync("xclip", ["-selection", "clipboard"], {
+				input: text,
+			})
+			if (procXclip.status !== 0) {
+				spawnSync("xsel", ["--clipboard", "--input"], { input: text })
+			}
+		}
+	}
+}
+function readHostClipboard(): string {
+	const platform = os.platform()
+	if (platform === "darwin") {
+		const proc = spawnSync("pbpaste", { encoding: "utf-8" })
+		return proc.stdout || ""
+	} else if (platform === "win32") {
+		const proc = spawnSync(
+			"powershell",
+			["-NoProfile", "-Command", "Get-Clipboard"],
+			{ encoding: "utf-8" },
+		)
+		return (proc.stdout || "").replace(/\r\n$/, "").replace(/\n$/, "")
+	} else {
+		const procWl = spawnSync("wl-paste", ["--no-newline"], {
+			encoding: "utf-8",
+		})
+		if (procWl.status === 0) {
+			return procWl.stdout || ""
+		}
+		const procXclip = spawnSync("xclip", ["-selection", "clipboard", "-o"], {
+			encoding: "utf-8",
+		})
+		if (procXclip.status === 0) {
+			return procXclip.stdout || ""
+		}
+		const procXsel = spawnSync("xsel", ["--clipboard", "--output"], {
+			encoding: "utf-8",
+		})
+		if (procXsel.status === 0) {
+			return procXsel.stdout || ""
+		}
+	}
+	return ""
+}
+export async function handleClipboardCopy(
+	req: IncomingMessage,
+	res: ServerResponse,
+): Promise<void> {
+	if (!requireAuth(req, res)) return
+	const bodyText = await readBody(req)
+	const { sessionId } = JSON.parse(bodyText || "{}") as {
+		sessionId?: string
+	}
+	if (!sessionId) {
+		json(res, 400, { error: "sessionId is required" })
+		return
+	}
+	const inputPc = inputConnections.get(sessionId)
+	if (!inputPc) {
+		json(res, 404, { error: "Input connection not active" })
+		return
+	}
+	await inputPc.handleMessage({ type: "copy" })
+	await new Promise((resolve) => setTimeout(resolve, 100))
+	try {
+		const text = readHostClipboard()
+		json(res, 200, { text })
+	} catch (err) {
+		logger.error(`Failed to read host clipboard: ${String(err)}`)
+		json(res, 500, { error: "Failed to read host clipboard" })
+	}
+}
+export async function handleClipboardPaste(
+	req: IncomingMessage,
+	res: ServerResponse,
+): Promise<void> {
+	if (!requireAuth(req, res)) return
+	const bodyText = await readBody(req)
+	const { sessionId, text } = JSON.parse(bodyText || "{}") as {
+		sessionId?: string
+		text?: string
+	}
+	if (!sessionId || typeof text !== "string") {
+		json(res, 400, { error: "sessionId and text are required" })
+		return
+	}
+	const inputPc = inputConnections.get(sessionId)
+	if (!inputPc) {
+		json(res, 404, { error: "Input connection not active" })
+		return
+	}
+	try {
+		writeHostClipboard(text)
+	} catch (err) {
+		logger.error(`Failed to write host clipboard (non-fatal): ${String(err)}`)
+	}
+	try {
+		await inputPc.handleMessage({ type: "text", text })
+		json(res, 200, { ok: true })
+	} catch (err) {
+		logger.error(`Failed to inject text: ${String(err)}`)
+		json(res, 500, { error: "Failed to inject pasted text" })
+	}
 }

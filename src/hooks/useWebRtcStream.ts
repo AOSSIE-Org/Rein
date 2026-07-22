@@ -467,5 +467,6 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 		errorHandle,
 		reconnect,
 		sendInputEvent,
+		activeSessionId,
 	}
 }
