@@ -64,6 +64,56 @@ function TrackpadPage() {
 		}
 	}, [keyboardOpen])
 
+	// Keep the mobile screen awake while using the trackpad
+	useEffect(() => {
+		let wakeLock: WakeLockSentinel | null = null
+		let isMounted = true
+
+		const requestWakeLock = async () => {
+			if (typeof window === "undefined" || !("wakeLock" in navigator)) {
+				return
+			}
+			if (wakeLock && !wakeLock.released) {
+				return
+			}
+
+			try {
+				const sentinel = await navigator.wakeLock.request("screen")
+
+				if (!isMounted) {
+					sentinel.release().catch(() => {})
+					return
+				}
+
+				if (wakeLock && !wakeLock.released) {
+					wakeLock.release().catch(() => {})
+				}
+
+				wakeLock = sentinel
+			} catch (err) {
+				console.warn("[WakeLock] Failed to acquire screen wake lock:", err)
+			}
+		}
+
+		requestWakeLock()
+
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === "visible") {
+				requestWakeLock()
+			}
+		}
+
+		document.addEventListener("visibilitychange", handleVisibilityChange)
+
+		return () => {
+			isMounted = false
+			document.removeEventListener("visibilitychange", handleVisibilityChange)
+			if (wakeLock && !wakeLock.released) {
+				wakeLock.release().catch(() => {})
+			}
+		}
+	}, [])
+
 	const toggleKeyboard = () => setKeyboardOpen((prev) => !prev)
 	const focusInput = () => hiddenInputRef.current?.focus()
 
