@@ -80,12 +80,27 @@ To control this computer from your phone/tablet:
 
 ### 1. Configure Firewall
 Ensure your computer allows incoming connections on:
-- **3000** (Frontend + Input Server)
+- **3000/TCP** (Frontend and WebSocket signaling)
+- **4000–4050/UDP** (WebRTC media and input channels)
 
 **Linux (UFW):**
 ```bash
 sudo ufw allow 3000/tcp
+sudo ufw allow 4000:4050/udp
 ```
+
+**NixOS:**
+```nix
+networking.firewall = {
+  allowedTCPPorts = [ 3000 ];
+  allowedUDPPortRanges = [
+    { from = 4000; to = 4050; }
+  ];
+};
+```
+
+Port `5004/UDP` is an internal loopback relay between GStreamer and Rein and
+must not be exposed.
 
 ### 2. Connect Mobile Device
 1.  Ensure your phone and computer are on the **same Wi-Fi network**.
@@ -233,5 +248,3 @@ flowchart TD
 | **Client settings** | Sensitivity, scroll invert, and theme are stored in `localStorage` on the phone only — no server round-trip. |
 | **Server settings** | Port changes call `POST /api/config`, which writes `server-config.json`. The client redirects to the new port URL. The change is picked up on the next server start. |
 | **Input injection** | Input events arrive at the server via the DataChannel bridge, dispatched through `InputHandler` (throttle + validation), and injected at OS level via a virtual input device. |
-
-
