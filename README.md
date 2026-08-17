@@ -20,7 +20,14 @@ Quality couch keyboards are not so accessible, STT on Linux isn’t in a good st
 *   **Framework**: [TanStack Start](https://tanstack.com/start)
 *   **Language**: TypeScript
 *   **Real-time**: WebRTC
-*   **Input Simulation**: Koffi
+*   **Input Simulation**: Koffi / [@aossie/rein-input](packages/rein-input)
+
+## Reusable Packages
+
+*   **[`@aossie/rein-input`](packages/rein-input)**: Standalone, cross-platform native input injection library for Node.js and Electron with sub-millisecond latency and zero C++ addon compilation. Available on npm:
+    ```bash
+    npm install @aossie/rein-input koffi
+    ```
 
 ## Development Setup
 

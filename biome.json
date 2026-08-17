@@ -9,6 +9,8 @@
 		"ignoreUnknown": false,
 		"includes": [
 			"src/**/*",
+			"packages/**/*",
+			"!packages/**/dist/**/*",
 			".vscode/**/*",
 			"index.html",
 			"vite.config.ts",

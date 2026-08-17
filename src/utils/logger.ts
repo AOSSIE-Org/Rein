@@ -58,16 +58,8 @@ if (verboseLogs) {
 }
 
 // Optional: Intercept standard console.log and redirect to winston
-
-const serialize = (a: unknown): string => {
-	if (typeof a === "string") return a
-	if (a instanceof Error) return a.stack || a.message
-	try {
-		return JSON.stringify(a)
-	} catch {
-		return String(a)
-	}
-}
+const serialize = (a: unknown): string =>
+	typeof a === "string" ? a : JSON.stringify(a)
 
 console.log = (...args: unknown[]) => {
 	logger.info(args.map(serialize).join(" "))

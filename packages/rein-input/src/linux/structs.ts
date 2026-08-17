@@ -95,9 +95,10 @@ export function writeEvent(
 	const written = _write(fd, ev, INPUT_EVENT_SIZE) as number
 	return written === INPUT_EVENT_SIZE
 }
+
 /**
  * Perform an ioctl call with an integer argument.
- * `@returns` 0 on success, -1 on error (check errno via native means if needed)
+ * @returns 0 on success, -1 on error
  */
 export function ioctlInt(fd: number, request: number, value: number): number {
 	ensureLibc()
