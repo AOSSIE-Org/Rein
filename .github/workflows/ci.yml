@@ -24,5 +24,11 @@ jobs:
       - name: Run Biome Check
         run: npx @biomejs/biome ci .
 
+      - name: Run Tests
+        run: npm run test
+
+      - name: Build Package
+        run: npm run build:package
+
       - name: Run Build
         run: npm run build

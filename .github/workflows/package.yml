@@ -1,0 +1,88 @@
+name: Package CI & Publish
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "packages/rein-input/**"
+      - ".github/workflows/package.yml"
+  pull_request:
+    paths:
+      - "packages/rein-input/**"
+      - ".github/workflows/package.yml"
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish to npm"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  test-package:
+    name: Test on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run Tests
+        run: npm run test
+
+      - name: Build Package
+        run: npm run build:package
+
+      - name: Verify Package Tarball
+        run: |
+          cd packages/rein-input
+          npm pack --dry-run
+
+  publish-package:
+    name: Publish to npm
+    needs: test-package
+    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish == true)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Package
+        run: npm run build:package
+
+      - name: Publish @aossie/rein-input
+        run: |
+          cd packages/rein-input
+          npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

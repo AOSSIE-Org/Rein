@@ -23,7 +23,7 @@ let _CGEventCreateKeyboardEvent: koffi.KoffiFunction | null = null
 let _CGEventCreateScrollWheelEvent: koffi.KoffiFunction | null = null
 let _CGEventPost: koffi.KoffiFunction | null = null
 let _CFRelease: koffi.KoffiFunction | null = null
-const _CGEventSetIntegerValueField: koffi.KoffiFunction | null = null
+let _CGEventSetIntegerValueField: koffi.KoffiFunction | null = null
 
 function ensureFunctions() {
 	const lib = cg()
@@ -34,16 +34,10 @@ function ensureFunctions() {
 		_CGEventCreateKeyboardEvent = lib.func(
 			"void * CGEventCreateKeyboardEvent(void *, uint16, uint8)",
 		)
-		// koffi variadic: declare only fixed args; pass extras manually.
 		_CGEventCreateScrollWheelEvent = lib.func(
 			"void * CGEventCreateScrollWheelEvent(void *, uint32, uint32, int32, int32)",
 		)
-
-		// void CGEventPost(CGEventTapLocation tap, CGEventRef event)
-		// tap: 0 = kCGHIDEventTap (injected at HID level, before window server)
 		_CGEventPost = lib.func("void CGEventPost(uint32, void *)")
-
-		// void CFRelease(CFTypeRef cf)
 		_CFRelease = lib.func("void CFRelease(void *)")
 	}
 }
@@ -89,6 +83,7 @@ export function postScrollEvent(deltaX: number, deltaY: number): void {
 	_CGEventPost?.(0, ref)
 	_CFRelease?.(ref)
 }
+
 export const NX_KEYTYPE_PLAY = 16
 export const NX_KEYTYPE_NEXT = 17
 export const NX_KEYTYPE_PREVIOUS = 18
@@ -107,6 +102,9 @@ function ensureMediaFunctions() {
 		const lib = cg()
 		_CGEventCreate = lib.func("void * CGEventCreate(void *)")
 		_CGEventSetType = lib.func("void CGEventSetType(void *, uint32)")
+		_CGEventSetIntegerValueField = lib.func(
+			"void CGEventSetIntegerValueField(void *, uint32, int64)",
+		)
 	}
 }
 

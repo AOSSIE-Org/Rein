@@ -1,0 +1,30 @@
+// Mouse flags
+export const MOUSEEVENTF_MOVE = 0x0001
+export const MOUSEEVENTF_LEFTDOWN = 0x0002
+export const MOUSEEVENTF_LEFTUP = 0x0004
+export const MOUSEEVENTF_RIGHTDOWN = 0x0008
+export const MOUSEEVENTF_RIGHTUP = 0x0010
+export const MOUSEEVENTF_MIDDLEDOWN = 0x0020
+export const MOUSEEVENTF_MIDDLEUP = 0x0040
+export const MOUSEEVENTF_WHEEL = 0x0800
+export const MOUSEEVENTF_HWHEEL = 0x1000
+
+// Keyboard flags
+export const KEYEVENTF_KEYUP = 0x0002
+export const KEYEVENTF_UNICODE = 0x0004
+
+// Touch constants
+export const PT_TOUCHPAD = 5
+export const POINTER_FLAG_NONE = 0
+export const POINTER_FLAG_NEW = 0x00000001
+export const POINTER_FLAG_INRANGE = 0x00000002
+export const POINTER_FLAG_INCONTACT = 0x00000004
+export const POINTER_FLAG_PRIMARY = 0x00002000
+export const POINTER_FLAG_DOWN = 0x00010000
+export const POINTER_FLAG_UPDATE = 0x00020000
+export const POINTER_FLAG_UP = 0x00040000
+export const TOUCH_MASK_CONTACTAREA = 0x00000001
+export const POINTER_FEEDBACK_DEFAULT = 3
+
+export const WHEEL_DELTA = 120
+export const MAX_CONTACTS = 10

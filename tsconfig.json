@@ -21,7 +21,9 @@
 		"noFallthroughCasesInSwitch": true,
 		"noUncheckedSideEffectImports": true,
 		"paths": {
-			"@/*": ["./src/*"]
+			"@/*": ["./src/*"],
+			"@aossie/rein-input": ["./packages/rein-input/src/index.ts"],
+			"@aossie/rein-input/*": ["./packages/rein-input/src/*"]
 		}
 	}
 }

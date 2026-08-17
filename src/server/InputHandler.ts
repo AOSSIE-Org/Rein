@@ -7,7 +7,7 @@
  * mouse, keyboard, touch, clipboard, and gesture interactions.
  */
 import os from "node:os"
-import { applyMotion } from "./drivers/utils.ts"
+import { createInputInjector, applyMotion } from "@aossie/rein-input"
 import {
 	DEFAULT_SCREEN_HEIGHT,
 	DEFAULT_SCREEN_WIDTH,
@@ -51,39 +51,13 @@ export class InputHandler {
 		this.onError = onError
 
 		const plat = os.platform()
-		try {
-			if (plat === "win32") {
-				this.platform = "win32"
-				const { WindowsInputInjector } = require("./drivers/windows")
-				this.injector = new WindowsInputInjector(
-					this.config,
-				) as PlatformInjector
-			} else if (plat === "linux") {
-				this.platform = "linux"
-				const { LinuxInputInjector } = require("./drivers/linux")
-				this.injector = new LinuxInputInjector(this.config) as PlatformInjector
-			} else if (plat === "darwin") {
-				this.platform = "darwin"
-				const { MacInputInjector } = require("./drivers/mac")
-				this.injector = new MacInputInjector(this.config) as PlatformInjector
-			} else {
-				this.platform = "other"
-				const msg = `Unsupported platform: ${plat}`
-				console.warn(`[InputHandler] ${msg}`)
-				this.injector = createStubInjector()
-				if (this.onError) {
-					this.onError("unsupported-platform", msg)
-				}
-			}
-		} catch (e) {
-			this.injector = createStubInjector()
-			this.platform = "other"
-			const errMsg = `Input injector initialization failed: ${e instanceof Error ? e.message : String(e)}`
-			console.warn(e)
-			if (this.onError) {
-				this.onError("input-injector-init-failed", errMsg)
-			}
-		}
+		this.platform =
+			plat === "win32" || plat === "linux" || plat === "darwin" ? plat : "other"
+		this.injector = createInputInjector({
+			config: this.config,
+			platform: this.platform,
+			onError: this.onError,
+		})
 	}
 
 	updateConfig(config: Partial<InputConfig>): void {
@@ -297,20 +271,4 @@ function isValidButton(button: unknown): button is MouseButton {
 		typeof button === "string" &&
 		(VALID_BUTTONS as readonly string[]).includes(button)
 	)
-}
-
-function createStubInjector(): PlatformInjector {
-	const warn = (method: string) =>
-		console.warn(`[InputHandler] ${method} called on unsupported platform`)
-	return {
-		updateConfig: () => {},
-		injectMouseMove: () => warn("injectMouseMove"),
-		injectMouseButton: () => warn("injectMouseButton"),
-		injectMouseWheel: () => warn("injectMouseWheel"),
-		injectKey: () => warn("injectKey"),
-		injectCombo: () => warn("injectCombo"),
-		injectText: () => warn("injectText"),
-		injectTouch: () => warn("injectTouch"),
-		destroy: () => {},
-	}
 }

@@ -1,0 +1,154 @@
+// ── CGEventType ────────────────────────────────────────────────────────────
+export const kCGEventNull = 0
+export const kCGEventLeftMouseDown = 1
+export const kCGEventLeftMouseUp = 2
+export const kCGEventRightMouseDown = 3
+export const kCGEventRightMouseUp = 4
+export const kCGEventMouseMoved = 5
+export const kCGEventLeftMouseDragged = 6
+export const kCGEventRightMouseDragged = 7
+export const kCGEventKeyDown = 10
+export const kCGEventKeyUp = 11
+export const kCGEventFlagsChanged = 12
+export const kCGEventScrollWheel = 22
+export const kCGEventOtherMouseDown = 25
+export const kCGEventOtherMouseUp = 26
+export const kCGEventOtherMouseDragged = 27
+
+// ── CGMouseButton ──────────────────────────────────────────────────────────
+export const kCGMouseButtonLeft = 0
+export const kCGMouseButtonRight = 1
+export const kCGMouseButtonCenter = 2
+
+// ── CGEventTapLocation ─────────────────────────────────────────────────────
+export const kCGHIDEventTap = 0 // injected before window server
+export const kCGSessionEventTap = 1 // session level
+export const kCGAnnotatedSessionEventTap = 2 // post-window-server
+
+// ── CGScrollEventUnit ──────────────────────────────────────────────────────
+export const kCGScrollEventUnitPixel = 0
+export const kCGScrollEventUnitLine = 1
+
+// ── CGEventField (used with CGEventSetIntegerValueField) ───────────────────
+export const kCGKeyboardEventKeycode = 9
+export const kCGMouseEventClickState = 1 // click count
+export const kCGScrollWheelEventDeltaAxis1 = 11 // vertical
+export const kCGScrollWheelEventDeltaAxis2 = 12 // horizontal
+
+// ── macOS Virtual Key Codes (from HIToolbox/Events.h) ─────────────────────
+// Letters
+export const kVK_ANSI_A = 0x00
+export const kVK_ANSI_S = 0x01
+export const kVK_ANSI_D = 0x02
+export const kVK_ANSI_F = 0x03
+export const kVK_ANSI_H = 0x04
+export const kVK_ANSI_G = 0x05
+export const kVK_ANSI_Z = 0x06
+export const kVK_ANSI_X = 0x07
+export const kVK_ANSI_C = 0x08
+export const kVK_ANSI_V = 0x09
+export const kVK_ANSI_B = 0x0b
+export const kVK_ANSI_Q = 0x0c
+export const kVK_ANSI_W = 0x0d
+export const kVK_ANSI_E = 0x0e
+export const kVK_ANSI_R = 0x0f
+export const kVK_ANSI_Y = 0x10
+export const kVK_ANSI_T = 0x11
+export const kVK_ANSI_1 = 0x12
+export const kVK_ANSI_2 = 0x13
+export const kVK_ANSI_3 = 0x14
+export const kVK_ANSI_4 = 0x15
+export const kVK_ANSI_6 = 0x16
+export const kVK_ANSI_5 = 0x17
+export const kVK_ANSI_Equal = 0x18
+export const kVK_ANSI_9 = 0x19
+export const kVK_ANSI_7 = 0x1a
+export const kVK_ANSI_Minus = 0x1b
+export const kVK_ANSI_8 = 0x1c
+export const kVK_ANSI_0 = 0x1d
+export const kVK_ANSI_RightBracket = 0x1e
+export const kVK_ANSI_O = 0x1f
+export const kVK_ANSI_U = 0x20
+export const kVK_ANSI_LeftBracket = 0x21
+export const kVK_ANSI_I = 0x22
+export const kVK_ANSI_P = 0x23
+export const kVK_ANSI_L = 0x25
+export const kVK_ANSI_J = 0x26
+export const kVK_ANSI_Quote = 0x27
+export const kVK_ANSI_K = 0x28
+export const kVK_ANSI_Semicolon = 0x29
+export const kVK_ANSI_Backslash = 0x2a
+export const kVK_ANSI_Comma = 0x2b
+export const kVK_ANSI_Slash = 0x2c
+export const kVK_ANSI_N = 0x2d
+export const kVK_ANSI_M = 0x2e
+export const kVK_ANSI_Period = 0x2f
+export const kVK_ANSI_Grave = 0x32
+export const kVK_ANSI_KeypadDecimal = 0x41
+export const kVK_ANSI_KeypadMultiply = 0x43
+export const kVK_ANSI_KeypadPlus = 0x45
+export const kVK_ANSI_KeypadClear = 0x47
+export const kVK_ANSI_KeypadDivide = 0x4b
+export const kVK_ANSI_KeypadEnter = 0x4c
+export const kVK_ANSI_KeypadMinus = 0x4e
+export const kVK_ANSI_KeypadEquals = 0x51
+export const kVK_ANSI_Keypad0 = 0x52
+export const kVK_ANSI_Keypad1 = 0x53
+export const kVK_ANSI_Keypad2 = 0x54
+export const kVK_ANSI_Keypad3 = 0x55
+export const kVK_ANSI_Keypad4 = 0x56
+export const kVK_ANSI_Keypad5 = 0x57
+export const kVK_ANSI_Keypad6 = 0x58
+export const kVK_ANSI_Keypad7 = 0x59
+export const kVK_ANSI_Keypad8 = 0x5b
+export const kVK_ANSI_Keypad9 = 0x5c
+
+// Special / modifier keys
+export const kVK_Return = 0x24
+export const kVK_Tab = 0x30
+export const kVK_Space = 0x31
+export const kVK_Delete = 0x33 // Backspace on Apple keyboards
+export const kVK_Escape = 0x35
+export const kVK_Command = 0x37 // Left Command
+export const kVK_Shift = 0x38 // Left Shift
+export const kVK_CapsLock = 0x39
+export const kVK_Option = 0x3a // Left Option/Alt
+export const kVK_Control = 0x3b // Left Control
+export const kVK_RightCommand = 0x36
+export const kVK_RightShift = 0x3c
+export const kVK_RightOption = 0x3d
+export const kVK_RightControl = 0x3e
+export const kVK_Function = 0x3f
+export const kVK_F17 = 0x40
+export const kVK_VolumeUp = 0x48
+export const kVK_VolumeDown = 0x49
+export const kVK_Mute = 0x4a
+export const kVK_F18 = 0x4f
+export const kVK_F19 = 0x50
+export const kVK_F20 = 0x5a
+export const kVK_F5 = 0x60
+export const kVK_F6 = 0x61
+export const kVK_F7 = 0x62
+export const kVK_F3 = 0x63
+export const kVK_F8 = 0x64
+export const kVK_F9 = 0x65
+export const kVK_F11 = 0x67
+export const kVK_F13 = 0x69
+export const kVK_F16 = 0x6a
+export const kVK_F14 = 0x6b
+export const kVK_F10 = 0x6d
+export const kVK_F12 = 0x6f
+export const kVK_F15 = 0x71
+export const kVK_Help = 0x72
+export const kVK_Home = 0x73
+export const kVK_PageUp = 0x74
+export const kVK_ForwardDelete = 0x75
+export const kVK_F4 = 0x76
+export const kVK_End = 0x77
+export const kVK_F2 = 0x78
+export const kVK_PageDown = 0x79
+export const kVK_F1 = 0x7a
+export const kVK_LeftArrow = 0x7b
+export const kVK_RightArrow = 0x7c
+export const kVK_DownArrow = 0x7d
+export const kVK_UpArrow = 0x7e

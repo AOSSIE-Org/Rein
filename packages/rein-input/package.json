@@ -1,0 +1,71 @@
+{
+	"name": "@aossie/rein-input",
+	"version": "0.1.0",
+	"description": "Cross-platform native input injection library using Koffi FFI for Node.js and Electron",
+	"author": "AOSSIE",
+	"license": "Apache-2.0",
+	"type": "module",
+	"keywords": [
+		"input",
+		"mouse",
+		"keyboard",
+		"touch",
+		"multitouch",
+		"gesture",
+		"injection",
+		"cross-platform",
+		"koffi",
+		"ffi",
+		"uinput",
+		"coregraphics",
+		"sendinput",
+		"webrtc",
+		"remote-desktop"
+	],
+	"homepage": "https://github.com/AOSSIE-Org/Rein#readme",
+	"bugs": {
+		"url": "https://github.com/AOSSIE-Org/Rein/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/AOSSIE-Org/Rein.git",
+		"directory": "packages/rein-input"
+	},
+	"main": "./dist/index.cjs",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.cjs"
+		}
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"scripts": {
+		"build": "node build.js",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"peerDependencies": {
+		"koffi": "^2.16.2"
+	},
+	"peerDependenciesMeta": {
+		"koffi": {
+			"optional": false
+		}
+	},
+	"devDependencies": {
+		"@types/node": "^22.10.2",
+		"esbuild": "^0.28.2",
+		"koffi": "^2.16.2",
+		"typescript": "^7.0.2"
+	}
+}
