@@ -1,7 +1,8 @@
 {
 	"main": "electron/main.cjs",
 	"name": "Rein",
-	"version": "0.1.0",
+	"displayName": "Rein",
+	"version": "0.5.0",
 	"description": "Rein Desktop Streaming Server",
 	"author": "AOSSIE",
 	"private": true,

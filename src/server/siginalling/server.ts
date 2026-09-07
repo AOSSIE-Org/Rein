@@ -8,6 +8,11 @@ import { WebRTCManager } from "./webRTC.ts"
 import type { InputConfig } from "../types.ts"
 import { getLanIp, isLoopbackAddress } from "../../utils/net.ts"
 import { requireAuth, parseJsonBody, json } from "./utils.ts"
+import {
+	loadServerConfig,
+	saveServerConfig,
+	type ServerConfig,
+} from "../../utils/configHelper.ts"
 
 //routes
 import { handleSessions, handleLatency, handleLogs } from "./handlers/debug.ts"
@@ -33,6 +38,7 @@ let webrtcManager: WebRTCManager | null = null
 let hostStatus: "stopped" | "starting" | "running" | "error" = "stopped"
 const lastReportedLatencyMs: { current: number | null } = { current: null }
 let signalingAttached = false
+let lifecyclePromise: Promise<void> = Promise.resolve()
 
 // ---------------------------------------------------------------------------
 // SSE log transport
@@ -83,6 +89,12 @@ function getEffectiveHostStatus():
 
 // ---------------------------------------------------------------------------
 
+interface MinimalHttpServer {
+	close?: (cb?: () => void) => void
+}
+
+let storedHttpServer: MinimalHttpServer | null = null
+
 // Route attachment
 // biome-ignore lint/suspicious/noExplicitAny: Vite server instance
 export function attachSignalingRoutes(server: any): void {
@@ -92,6 +104,7 @@ export function attachSignalingRoutes(server: any): void {
 	}
 
 	const httpServer = server.httpServer || server
+	storedHttpServer = httpServer
 
 	try {
 		if (!webrtcManager) {
@@ -101,9 +114,10 @@ export function attachSignalingRoutes(server: any): void {
 		if (!gstManager) {
 			gstManager = new GstManager()
 			hostStatus = "starting"
-			gstManager
-				.start()
-				.then(() => {
+			lifecyclePromise = lifecyclePromise
+				.then(async () => {
+					if (!gstManager) return
+					await gstManager.start()
 					hostStatus = "running"
 					logger.info("GStreamer capture engine started")
 				})
@@ -140,11 +154,11 @@ export function attachSignalingRoutes(server: any): void {
 					json(res, 200, { status: getEffectiveHostStatus() })
 					return
 				}
-				hostStatus = "starting"
-				if (!gstManager) gstManager = new GstManager()
-				gstManager
-					.start()
-					.then(() => {
+				lifecyclePromise = lifecyclePromise
+					.then(async () => {
+						hostStatus = "starting"
+						if (!gstManager) gstManager = new GstManager()
+						await gstManager.start()
 						hostStatus = "running"
 					})
 					.catch((err) => {
@@ -157,20 +171,36 @@ export function attachSignalingRoutes(server: any): void {
 
 			if (pathname === "/api/host/stop" && req.method === "POST") {
 				if (!requireAuth(req, res)) return
-				hostStatus = "stopped"
-				if (gstManager) {
-					gstManager
-						.stop()
-						.then(() => {
-							json(res, 200, { status: hostStatus })
-						})
-						.catch((err) => {
-							logger.error(`Error stopping GStreamer: ${err}`)
-							json(res, 500, { error: "Failed to stop host engine" })
-						})
-				} else {
-					json(res, 200, { status: hostStatus })
-				}
+				lifecyclePromise = lifecyclePromise
+					.then(async () => {
+						hostStatus = "stopped"
+						if (gstManager) {
+							await gstManager.stop()
+							gstManager = null
+						}
+					})
+					.then(() => {
+						json(res, 200, { status: hostStatus })
+					})
+					.catch((err) => {
+						logger.error(`Error stopping GStreamer: ${err}`)
+						json(res, 500, { error: "Failed to stop host engine" })
+					})
+				return
+			}
+
+			if (pathname === "/api/host/restart" && req.method === "POST") {
+				if (!requireAuth(req, res)) return
+				restartServer()
+					.then(() =>
+						json(res, 200, { ok: true, status: getEffectiveHostStatus() }),
+					)
+					.catch((err) =>
+						json(res, 500, {
+							ok: false,
+							error: `Failed to restart server: ${String(err)}`,
+						}),
+					)
 				return
 			}
 
@@ -227,11 +257,79 @@ export function attachSignalingRoutes(server: any): void {
 
 			// ------------------------------------------------------------------
 			// Config  POST /api/config
+			if (pathname === "/api/config" && req.method === "GET") {
+				if (!requireAuth(req, res)) return
+				const { framerate, streamQuality, frontendPort } = loadServerConfig()
+				json(res, 200, {
+					ok: true,
+					config: {
+						framerate: framerate ?? null,
+						streamQuality: streamQuality ?? "performance",
+						frontendPort: frontendPort ?? null,
+					},
+				})
+				return
+			}
+
 			if (pathname === "/api/config" && req.method === "POST") {
 				if (!requireAuth(req, res)) return
-				parseJsonBody<Partial<InputConfig>>(req)
-					.then((config) => {
-						webrtcManager?.updateConfig(config)
+				parseJsonBody<
+					Partial<InputConfig> & {
+						framerate?: number | null
+						streamQuality?: string
+						frontendPort?: number
+					}
+				>(req)
+					.then(async (config) => {
+						const { framerate, streamQuality, frontendPort, ...inputConfig } =
+							config
+						webrtcManager?.updateConfig(inputConfig)
+						// GStreamer and server fields are persisted to writable config and take effect on restart
+						const gstFields: Partial<ServerConfig> = {}
+						if ("framerate" in config) gstFields.framerate = framerate ?? null
+						if ("streamQuality" in config) {
+							const q = streamQuality
+							if (
+								q === "performance" ||
+								q === "intermediate" ||
+								q === "quality"
+							) {
+								gstFields.streamQuality = q
+							}
+						}
+						// frontendPort cannot be rebound at runtime — Vite/the HTTP listener
+						// was already bound at process startup. Persisting a new value here
+						// would create a mismatch between the saved config and the live port.
+						// A full process restart (or Vite restart) is required for the port
+						// to take effect, so frontendPort is intentionally excluded from the
+						// set of runtime-configurable fields.
+						const currentCfg = loadServerConfig()
+						const hasGstChange =
+							("framerate" in config &&
+								(framerate ?? null) !== (currentCfg.framerate ?? null)) ||
+							("streamQuality" in config &&
+								streamQuality !== undefined &&
+								streamQuality !== (currentCfg.streamQuality ?? "performance"))
+
+						if (Object.keys(gstFields).length > 0) {
+							saveServerConfig(gstFields)
+							if (hasGstChange) {
+								try {
+									await restartServer()
+									json(res, 200, { ok: true })
+									return
+								} catch (err) {
+									logger.error(
+										`Failed to restart server after config update: ${err}`,
+									)
+									json(res, 500, {
+										ok: false,
+										error: `Failed to restart server: ${String(err)}`,
+									})
+									return
+								}
+							}
+						}
 						json(res, 200, { ok: true })
 					})
 					.catch((err) => {
@@ -327,6 +425,73 @@ export function attachSignalingRoutes(server: any): void {
 
 export async function stopServer() {
 	signalingAttached = false
-	webrtcManager?.shutdown()
+	if (webrtcManager) await webrtcManager.shutdown()
 	if (gstManager) await gstManager.stop()
+}
+
+export async function restartServer(): Promise<void> {
+	const restart = lifecyclePromise.then(async () => {
+		logger.info("Executing full server engine restart...")
+		hostStatus = "starting"
+
+		if (gstManager) {
+			try {
+				await gstManager.stop()
+			} catch (err) {
+				logger.warn(`Error stopping GStreamer during restart: ${err}`)
+			}
+			gstManager = null
+		}
+
+		if (webrtcManager) {
+			try {
+				await webrtcManager.shutdown()
+			} catch (err) {
+				logger.warn(`Error shutting down WebRTC during restart: ${err}`)
+			}
+			webrtcManager = null
+		}
+
+		// 200ms pause ensures OS releases bound UDP sockets (5004/5005) completely
+		await new Promise((resolve) => setTimeout(resolve, 200))
+
+		try {
+			webrtcManager = new WebRTCManager()
+			gstManager = new GstManager()
+			await gstManager.start()
+			hostStatus = "running"
+			logger.info("Server engine successfully restarted")
+		} catch (err) {
+			hostStatus = "error"
+			logger.error(`Failed to start server engine during restart: ${err}`)
+			throw err
+		}
+	})
+	lifecyclePromise = restart.catch(() => undefined)
+	return restart
+}
+
+if (typeof process !== "undefined") {
+	const handleExitSignal = async (signal: string) => {
+		logger.info(`Received ${signal}, shutting down server...`)
+		try {
+			await stopServer()
+			if (storedHttpServer && typeof storedHttpServer.close === "function") {
+				const serverInstance = storedHttpServer
+				await new Promise<void>((resolve) => {
+					serverInstance.close?.(() => resolve())
+				})
+			}
+		} catch (err) {
+			logger.error(`Error shutting down server on ${signal}: ${err}`)
+		} finally {
+			process.exit(0)
+		}
+	}
+	process.once("SIGINT", () => {
+		handleExitSignal("SIGINT")
+	})
+	process.once("SIGTERM", () => {
+		handleExitSignal("SIGTERM")
+	})
 }

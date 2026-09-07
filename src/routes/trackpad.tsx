@@ -2,11 +2,13 @@ import { BufferBar } from "@/components/Trackpad/Buffer"
 import type { ModifierState } from "@/types"
 import { createFileRoute } from "@tanstack/react-router"
 import { useRef, useState, useEffect } from "react"
+import { Keyboard } from "lucide-react"
 import { ControlBar } from "../components/Trackpad/ControlBar"
 import { ExtraKeys } from "../components/Trackpad/ExtraKeys"
 import { TouchArea } from "../components/Trackpad/TouchArea"
 import { useRemoteConnection } from "../hooks/useRemoteConnection"
 import { useTrackpadGesture } from "../hooks/useTrackpadGesture"
+import { useMouseInput } from "../hooks/useMouseInput"
 import { ScreenMirror } from "../components/Trackpad/ScreenMirror"
 import { ErrorComponent } from "../components/Trackpad/ErrorComponent"
 import { useWebRtcStream } from "../hooks/useWebRtcStream"
@@ -14,10 +16,29 @@ import {
 	getLocalStorageItem,
 	setLocalStorageItem,
 } from "../utils/safeLocalStorage"
+import { APP_CONFIG } from "../config"
+import { t } from "../utils/i18n"
 
 export const Route = createFileRoute("/trackpad")({
 	component: TrackpadPage,
 })
+
+const hasOnScreenKeyboard = (): boolean => {
+	if (typeof window === "undefined") return false
+
+	if ("virtualKeyboard" in navigator) return true
+
+	const isTouchDevice =
+		"ontouchstart" in window ||
+		navigator.maxTouchPoints > 0 ||
+		window.matchMedia("(pointer: coarse)").matches
+
+	if (isTouchDevice) return true
+
+	return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+		navigator.userAgent,
+	)
+}
 
 function TrackpadPage() {
 	const searchParams = new URLSearchParams(
@@ -42,6 +63,8 @@ function TrackpadPage() {
 	const isComposingRef = useRef(false)
 	const [keyboardOpen, setKeyboardOpen] = useState(false)
 	const [extraKeysVisible, setExtraKeysVisible] = useState(true)
+	const [noKeyboardToast, setNoKeyboardToast] = useState(false)
+	const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 	const { status, send, sendCombo } = useRemoteConnection()
 	const {
 		trackActive,
@@ -62,6 +85,14 @@ function TrackpadPage() {
 	const gesture = useTrackpadGesture(broadcastMessage, scrollMode)
 	const { isTracking, handlers } = gesture
 
+	const mouseInput = useMouseInput(broadcastMessage)
+	const {
+		isLocked: isPointerLocked,
+		showLockHint,
+		containerRef: mouseContainerRef,
+		handlers: mouseHandlers,
+	} = mouseInput
+
 	useEffect(() => {
 		if (keyboardOpen) {
 			hiddenInputRef.current?.focus()
@@ -70,8 +101,43 @@ function TrackpadPage() {
 		}
 	}, [keyboardOpen])
 
-	const toggleKeyboard = () => setKeyboardOpen((prev) => !prev)
-	const focusInput = () => hiddenInputRef.current?.focus()
+	const toggleKeyboard = () => {
+		if (hasOnScreenKeyboard()) {
+			setKeyboardOpen((prev) => {
+				const next = !prev
+				if (next) {
+					hiddenInputRef.current?.focus()
+					if ("virtualKeyboard" in navigator) {
+						try {
+							// @ts-expect-error
+							navigator.virtualKeyboard?.show()
+						} catch {}
+					}
+				} else {
+					hiddenInputRef.current?.blur()
+				}
+				return next
+			})
+		} else {
+			setNoKeyboardToast(true)
+			if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
+			toastTimeoutRef.current = setTimeout(() => {
+				setNoKeyboardToast(false)
+			}, 3000)
+		}
+	}
+
+	const focusInput = () => {
+		if (hasOnScreenKeyboard()) {
+			hiddenInputRef.current?.focus()
+		} else {
+			setNoKeyboardToast(true)
+			if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
+			toastTimeoutRef.current = setTimeout(() => {
+				setNoKeyboardToast(false)
+			}, 3000)
+		}
+	}
 
 	const handleClick = (button: "left" | "right") => {
 		broadcastMessage({ type: "click", button, press: true })
@@ -211,65 +277,126 @@ function TrackpadPage() {
 
 	return (
 		<div className="flex flex-col h-full min-h-0 bg-base-300 overflow-hidden">
-			<div className="flex-1 min-h-0 relative flex flex-col border-b border-base-200">
-				<TouchArea
-					isTracking={isTracking}
-					scrollMode={scrollMode}
-					handlers={handlers}
-				/>
-				{error && errorHandle ? (
-					<ErrorComponent
-						error={error}
-						errorHandle={errorHandle}
-						onReconnect={reconnect}
-					/>
-				) : (
-					<ScreenMirror
-						isTracking={isTracking}
-						scrollMode={scrollMode}
-						handlers={handlers}
-						videoStream={videoStream}
-						trackActive={trackActive}
-						connecting={connecting}
-						status={status}
-					/>
-				)}
-				{bufferText !== "" && <BufferBar bufferText={bufferText} />}
+			{/* Main content row: on large screens, trackpad/screen sits left and right panel sits right */}
+			<div className="flex flex-1 min-h-0 flex-col lg:flex-row overflow-hidden">
+				{/* Left/top: screen mirror only (no control bar on desktop) */}
+				<div className="flex flex-col flex-1 min-h-0 min-w-0">
+					<div className="flex-1 min-h-0 relative flex flex-col border-b border-base-200">
+						<TouchArea
+							isTracking={isTracking}
+							scrollMode={scrollMode}
+							handlers={handlers}
+						/>
+						{error && errorHandle ? (
+							<ErrorComponent
+								error={error}
+								errorHandle={errorHandle}
+								onReconnect={reconnect}
+							/>
+						) : (
+							<ScreenMirror
+								isTracking={isTracking}
+								scrollMode={scrollMode}
+								handlers={handlers}
+								videoStream={videoStream}
+								trackActive={trackActive}
+								connecting={connecting}
+								status={status}
+								mouseContainerRef={mouseContainerRef}
+								onMouseClick={mouseHandlers.onClick}
+								isPointerLocked={isPointerLocked}
+								showLockHint={showLockHint}
+							/>
+						)}
+						{bufferText !== "" && <BufferBar bufferText={bufferText} />}
+					</div>
+
+					{/* Mobile-only: ControlBar below the screen */}
+					<div className="lg:hidden shrink-0 border-b border-base-200">
+						<ControlBar
+							onCopy={handleCopy}
+							onPaste={handlePaste}
+							scrollMode={scrollMode}
+							modifier={modifier}
+							buffer={buffer.join(" + ")}
+							keyboardOpen={keyboardOpen}
+							extraKeysVisible={extraKeysVisible}
+							onToggleScroll={() => setScrollMode(!scrollMode)}
+							onLeftClick={() => handleClick("left")}
+							onRightClick={() => handleClick("right")}
+							onKeyboardToggle={toggleKeyboard}
+							onModifierToggle={handleModifierState}
+							onExtraKeysToggle={() => setExtraKeysVisible((prev) => !prev)}
+						/>
+					</div>
+
+					{/* Mobile-only: ExtraKeys below the control bar */}
+					<div
+						className={`lg:hidden shrink-0 overflow-hidden transition-all duration-300 ${
+							!extraKeysVisible || keyboardOpen
+								? "max-h-0 opacity-0 pointer-events-none"
+								: "max-h-[50vh] opacity-100"
+						}`}
+					>
+						<ExtraKeys
+							orientation="horizontal"
+							sendKey={(k) => {
+								if (modifier !== "Release") handleModifier(k)
+								else broadcastMessage({ type: "key", key: k })
+							}}
+							onInputFocus={focusInput}
+						/>
+					</div>
+				</div>
+				{/* Desktop/Tablet mode: right side panel */}
+				<div className="hidden min-w-56 lg:flex lg:flex-col h-full shrink-0 border-l border-base-200 overflow-y-auto">
+					<div className="flex flex-1 flex-col w-full h-full p-3 bg-base-100">
+						<div className="flex flex-col gap-4">
+							<ControlBar
+								orientation="vertical"
+								onCopy={handleCopy}
+								onPaste={handlePaste}
+								scrollMode={scrollMode}
+								modifier={modifier}
+								buffer={buffer.join(" + ")}
+								keyboardOpen={keyboardOpen}
+								extraKeysVisible={extraKeysVisible}
+								onToggleScroll={() => setScrollMode(!scrollMode)}
+								onLeftClick={() => handleClick("left")}
+								onRightClick={() => handleClick("right")}
+								onKeyboardToggle={toggleKeyboard}
+								onModifierToggle={handleModifierState}
+								onExtraKeysToggle={() => setExtraKeysVisible((prev) => !prev)}
+							/>
+							<ExtraKeys
+								orientation="vertical"
+								sendKey={(k) => {
+									if (modifier !== "Release") handleModifier(k)
+									else broadcastMessage({ type: "key", key: k })
+								}}
+								onInputFocus={focusInput}
+							/>
+						</div>
+						<div className="mt-auto flex flex-col items-center gap-1 pt-6 pb-2">
+							<span className="text-sm font-semibold text-base-content/90">
+								Rein
+							</span>
+							<span className="text-xs text-base-content/50">
+								v{APP_CONFIG.VERSION}
+							</span>
+						</div>
+					</div>
+				</div>
 			</div>
 
-			<div className="shrink-0 border-b border-base-200">
-				<ControlBar
-					onCopy={handleCopy}
-					onPaste={handlePaste}
-					scrollMode={scrollMode}
-					modifier={modifier}
-					buffer={buffer.join(" + ")}
-					keyboardOpen={keyboardOpen}
-					extraKeysVisible={extraKeysVisible}
-					onToggleScroll={() => setScrollMode(!scrollMode)}
-					onLeftClick={() => handleClick("left")}
-					onRightClick={() => handleClick("right")}
-					onKeyboardToggle={toggleKeyboard}
-					onModifierToggle={handleModifierState}
-					onExtraKeysToggle={() => setExtraKeysVisible((prev) => !prev)}
-				/>
-			</div>
-
-			<div
-				className={`shrink-0 overflow-hidden transition-all duration-300 ${
-					!extraKeysVisible || keyboardOpen
-						? "max-h-0 opacity-0 pointer-events-none"
-						: "max-h-[50vh] opacity-100"
-				}`}
-			>
-				<ExtraKeys
-					sendKey={(k) => {
-						if (modifier !== "Release") handleModifier(k)
-						else broadcastMessage({ type: "key", key: k })
-					}}
-					onInputFocus={focusInput}
-				/>
-			</div>
+			{noKeyboardToast && (
+				<div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-base-100/95 backdrop-blur-md px-4 py-2.5 rounded-full border border-base-300 shadow-2xl text-xs md:text-sm text-base-content pointer-events-none transition-all duration-300 animate-in fade-in slide-in-from-bottom-3">
+					<Keyboard size={16} className="text-warning shrink-0" />
+					<span className="font-medium">
+						{t("settings", "noOnscreenKeyboard")}
+					</span>
+				</div>
+			)}
 
 			<input
 				ref={hiddenInputRef}

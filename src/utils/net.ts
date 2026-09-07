@@ -39,3 +39,8 @@ export function isLoopbackAddress(addr?: string | null): boolean {
 	if (!addr) return false
 	return addr === "127.0.0.1" || addr === "::1" || addr === "::ffff:127.0.0.1"
 }
+
+export function getAuthHeaders(authToken?: string): Record<string, string> {
+	if (!authToken) return {}
+	return { Authorization: `Bearer ${authToken}` }
+}

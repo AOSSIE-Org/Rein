@@ -18,9 +18,13 @@ import { MdSpaceBar } from "react-icons/md"
 interface ExtraKeysProps {
 	sendKey: (key: string) => void
 	onInputFocus: () => void
+	orientation?: "horizontal" | "vertical"
 }
 
-export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey }) => {
+export const ExtraKeys: React.FC<ExtraKeysProps> = ({
+	sendKey,
+	orientation = "horizontal",
+}) => {
 	const [isPlaying, setIsPlaying] = useState(false)
 
 	const handlePlayPause = () => {
@@ -28,79 +32,130 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey }) => {
 		setIsPlaying(!isPlaying)
 	}
 
-	const keys = [
-		{ icon: <FaVolumeMute />, key: "audiomute", type: "media", label: "Mute" },
-		{
-			icon: <FaVolumeDown />,
-			key: "audiovoldown",
-			type: "media",
-			label: "Vol Down",
-		},
-		{ icon: <FaVolumeUp />, key: "audiovolup", type: "media", label: "Vol Up" },
-		{
-			icon: <FaBackwardStep />,
-			key: "audioprev",
-			type: "media",
-			label: "Previous",
-		},
-		{
-			icon: isPlaying ? <FaPause /> : <FaPlay />,
-			action: handlePlayPause,
-			key: "playpause",
-			type: "media",
-			label: "Play/Pause",
-		},
-		{
-			icon: <FaForwardStep />,
-			key: "audionext",
-			type: "media",
-			label: "Next",
-		},
+	const keyGroups = [
+		[
+			{
+				icon: <FaVolumeMute />,
+				key: "audiomute",
+				type: "media",
+				label: "Mute",
+			},
+			{
+				icon: <FaVolumeDown />,
+				key: "audiovoldown",
+				type: "media",
+				label: "Vol Down",
+			},
+			{
+				icon: <FaVolumeUp />,
+				key: "audiovolup",
+				type: "media",
+				label: "Vol Up",
+			},
+			{
+				icon: <FaBackwardStep />,
+				key: "audioprev",
+				type: "media",
+				label: "Previous",
+			},
+			{
+				icon: isPlaying ? <FaPause /> : <FaPlay />,
+				action: handlePlayPause,
+				key: "playpause",
+				type: "media",
+				label: "Play/Pause",
+			},
+			{
+				icon: <FaForwardStep />,
+				key: "audionext",
+				type: "media",
+				label: "Next",
+			},
+		],
+		[
+			{ label: "Esc", key: "escape", type: "action" },
+			{ label: "Tab", key: "tab", type: "action" },
+			{ label: "PtrSc", key: "printscreen", type: "action" },
+			{ label: "End", key: "end", type: "action" },
+			{ label: "PgUp", key: "pageup", type: "action" },
+			{ label: "PgDn", key: "pagedown", type: "action" },
+		],
+		[
+			{ label: "Meta", key: "meta", type: "mod" },
+			{ label: "Alt", key: "alt", type: "mod" },
+			{ icon: <MdSpaceBar />, key: "space", type: "action", label: "Space" },
+			{ label: "Shift", key: "shift", type: "mod" },
+			{ icon: <FaArrowUp />, key: "arrowup", type: "arrow", label: "Up" },
+			{
+				icon: <FaLevelDownAlt style={{ transform: "rotate(90deg)" }} />,
+				key: "enter",
+				type: "action",
+				label: "Enter",
+			},
+		],
+		[
+			{ label: "Ctrl", key: "control", type: "mod" },
+			{ label: "Menu", key: "menu", type: "mod" },
+			{ label: "Del", key: "delete", type: "action" },
+			{ icon: <FaArrowLeft />, key: "arrowleft", type: "arrow", label: "Left" },
+			{ icon: <FaArrowDown />, key: "arrowdown", type: "arrow", label: "Down" },
+			{
+				icon: <FaArrowRight />,
+				key: "arrowright",
+				type: "arrow",
+				label: "Right",
+			},
+		],
+		[
+			{ label: "F1", key: "f1", type: "fn" },
+			{ label: "F2", key: "f2", type: "fn" },
+			{ label: "F3", key: "f3", type: "fn" },
+			{ label: "F4", key: "f4", type: "fn" },
+			{ label: "F5", key: "f5", type: "fn" },
+			{ label: "F6", key: "f6", type: "fn" },
+		],
+		[
+			{ label: "F7", key: "f7", type: "fn" },
+			{ label: "F8", key: "f8", type: "fn" },
+			{ label: "F9", key: "f9", type: "fn" },
+			{ label: "F10", key: "f10", type: "fn" },
+			{ label: "F11", key: "f11", type: "fn" },
+			{ label: "F12", key: "f12", type: "fn" },
+		],
+	]
 
-		{ label: "Esc", key: "escape", type: "action" },
-		{ label: "Tab", key: "tab", type: "action" },
-		{ label: "PtrSc", key: "printscreen", type: "action" },
-		{ label: "End", key: "end", type: "action" },
-		{ label: "PgUp", key: "pageup", type: "action" },
-		{ label: "PgDn", key: "pagedown", type: "action" },
-
-		{ label: "Meta", key: "meta", type: "mod" },
-		{ label: "Alt", key: "alt", type: "mod" },
-		{ icon: <MdSpaceBar />, key: "space", type: "action", label: "Space" },
-		{ label: "Shift", key: "shift", type: "mod" },
-		{ icon: <FaArrowUp />, key: "arrowup", type: "arrow", label: "Up" },
-		{
-			icon: <FaLevelDownAlt style={{ transform: "rotate(90deg)" }} />,
-			key: "enter",
-			type: "action",
-			label: "Enter",
-		},
-
-		{ label: "Ctrl", key: "control", type: "mod" },
-		{ label: "Menu", key: "menu", type: "mod" },
-		{ label: "Del", key: "delete", type: "action" },
-		{ icon: <FaArrowLeft />, key: "arrowleft", type: "arrow", label: "Left" },
-		{ icon: <FaArrowDown />, key: "arrowdown", type: "arrow", label: "Down" },
-		{
-			icon: <FaArrowRight />,
-			key: "arrowright",
-			type: "arrow",
-			label: "Right",
-		},
-
-		{ label: "F1", key: "f1", type: "fn" },
-		{ label: "F2", key: "f2", type: "fn" },
-		{ label: "F3", key: "f3", type: "fn" },
-		{ label: "F4", key: "f4", type: "fn" },
-		{ label: "F5", key: "f5", type: "fn" },
-		{ label: "F6", key: "f6", type: "fn" },
-
-		{ label: "F7", key: "f7", type: "fn" },
-		{ label: "F8", key: "f8", type: "fn" },
-		{ label: "F9", key: "f9", type: "fn" },
-		{ label: "F10", key: "f10", type: "fn" },
-		{ label: "F11", key: "f11", type: "fn" },
-		{ label: "F12", key: "f12", type: "fn" },
+	const keyGroupsVertical = [
+		keyGroups[0], // Media
+		[
+			...keyGroups[1],
+			...[
+				{ icon: <MdSpaceBar />, key: "space", type: "action", label: "Space" },
+				{ label: "Meta", key: "meta", type: "mod" },
+				{ label: "Alt", key: "alt", type: "mod" },
+				{ label: "Shift", key: "shift", type: "mod" },
+				{ label: "Ctrl", key: "control", type: "mod" },
+				{ label: "Menu", key: "menu", type: "mod" },
+			],
+		],
+		[
+			{ label: "Del", key: "delete", type: "action" },
+			{ icon: <FaArrowUp />, key: "arrowup", type: "arrow", label: "Up" },
+			{
+				icon: <FaLevelDownAlt style={{ transform: "rotate(90deg)" }} />,
+				key: "enter",
+				type: "action",
+				label: "Enter",
+			},
+			{ icon: <FaArrowLeft />, key: "arrowleft", type: "arrow", label: "Left" },
+			{ icon: <FaArrowDown />, key: "arrowdown", type: "arrow", label: "Down" },
+			{
+				icon: <FaArrowRight />,
+				key: "arrowright",
+				type: "arrow",
+				label: "Right",
+			},
+		],
+		[...keyGroups[4], ...keyGroups[5]],
 	]
 
 	const getBtnClass = (type?: string) => {
@@ -120,23 +175,46 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey }) => {
 		}
 	}
 
+	const renderKey = (k: {
+		icon?: React.ReactNode
+		key: string
+		type?: string
+		label?: string
+		action?: () => void
+	}) => (
+		<button
+			type="button"
+			key={k.key}
+			className={`btn btn-xs h-10 min-h-0 w-full rounded-md shadow-sm ${getBtnClass(k.type)} flex items-center justify-center p-0`}
+			onPointerDown={(e) => {
+				e.preventDefault()
+				if (k.action) k.action()
+				else if (k.key) sendKey(k.key)
+			}}
+			aria-label={k.label || k.key}
+		>
+			{k.icon || k.label || k.key}
+		</button>
+	)
+	if (orientation === "vertical") {
+		return (
+			<div className="flex flex-col gap-4 w-full">
+				{keyGroupsVertical.map((group, _i) => (
+					<div
+						// biome-ignore lint/suspicious/noArrayIndexKey: vertical key groups are stateless layout wrappers
+						key={_i}
+						className="grid grid-cols-3 gap-1.5 w-full"
+					>
+						{group.map((k) => renderKey(k))}
+					</div>
+				))}
+			</div>
+		)
+	}
+	const keys = keyGroups.flat()
 	return (
 		<div className="grid grid-cols-6 grid-rows-6 gap-1 p-1 w-full bg-base-100">
-			{keys.map((k) => (
-				<button
-					type="button"
-					key={k.key}
-					className={`btn btn-xs h-10 min-h-0 w-full rounded-md shadow-sm ${getBtnClass(k.type)} flex items-center justify-center p-0`}
-					onPointerDown={(e) => {
-						e.preventDefault()
-						if (k.action) k.action()
-						else if (k.key) sendKey(k.key)
-					}}
-					aria-label={k.label || k.key}
-				>
-					{k.icon || k.label || k.key}
-				</button>
-			))}
+			{keys.map((k) => renderKey(k))}
 		</div>
 	)
 }

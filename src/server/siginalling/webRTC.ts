@@ -305,11 +305,15 @@ export class WebRTCManager {
 		}
 	}
 
-	public shutdown() {
-		this.udp.shutdown()
+	public async shutdown(): Promise<void> {
+		await this.udp.shutdown()
 		for (const sessionId of [...this.clients.keys()]) {
 			cleanupSession(this.clients, sessionId)
 		}
+	}
+
+	public async recreateUdpSockets(): Promise<void> {
+		await this.udp.recreateSockets()
 	}
 
 	// Private helpers
