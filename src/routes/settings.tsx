@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router"
 import QRCode from "qrcode"
 import { useEffect, useRef, useState } from "react"
-import { ClientTab } from "@/components/settings/ClientTab"
-import { ServerTab } from "@/components/settings/ServerTab"
+import { ClientTab } from "@/components/Settings/ClientTab"
+import { ServerTab } from "@/components/Settings/ServerTab"
 import { APP_CONFIG } from "../config"
 import { t } from "../utils/i18n"
 import {

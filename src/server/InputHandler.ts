@@ -279,6 +279,33 @@ export class InputHandler {
 				break
 			}
 
+			case "gamepad": {
+				// Gamepad button press / release — injection implemented in a later driver step.
+				// Validate button id is present and is a non-empty string.
+				if (!msg.button || typeof msg.button !== "string") break
+				console.log(
+					`[InputHandler] Gamepad button "${msg.button}" ${msg.press ? "pressed" : "released"}`,
+				)
+				break
+			}
+
+			case "gamepad-axis": {
+				// Analog stick axis update — ax and ay are normalised -1…+1.
+				// Injection implemented in a later driver step.
+				if (msg.axis !== "ls" && msg.axis !== "rs") break
+				if (
+					typeof msg.ax !== "number" ||
+					!Number.isFinite(msg.ax) ||
+					typeof msg.ay !== "number" ||
+					!Number.isFinite(msg.ay)
+				)
+					break
+				console.log(
+					`[InputHandler] Gamepad axis "${msg.axis}" ax=${msg.ax.toFixed(3)} ay=${msg.ay.toFixed(3)}`,
+				)
+				break
+			}
+
 			default:
 				console.warn(
 					`[InputHandler] Unknown message type: ${(msg as { type?: unknown }).type}`,

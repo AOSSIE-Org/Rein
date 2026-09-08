@@ -25,16 +25,25 @@ export interface InputMessage {
 		| "zoom"
 		| "combo"
 		| "touch"
+		// Gamepad: button press / release
+		| "gamepad"
+		// Gamepad: analog stick axis update (continuous, sent on every pointer move)
+		| "gamepad-axis"
 	dx?: number
 	dy?: number
 	config?: Partial<InputConfig>
-	button?: "left" | "right" | "middle"
+	// mouse button (click) OR gamepad button id (gamepad)
+	button?: "left" | "right" | "middle" | string
 	press?: boolean
 	key?: string
 	keys?: string[]
 	text?: string
 	delta?: number
 	contacts?: TouchContact[]
+	// Gamepad axis: which stick and normalised -1…+1 values
+	axis?: "ls" | "rs"
+	ax?: number
+	ay?: number
 }
 
 export type PlatformInjector = {

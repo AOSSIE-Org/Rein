@@ -52,7 +52,8 @@ export function ConnectionProvider({
 			type === "move" ||
 			type === "scroll" ||
 			type === "touch" ||
-			type === "zoom"
+			type === "zoom" ||
+			type === "gamepad-axis"
 		if (isUnordered) {
 			if (unorderedDcRef.current?.readyState === "open") {
 				unorderedDcRef.current.send(JSON.stringify(msg))
