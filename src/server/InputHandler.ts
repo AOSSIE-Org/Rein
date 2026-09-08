@@ -279,6 +279,27 @@ export class InputHandler {
 				break
 			}
 
+			case "gamepad": {
+				if (!msg.button || typeof msg.button !== "string") break
+				const isDown =
+					msg.press ?? (msg as { pressed?: boolean }).pressed ?? false
+				this.injector.injectGamepadButton(msg.button, isDown)
+				break
+			}
+
+			case "gamepad-axis": {
+				if (msg.axis !== "ls" && msg.axis !== "rs") break
+				if (
+					typeof msg.ax !== "number" ||
+					!Number.isFinite(msg.ax) ||
+					typeof msg.ay !== "number" ||
+					!Number.isFinite(msg.ay)
+				)
+					break
+				this.injector.injectGamepadAxis(msg.axis, msg.ax, msg.ay)
+				break
+			}
+
 			default:
 				console.warn(
 					`[InputHandler] Unknown message type: ${(msg as { type?: unknown }).type}`,
@@ -311,6 +332,8 @@ function createStubInjector(): PlatformInjector {
 		injectCombo: () => warn("injectCombo"),
 		injectText: () => warn("injectText"),
 		injectTouch: () => warn("injectTouch"),
+		injectGamepadButton: () => warn("injectGamepadButton"),
+		injectGamepadAxis: () => warn("injectGamepadAxis"),
 		destroy: () => {},
 	}
 }

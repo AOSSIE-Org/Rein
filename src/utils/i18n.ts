@@ -6,6 +6,7 @@ export const i18n = {
 	en: {
 		nav: {
 			trackpad: "Trackpad",
+			gamepad: "GamePad",
 			settings: "Settings",
 			sendFile: "Send Files",
 		},
@@ -69,6 +70,7 @@ export const i18n = {
 			title: "Settings",
 			clientTab: "Client Settings",
 			serverTab: "Server Settings",
+			copy: "Copy",
 			copied: "Copied to Clipboard!",
 			appVersion: "Rein Remote v{version}",
 			copyFailed:

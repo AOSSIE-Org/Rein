@@ -1,9 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router"
 import QRCode from "qrcode"
+
 import { useEffect, useRef, useState } from "react"
-import { ClientTab } from "@/components/settings/ClientTab"
-import { ServerTab } from "@/components/settings/ServerTab"
+import { ClientTab } from "@/components/Settings/ClientTab"
+import { ServerTab } from "@/components/Settings/ServerTab"
 import { APP_CONFIG } from "../config"
+import { Copy, Check, Link2 } from "lucide-react"
+
 import { t } from "../utils/i18n"
 import {
 	getLocalStorageItem,
@@ -204,45 +207,59 @@ function SettingsPage() {
 									</div>
 								)}
 
-								<div className="flex flex-col gap-2 mt-2 w-full px-4 items-center">
-									<button
-										type="button"
-										className="border-0 link-primary link text-lg font-mono bg-base-100 px-4 py-2 rounded-lg inline-block max-w-full overflow-hidden text-ellipsis"
-										onClick={async () => {
-											setCopyError("")
-											try {
-												if (
-													window.isSecureContext &&
-													navigator.clipboard?.writeText
-												) {
-													await navigator.clipboard.writeText(shareUrl)
-												} else if (!copyWithFallback(shareUrl)) {
-													throw new Error("Clipboard copy failed")
-												}
-
-												setCopied(true)
-												if (copyTimerRef.current)
-													clearTimeout(copyTimerRef.current)
-												copyTimerRef.current = setTimeout(() => {
+								<div className="flex flex-col gap-2 mt-2 w-full px-2 items-center">
+									{/* URL row: truncated preview + copy button */}
+									<div className="flex items-center gap-2 w-full bg-base-100 rounded-2xl px-3 py-2">
+										{/* Link icon */}
+										<Link2 size={16} className="shrink-0 opacity-50" />
+										{/* Truncated URL preview — strips the token query param */}
+										<span
+											className="flex-1 font-mono text-sm opacity-80 min-w-0"
+											style={{
+												whiteSpace: "nowrap",
+												overflow: "hidden",
+												textOverflow: "ellipsis",
+											}}
+										>
+											{ip ? `${ip}:${window.location.port}/trackpad` : ""}
+										</span>
+										{/* Copy button */}
+										<button
+											type="button"
+											className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 bg-primary/15 text-primary hover:bg-primary/25 active:scale-95"
+											onClick={async () => {
+												setCopyError("")
+												try {
+													if (
+														window.isSecureContext &&
+														navigator.clipboard?.writeText
+													) {
+														await navigator.clipboard.writeText(shareUrl)
+													} else if (!copyWithFallback(shareUrl)) {
+														throw new Error("Clipboard copy failed")
+													}
+													setCopied(true)
+													if (copyTimerRef.current)
+														clearTimeout(copyTimerRef.current)
+													copyTimerRef.current = setTimeout(() => {
+														setCopied(false)
+														copyTimerRef.current = null
+													}, 1500)
+												} catch (err) {
+													console.error("Failed to copy URL:", err)
+													if (copyTimerRef.current) {
+														clearTimeout(copyTimerRef.current)
+														copyTimerRef.current = null
+													}
 													setCopied(false)
-													copyTimerRef.current = null
-												}, 2000)
-											} catch (err) {
-												console.error("Failed to copy URL:", err)
-												if (copyTimerRef.current) {
-													clearTimeout(copyTimerRef.current)
-													copyTimerRef.current = null
+													setCopyError(t("settings", "copyFailed"))
 												}
-												setCopied(false)
-												setCopyError(t("settings", "copyFailed"))
-											}
-										}}
-									>
-										{shareUrl.replace(`${protocol}//`, "")}
-									</button>
-									<p className={`${copied ? "visible" : "invisible"}`}>
-										{t("settings", "copied")}
-									</p>
+											}}
+										>
+											{copied ? <Check size={16} /> : <Copy size={16} />}
+											{copied ? t("settings", "copied") : t("settings", "copy")}
+										</button>
+									</div>
 									{copyError && (
 										<p className="text-error text-xs text-center max-w-xs">
 											{copyError}

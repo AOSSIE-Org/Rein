@@ -28,6 +28,10 @@ interface ScreenMirrorProps {
 	onMouseClick?: (e: React.MouseEvent) => void
 	isPointerLocked?: boolean
 	showLockHint?: boolean
+	/** When true the built-in fullscreen button is hidden.
+	 *  Use this when the parent wants to fullscreen a larger container
+	 *  that also contains overlays (e.g. the gamepad page). */
+	disableFullscreen?: boolean
 }
 
 const TEXTS = {
@@ -48,6 +52,7 @@ export const ScreenMirror = ({
 	onMouseClick,
 	isPointerLocked,
 	showLockHint,
+	disableFullscreen = false,
 }: ScreenMirrorProps) => {
 	const videoElementRef = useRef<HTMLVideoElement | null>(null)
 	const [isFullscreen, setIsFullscreen] = useState(false)
@@ -191,7 +196,6 @@ export const ScreenMirror = ({
 			}}
 			className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden select-none touch-none focus:outline-none focus:ring-2 focus:ring-primary"
 		>
-			{/* Hardware Accelerated Video/Audio Renderer */}
 			{/* biome-ignore lint/a11y/useMediaCaption: screen mirror stream does not contain timed text track */}
 			<video
 				ref={videoElementRef}
@@ -202,6 +206,7 @@ export const ScreenMirror = ({
 				className={`w-full h-full object-contain transition-opacity duration-500 ${
 					trackActive ? "opacity-100" : "opacity-0"
 				}`}
+				id="screenMirror"
 			/>
 
 			{/* Standby Loading UI */}
@@ -224,25 +229,27 @@ export const ScreenMirror = ({
 			)}
 
 			{/* Toggleable Fullscreen Button in Lower Right Corner */}
-			<button
-				type="button"
-				onClick={handleFullscreenToggle}
-				onPointerDown={(e) => e.stopPropagation()}
-				onTouchStart={(e) => e.stopPropagation()}
-				className="absolute bottom-4 right-4 z-30 flex items-center justify-center w-10 h-10 bg-base-100/80 hover:bg-base-100 active:scale-95 text-base-content backdrop-blur-md border border-base-300 shadow-xl rounded-full transition-all duration-200"
-				aria-label={
-					isFullscreen
-						? t("screenMirror", "exitFullscreen")
-						: t("screenMirror", "enterFullscreen")
-				}
-				title={
-					isFullscreen
-						? t("screenMirror", "exitFullscreen")
-						: t("screenMirror", "enterFullscreen")
-				}
-			>
-				{isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
-			</button>
+			{!disableFullscreen && (
+				<button
+					type="button"
+					onClick={handleFullscreenToggle}
+					onPointerDown={(e) => e.stopPropagation()}
+					onTouchStart={(e) => e.stopPropagation()}
+					className="absolute bottom-4 right-4 z-30 flex items-center justify-center w-10 h-10 bg-base-100/80 hover:bg-base-100 active:scale-95 text-base-content backdrop-blur-md border border-base-300 shadow-xl rounded-full transition-all duration-200"
+					aria-label={
+						isFullscreen
+							? t("screenMirror", "exitFullscreen")
+							: t("screenMirror", "enterFullscreen")
+					}
+					title={
+						isFullscreen
+							? t("screenMirror", "exitFullscreen")
+							: t("screenMirror", "enterFullscreen")
+					}
+				>
+					{isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+				</button>
+			)}
 
 			{/* Gesture Event Interaction Overlay */}
 			<div

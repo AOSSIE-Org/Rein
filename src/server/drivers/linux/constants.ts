@@ -36,6 +36,40 @@ export const BTN_TOOL_DOUBLETAP = 0x14d
 export const BTN_TOOL_TRIPLETAP = 0x14e
 export const BTN_TOOL_QUADTAP = 0x14f
 
+// ---- Gamepad buttons ----
+export const BTN_SOUTH = 0x130
+export const BTN_A = 0x130
+export const BTN_EAST = 0x131
+export const BTN_B = 0x131
+export const BTN_C = 0x132
+export const BTN_NORTH = 0x133
+export const BTN_X = 0x133
+export const BTN_WEST = 0x134
+export const BTN_Y = 0x134
+export const BTN_Z = 0x135
+export const BTN_TL = 0x136
+export const BTN_TR = 0x137
+export const BTN_TL2 = 0x138
+export const BTN_TR2 = 0x139
+export const BTN_SELECT = 0x13a
+export const BTN_START = 0x13b
+export const BTN_MODE = 0x13c
+export const BTN_THUMBL = 0x13d
+export const BTN_THUMBR = 0x13e
+
+export const BTN_DPAD_UP = 0x220
+export const BTN_DPAD_DOWN = 0x221
+export const BTN_DPAD_LEFT = 0x222
+export const BTN_DPAD_RIGHT = 0x223
+
+// ---- Gamepad absolute axes ----
+export const ABS_Z = 0x02
+export const ABS_RX = 0x03
+export const ABS_RY = 0x04
+export const ABS_RZ = 0x05
+export const ABS_HAT0X = 0x10
+export const ABS_HAT0Y = 0x11
+
 // ---- Key press states ----
 export const KEY_PRESS = 1
 export const KEY_RELEASE = 0
@@ -47,10 +81,11 @@ export const UI_SET_EVBIT = 0x40045564 // _IOW('U', 100, int)
 export const UI_SET_KEYBIT = 0x40045565 // _IOW('U', 101, int)
 export const UI_SET_RELBIT = 0x40045566 // _IOW('U', 102, int)
 export const UI_SET_ABSBIT = 0x40045567 // _IOW('U', 103, int)
+export const UI_SET_PROPBIT = 0x4004556e // _IOW('U', 110, int)
 // _IOW('U', 3, uinput_setup)  — sizeof(uinput_setup) = 92 (0x5c)
 export const UI_DEV_SETUP = 0x405c5503
-// _IOW('U', 4, uinput_abs_setup) — sizeof(uinput_abs_setup) = 24 (0x18)
-export const UI_ABS_SETUP = 0x40186504
+// _IOW('U', 4, uinput_abs_setup) — sizeof(uinput_abs_setup) = 28 (0x1c)
+export const UI_ABS_SETUP = 0x401c5504
 // _IO('U', 1) / _IO('U', 2)
 export const UI_DEV_CREATE = 0x5501
 export const UI_DEV_DESTROY = 0x5502

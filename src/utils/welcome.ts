@@ -25,6 +25,7 @@ export async function printWelcome(port: number): Promise<void> {
 
 	// If logs enabled dont print welcomescreen
 	const cfg = loadServerConfig()
+	console.log("Logs:", cfg.verboseLogs)
 	if (cfg.verboseLogs === true) return
 
 	let qrLines: string[] = []
