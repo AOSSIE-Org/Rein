@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
+import { Maximize, Minimize } from "lucide-react"
 import { useRemoteConnection } from "../hooks/useRemoteConnection"
 import { useWebRtcStream } from "../hooks/useWebRtcStream"
 import { ScreenMirror } from "../components/Trackpad/ScreenMirror"
@@ -11,6 +12,7 @@ import {
 	getLocalStorageItem,
 	setLocalStorageItem,
 } from "../utils/safeLocalStorage"
+import { t } from "../utils/i18n"
 
 export const Route = createFileRoute("/gamepad")({
 	component: GamepadPage,
@@ -49,6 +51,56 @@ function GamepadPage() {
 		new Set(),
 	)
 
+	const containerRef = useRef<HTMLDivElement | null>(null)
+	const [isFullscreen, setIsFullscreen] = useState(false)
+
+	useEffect(() => {
+		const handleFullscreenChange = () => {
+			setIsFullscreen(
+				!!(document.fullscreenElement || document.webkitFullscreenElement),
+			)
+		}
+		document.addEventListener("fullscreenchange", handleFullscreenChange)
+		document.addEventListener("webkitfullscreenchange", handleFullscreenChange)
+		return () => {
+			document.removeEventListener("fullscreenchange", handleFullscreenChange)
+			document.removeEventListener(
+				"webkitfullscreenchange",
+				handleFullscreenChange,
+			)
+		}
+	}, [])
+
+	const handleFullscreenToggle = (e: React.MouseEvent) => {
+		e.stopPropagation()
+		const container = containerRef.current
+		if (!container) return
+
+		const isFull = !!(
+			document.fullscreenElement || document.webkitFullscreenElement
+		)
+
+		if (!isFull) {
+			if (container.requestFullscreen) {
+				container.requestFullscreen().catch((err) => {
+					console.warn("[Gamepad] Fullscreen request failed:", err)
+				})
+			} else if (container.webkitRequestFullscreen) {
+				container.webkitRequestFullscreen()
+			}
+		} else {
+			if (document.exitFullscreen) {
+				document.exitFullscreen().catch((err) => {
+					console.warn("[Gamepad] Exit fullscreen failed:", err)
+				})
+			} else if (document.webkitExitFullscreen) {
+				document.webkitExitFullscreen().catch((err) => {
+					console.warn("[Gamepad] WebKit exit fullscreen failed:", err)
+				})
+			}
+		}
+	}
+
 	// Digital button press / release — sent over the ordered data-channel
 	const handleButtonChange = (id: GamepadButtonId, pressed: boolean) => {
 		setActiveButtons((prev) => {
@@ -71,7 +123,10 @@ function GamepadPage() {
 
 	return (
 		// Full-width horizontal layout — gamepad is always used landscape
-		<div className="flex h-full min-h-0 w-full bg-black overflow-hidden">
+		<div
+			ref={containerRef}
+			className="flex h-full min-h-0 w-full bg-black overflow-hidden relative"
+		>
 			<div className="relative flex-1 min-w-0 min-h-0">
 				{error && errorHandle ? (
 					<ErrorComponent
@@ -88,6 +143,7 @@ function GamepadPage() {
 						trackActive={trackActive}
 						connecting={connecting}
 						status={status}
+						disableFullscreen={true}
 					/>
 				)}
 
@@ -100,6 +156,27 @@ function GamepadPage() {
 						onAxisChange={handleAxisChange}
 					/>
 				)}
+
+				{/* Toggleable Fullscreen Button for the entire gamepad UI */}
+				<button
+					type="button"
+					onClick={handleFullscreenToggle}
+					onPointerDown={(e) => e.stopPropagation()}
+					onTouchStart={(e) => e.stopPropagation()}
+					className="absolute bottom-4 right-4 z-30 flex items-center justify-center w-10 h-10 bg-base-100/80 hover:bg-base-100 active:scale-95 text-base-content backdrop-blur-md border border-base-300 shadow-xl rounded-full transition-all duration-200"
+					aria-label={
+						isFullscreen
+							? t("screenMirror", "exitFullscreen")
+							: t("screenMirror", "enterFullscreen")
+					}
+					title={
+						isFullscreen
+							? t("screenMirror", "exitFullscreen")
+							: t("screenMirror", "enterFullscreen")
+					}
+				>
+					{isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+				</button>
 			</div>
 		</div>
 	)

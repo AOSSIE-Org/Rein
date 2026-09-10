@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useRef } from "react"
+import { useEffect, useState, useRef } from "react"
 
 export type LayoutGroup =
 	| "leftShoulder"
@@ -196,8 +196,6 @@ function DPad({ size, active, onPress, interactive }: DPadProps) {
 		</div>
 	)
 }
-
-// ─── Analog Stick ─────────────────────────────────────────────────────────────
 
 interface StickProps {
 	idPrefix: "ls" | "rs"
@@ -432,6 +430,92 @@ export function GamepadOverlay({
 }: GamepadOverlayProps) {
 	const containerRef = useRef<HTMLDivElement | null>(null)
 	const interactive = !preview && !editable && !!onButtonChange
+	const [videoRect, setVideoRect] = useState({
+		left: 0,
+		top: 0,
+		width: 0,
+		height: 0,
+	})
+
+	useEffect(() => {
+		const video = document.getElementById(
+			"screenMirror",
+		) as HTMLVideoElement | null
+
+		if (!video) return
+
+		const updateVideoRect = () => {
+			const container = containerRef.current
+
+			if (!container) return
+
+			const rect = video.getBoundingClientRect()
+
+			const videoWidth = video.videoWidth
+			const videoHeight = video.videoHeight
+
+			// Until WebRTC provides the video's intrinsic dimensions,
+			// use the entire video element.
+			if (!videoWidth || !videoHeight) {
+				setVideoRect({
+					left: 0,
+					top: 0,
+					width: rect.width,
+					height: rect.height,
+				})
+				return
+			}
+
+			const videoAspect = videoWidth / videoHeight
+			const containerAspect = rect.width / rect.height
+
+			let renderedWidth: number
+			let renderedHeight: number
+
+			if (containerAspect > videoAspect) {
+				// Video is narrower than the container.
+				// There are black bars on the left/right.
+				renderedHeight = rect.height
+				renderedWidth = renderedHeight * videoAspect
+			} else {
+				// Video is wider than the container.
+				// There are black bars on the top/bottom.
+				renderedWidth = rect.width
+				renderedHeight = renderedWidth / videoAspect
+			}
+
+			const left = (rect.width - renderedWidth) / 2
+			const top = (rect.height - renderedHeight) / 2
+
+			setVideoRect({
+				left,
+				top,
+				width: renderedWidth,
+				height: renderedHeight,
+			})
+		}
+
+		const update = () => {
+			requestAnimationFrame(updateVideoRect)
+		}
+
+		update()
+
+		video.addEventListener("loadedmetadata", update)
+		video.addEventListener("resize", update)
+
+		const resizeObserver = new ResizeObserver(update)
+		resizeObserver.observe(video)
+
+		window.addEventListener("resize", update)
+
+		return () => {
+			video.removeEventListener("loadedmetadata", update)
+			video.removeEventListener("resize", update)
+			resizeObserver.disconnect()
+			window.removeEventListener("resize", update)
+		}
+	}, [])
 
 	const handlePress = (id: GamepadButtonId, pressed: boolean) => {
 		if (interactive && onButtonChange) onButtonChange(id, pressed)
@@ -450,189 +534,199 @@ export function GamepadOverlay({
 	return (
 		<div
 			ref={containerRef}
-			className="absolute inset-0 pointer-events-none z-20"
+			className="absolute flex justify-center items-center inset-0 pointer-events-none z-20"
 		>
 			{/* Left shoulder: LT + LB */}
-			<Group {...groupProps("leftShoulder")}>
-				<div className="flex flex-col items-center gap-1">
-					<Btn
-						id="lt"
-						label="LT"
-						className={`rounded border-2 font-bold text-xs ${SHOULDER_BASE}`}
-						style={{ width: triggerW, height: triggerH }}
-						active={activeButtons.has("lt")}
-						onPress={handlePress}
-						interactive={interactive}
-					/>
-					<Btn
-						id="lb"
-						label="LB"
-						className={`rounded-md border-2 font-bold text-xs ${SHOULDER_BASE}`}
-						style={{ width: shoulderW, height: shoulderH }}
-						active={activeButtons.has("lb")}
-						onPress={handlePress}
-						interactive={interactive}
-					/>
-				</div>
-			</Group>
+			<div
+				className="absolute"
+				style={{
+					left: `${videoRect.left}px`,
+					top: `${videoRect.top}px`,
+					width: `${videoRect.width}px`,
+					height: `${videoRect.height}px`,
+				}}
+			>
+				<Group {...groupProps("leftShoulder")}>
+					<div className="flex flex-col items-center gap-1">
+						<Btn
+							id="lt"
+							label="LT"
+							className={`rounded border-2 font-bold text-xs ${SHOULDER_BASE}`}
+							style={{ width: triggerW, height: triggerH }}
+							active={activeButtons.has("lt")}
+							onPress={handlePress}
+							interactive={interactive}
+						/>
+						<Btn
+							id="lb"
+							label="LB"
+							className={`rounded-md border-2 font-bold text-xs ${SHOULDER_BASE}`}
+							style={{ width: shoulderW, height: shoulderH }}
+							active={activeButtons.has("lb")}
+							onPress={handlePress}
+							interactive={interactive}
+						/>
+					</div>
+				</Group>
 
-			{/* Right shoulder: RT + RB */}
-			<Group {...groupProps("rightShoulder")}>
-				<div className="flex flex-col items-center gap-1">
-					<Btn
-						id="rt"
-						label="RT"
-						className={`rounded border-2 font-bold text-xs ${SHOULDER_BASE}`}
-						style={{ width: triggerW, height: triggerH }}
-						active={activeButtons.has("rt")}
-						onPress={handlePress}
-						interactive={interactive}
-					/>
-					<Btn
-						id="rb"
-						label="RB"
-						className={`rounded-md border-2 font-bold text-xs ${SHOULDER_BASE}`}
-						style={{ width: shoulderW, height: shoulderH }}
-						active={activeButtons.has("rb")}
-						onPress={handlePress}
-						interactive={interactive}
-					/>
-				</div>
-			</Group>
+				{/* Right shoulder: RT + RB */}
+				<Group {...groupProps("rightShoulder")}>
+					<div className="flex flex-col items-center gap-1">
+						<Btn
+							id="rt"
+							label="RT"
+							className={`rounded border-2 font-bold text-xs ${SHOULDER_BASE}`}
+							style={{ width: triggerW, height: triggerH }}
+							active={activeButtons.has("rt")}
+							onPress={handlePress}
+							interactive={interactive}
+						/>
+						<Btn
+							id="rb"
+							label="RB"
+							className={`rounded-md border-2 font-bold text-xs ${SHOULDER_BASE}`}
+							style={{ width: shoulderW, height: shoulderH }}
+							active={activeButtons.has("rb")}
+							onPress={handlePress}
+							interactive={interactive}
+						/>
+					</div>
+				</Group>
 
-			{/* D-pad */}
-			<Group {...groupProps("dpad")}>
-				<DPad
-					size={dpadSz}
-					active={activeButtons}
-					onPress={handlePress}
-					interactive={interactive}
-				/>
-			</Group>
+				{/* D-pad */}
+				<Group {...groupProps("dpad")}>
+					<DPad
+						size={dpadSz}
+						active={activeButtons}
+						onPress={handlePress}
+						interactive={interactive}
+					/>
+				</Group>
 
-			{/* Left stick */}
-			<Group {...groupProps("leftStick")}>
-				<AnalogStick
-					idPrefix="ls"
-					size={stickSz}
-					active={activeButtons}
-					onPress={handlePress}
-					onAxisChange={onAxisChange}
-					interactive={interactive}
-				/>
-			</Group>
+				{/* Left stick */}
+				<Group {...groupProps("leftStick")}>
+					<AnalogStick
+						idPrefix="ls"
+						size={stickSz}
+						active={activeButtons}
+						onPress={handlePress}
+						onAxisChange={onAxisChange}
+						interactive={interactive}
+					/>
+				</Group>
 
-			{/* Select / Start */}
-			<Group {...groupProps("startSelect")}>
-				<div className="flex gap-3">
-					<Btn
-						id="select"
-						label="⊟"
-						className={`${SHOULDER_BASE} text-base`}
-						style={{ width: btnSm * 1.4, height: btnSm }}
-						active={activeButtons.has("select")}
-						onPress={handlePress}
-						interactive={interactive}
-					/>
-					<Btn
-						id="start"
-						label="⊞"
-						className={`${SHOULDER_BASE} text-base`}
-						style={{ width: btnSm * 1.4, height: btnSm }}
-						active={activeButtons.has("start")}
-						onPress={handlePress}
-						interactive={interactive}
-					/>
-				</div>
-			</Group>
+				{/* Select / Start */}
+				<Group {...groupProps("startSelect")}>
+					<div className="flex gap-3">
+						<Btn
+							id="select"
+							label="⊟"
+							className={`${SHOULDER_BASE} text-base`}
+							style={{ width: btnSm * 1.4, height: btnSm }}
+							active={activeButtons.has("select")}
+							onPress={handlePress}
+							interactive={interactive}
+						/>
+						<Btn
+							id="start"
+							label="⊞"
+							className={`${SHOULDER_BASE} text-base`}
+							style={{ width: btnSm * 1.4, height: btnSm }}
+							active={activeButtons.has("start")}
+							onPress={handlePress}
+							interactive={interactive}
+						/>
+					</div>
+				</Group>
 
-			{/* Face buttons: Y/A/X/B */}
-			<Group {...groupProps("faceButtons")}>
-				<div
-					className="relative"
-					style={{ width: btnFace * 2.8, height: btnFace * 2.8 }}
-				>
-					<Btn
-						id="y"
-						label="Y"
-						className="bg-primary border-primary text-white"
-						style={{
-							width: btnFace,
-							height: btnFace,
-							position: "absolute",
-							padding: "10px",
-							top: 0,
-							left: "50%",
-							transform: "translateX(-50%)",
-						}}
-						active={activeButtons.has("y")}
-						onPress={handlePress}
-						interactive={interactive}
-					/>
-					<Btn
-						id="a"
-						label="A"
-						className="bg-primary border-primary"
-						style={{
-							width: btnFace,
-							height: btnFace,
-							position: "absolute",
-							padding: "10px",
-							bottom: 0,
-							left: "50%",
-							transform: "translateX(-50%)",
-						}}
-						active={activeButtons.has("a")}
-						onPress={handlePress}
-						interactive={interactive}
-					/>
-					<Btn
-						id="x"
-						label="X"
-						className="bg-primary border-primary"
-						style={{
-							width: btnFace,
-							height: btnFace,
-							padding: "10px",
-							position: "absolute",
-							top: "50%",
-							left: 0,
-							transform: "translateY(-50%)",
-						}}
-						active={activeButtons.has("x")}
-						onPress={handlePress}
-						interactive={interactive}
-					/>
-					<Btn
-						id="b"
-						label="B"
-						className="bg-primary border-primary"
-						style={{
-							width: btnFace,
-							height: btnFace,
-							position: "absolute",
-							top: "50%",
-							right: 0,
-							transform: "translateY(-50%)",
-						}}
-						active={activeButtons.has("b")}
-						onPress={handlePress}
-						interactive={interactive}
-					/>
-				</div>
-			</Group>
+				{/* Face buttons: Y/A/X/B */}
+				<Group {...groupProps("faceButtons")}>
+					<div
+						className="relative"
+						style={{ width: btnFace * 2.8, height: btnFace * 2.8 }}
+					>
+						<Btn
+							id="y"
+							label="Y"
+							className="bg-primary border-primary text-white"
+							style={{
+								width: btnFace,
+								height: btnFace,
+								position: "absolute",
+								padding: "10px",
+								top: 0,
+								left: "50%",
+								transform: "translateX(-50%)",
+							}}
+							active={activeButtons.has("y")}
+							onPress={handlePress}
+							interactive={interactive}
+						/>
+						<Btn
+							id="a"
+							label="A"
+							className="bg-primary border-primary"
+							style={{
+								width: btnFace,
+								height: btnFace,
+								position: "absolute",
+								padding: "10px",
+								bottom: 0,
+								left: "50%",
+								transform: "translateX(-50%)",
+							}}
+							active={activeButtons.has("a")}
+							onPress={handlePress}
+							interactive={interactive}
+						/>
+						<Btn
+							id="x"
+							label="X"
+							className="bg-primary border-primary"
+							style={{
+								width: btnFace,
+								height: btnFace,
+								padding: "10px",
+								position: "absolute",
+								top: "50%",
+								left: 0,
+								transform: "translateY(-50%)",
+							}}
+							active={activeButtons.has("x")}
+							onPress={handlePress}
+							interactive={interactive}
+						/>
+						<Btn
+							id="b"
+							label="B"
+							className="bg-primary border-primary"
+							style={{
+								width: btnFace,
+								height: btnFace,
+								position: "absolute",
+								top: "50%",
+								right: 0,
+								transform: "translateY(-50%)",
+							}}
+							active={activeButtons.has("b")}
+							onPress={handlePress}
+							interactive={interactive}
+						/>
+					</div>
+				</Group>
 
-			{/* Right stick */}
-			<Group {...groupProps("rightStick")}>
-				<AnalogStick
-					idPrefix="rs"
-					size={stickSz}
-					active={activeButtons}
-					onPress={handlePress}
-					onAxisChange={onAxisChange}
-					interactive={interactive}
-				/>
-			</Group>
+				{/* Right stick */}
+				<Group {...groupProps("rightStick")}>
+					<AnalogStick
+						idPrefix="rs"
+						size={stickSz}
+						active={activeButtons}
+						onPress={handlePress}
+						onAxisChange={onAxisChange}
+						interactive={interactive}
+					/>
+				</Group>
+			</div>
 		</div>
 	)
 }
