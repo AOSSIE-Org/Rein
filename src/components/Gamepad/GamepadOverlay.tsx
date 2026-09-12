@@ -23,11 +23,11 @@ export type GamepadButtonLayout = Record<LayoutGroup, Placement>
 export const DEFAULT_GAMEPAD_LAYOUT: GamepadButtonLayout = {
 	leftShoulder: { x: 12, y: 10, scale: 1 },
 	rightShoulder: { x: 88, y: 10, scale: 1 },
-	dpad: { x: 18, y: 74, scale: 1 },
-	leftStick: { x: 18, y: 90, scale: 1 },
+	dpad: { x: 15, y: 48, scale: 1 },
+	leftStick: { x: 15, y: 80, scale: 1 },
 	startSelect: { x: 50, y: 88, scale: 1 },
-	faceButtons: { x: 82, y: 74, scale: 1 },
-	rightStick: { x: 82, y: 90, scale: 1 },
+	faceButtons: { x: 85, y: 48, scale: 1 },
+	rightStick: { x: 85, y: 80, scale: 1 },
 }
 
 export type GamepadButtonId =
@@ -77,16 +77,6 @@ interface GamepadOverlayProps {
 
 const SHOULDER_BASE =
 	"bg-base-100/80 border-base-300 text-base-content backdrop-blur-md"
-
-const BASE = 360
-const btnSm = BASE * 0.072
-const btnFace = BASE * 0.1
-const stickSz = BASE * 0.22
-const dpadSz = BASE * 0.19
-const shoulderH = BASE * 0.06
-const shoulderW = BASE * 0.16
-const triggerH = BASE * 0.045
-const triggerW = BASE * 0.14
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -155,7 +145,7 @@ interface DPadProps {
 }
 
 function DPad({ size, active, onPress, interactive }: DPadProps) {
-	const arm = size * 0.32
+	const arm = size * 0.36
 	const center = size * 0.36
 
 	const dPadDirections: Array<{
@@ -252,8 +242,6 @@ function AnalogStick({
 
 		isDragging.current = true
 
-		console.log("Handle down")
-
 		const rect = containerRef.current?.getBoundingClientRect()
 		if (!rect) return
 
@@ -277,8 +265,6 @@ function AnalogStick({
 
 		e.stopPropagation()
 
-		console.log("Handle move")
-
 		const rect = containerRef.current.getBoundingClientRect()
 		const cx = rect.left + rect.width / 2
 		const cy = rect.top + rect.height / 2
@@ -290,8 +276,6 @@ function AnalogStick({
 		if (!interactive) return
 
 		e.stopPropagation()
-
-		console.log("Handle up")
 
 		isDragging.current = false
 		applyNub(0, 0, true)
@@ -342,7 +326,7 @@ function AnalogStick({
 						${active.has(idPrefix) ? "brightness-75" : ""}
 						${SHOULDER_BASE} shadow-inner`}
 					style={{ pointerEvents: "none" }}
-				></div>
+				/>
 			</div>
 		</div>
 	)
@@ -384,6 +368,7 @@ function Group({
 	const handlePointerMove = (e: React.PointerEvent) => {
 		if (!editable || !dragging.current || !containerRef.current) return
 		const rect = containerRef.current.getBoundingClientRect()
+		if (rect.width <= 0 || rect.height <= 0) return
 		const x = ((e.clientX - rect.left) / rect.width) * 100
 		const y = ((e.clientY - rect.top) / rect.height) * 100
 		onDrag?.(id, Math.min(100, Math.max(0, x)), Math.min(100, Math.max(0, y)))
@@ -429,6 +414,7 @@ export function GamepadOverlay({
 	onDragGroup,
 }: GamepadOverlayProps) {
 	const containerRef = useRef<HTMLDivElement | null>(null)
+	const videoRectRef = useRef<HTMLDivElement | null>(null)
 	const interactive = !preview && !editable && !!onButtonChange
 	const [videoRect, setVideoRect] = useState({
 		left: 0,
@@ -438,24 +424,31 @@ export function GamepadOverlay({
 	})
 
 	useEffect(() => {
-		const video = document.getElementById(
-			"screenMirror",
-		) as HTMLVideoElement | null
-
-		if (!video) return
-
 		const updateVideoRect = () => {
 			const container = containerRef.current
-
 			if (!container) return
 
-			const rect = video.getBoundingClientRect()
+			const video = preview
+				? null
+				: (document.getElementById("screenMirror") as HTMLVideoElement | null)
 
+			if (!video) {
+				const rect = container.getBoundingClientRect()
+				setVideoRect({
+					left: 0,
+					top: 0,
+					width: rect.width,
+					height: rect.height,
+				})
+				return
+			}
+
+			const rect = container.getBoundingClientRect()
 			const videoWidth = video.videoWidth
 			const videoHeight = video.videoHeight
 
 			// Until WebRTC provides the video's intrinsic dimensions,
-			// use the entire video element.
+			// use the entire container element.
 			if (!videoWidth || !videoHeight) {
 				setVideoRect({
 					left: 0,
@@ -501,32 +494,65 @@ export function GamepadOverlay({
 
 		update()
 
-		video.addEventListener("loadedmetadata", update)
-		video.addEventListener("resize", update)
+		const video = preview
+			? null
+			: (document.getElementById("screenMirror") as HTMLVideoElement | null)
+
+		if (video) {
+			video.addEventListener("loadedmetadata", update)
+			video.addEventListener("resize", update)
+		}
 
 		const resizeObserver = new ResizeObserver(update)
-		resizeObserver.observe(video)
+		if (containerRef.current) {
+			resizeObserver.observe(containerRef.current)
+		}
+		if (video) {
+			resizeObserver.observe(video)
+		}
 
 		window.addEventListener("resize", update)
 
 		return () => {
-			video.removeEventListener("loadedmetadata", update)
-			video.removeEventListener("resize", update)
+			if (video) {
+				video.removeEventListener("loadedmetadata", update)
+				video.removeEventListener("resize", update)
+			}
 			resizeObserver.disconnect()
 			window.removeEventListener("resize", update)
 		}
-	}, [])
+	}, [preview])
 
 	const handlePress = (id: GamepadButtonId, pressed: boolean) => {
 		if (interactive && onButtonChange) onButtonChange(id, pressed)
 	}
+
+	const baseSize =
+		videoRect.width > 0 && videoRect.height > 0
+			? Math.min(
+					600,
+					Math.max(
+						200,
+						Math.min(videoRect.width * 0.45, videoRect.height * 0.85),
+					),
+				)
+			: 360
+
+	const btnSm = baseSize * 0.075
+	const btnFace = baseSize * 0.11
+	const stickSz = baseSize * 0.24
+	const dpadSz = baseSize * 0.22
+	const shoulderH = baseSize * 0.07
+	const shoulderW = baseSize * 0.18
+	const triggerH = baseSize * 0.055
+	const triggerW = baseSize * 0.15
 
 	const groupProps = (id: LayoutGroup) => ({
 		id,
 		placement: layout[id],
 		editable,
 		selected: selectedGroup === id,
-		containerRef,
+		containerRef: videoRectRef,
 		onSelect: onSelectGroup,
 		onDrag: onDragGroup,
 	})
@@ -536,9 +562,9 @@ export function GamepadOverlay({
 			ref={containerRef}
 			className="absolute flex justify-center items-center inset-0 pointer-events-none z-20"
 		>
-			{/* Left shoulder: LT + LB */}
 			<div
-				className="absolute"
+				ref={videoRectRef}
+				className="absolute pointer-events-none"
 				style={{
 					left: `${videoRect.left}px`,
 					top: `${videoRect.top}px`,
@@ -546,6 +572,7 @@ export function GamepadOverlay({
 					height: `${videoRect.height}px`,
 				}}
 			>
+				{/* Left shoulder: LT + LB */}
 				<Group {...groupProps("leftShoulder")}>
 					<div className="flex flex-col items-center gap-1">
 						<Btn
@@ -665,7 +692,7 @@ export function GamepadOverlay({
 						<Btn
 							id="a"
 							label="A"
-							className="bg-primary border-primary"
+							className="bg-primary border-primary text-white"
 							style={{
 								width: btnFace,
 								height: btnFace,
@@ -682,7 +709,7 @@ export function GamepadOverlay({
 						<Btn
 							id="x"
 							label="X"
-							className="bg-primary border-primary"
+							className="bg-primary border-primary text-white"
 							style={{
 								width: btnFace,
 								height: btnFace,
@@ -699,7 +726,7 @@ export function GamepadOverlay({
 						<Btn
 							id="b"
 							label="B"
-							className="bg-primary border-primary"
+							className="bg-primary border-primary text-white"
 							style={{
 								width: btnFace,
 								height: btnFace,
