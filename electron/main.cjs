@@ -17,7 +17,9 @@ let serverPort = 3000;
   };
 // Load server config (port/host overrides)
 try {
+  const userDataDir = app.getPath('userData');
   const candidates = [
+    path.join(userDataDir, 'server-config.json'),
     process.resourcesPath && path.join(process.resourcesPath, 'src', 'server-config.json'),
     path.join(__dirname, '..', 'src', 'server-config.json'),
     path.join(process.cwd(), 'src', 'server-config.json'),

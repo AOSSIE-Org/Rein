@@ -147,11 +147,38 @@ class UinputDevice {
 
 	destroy(): void {
 		if (this.fd >= 0) {
-			ioctlNull(this.fd, UI_DEV_DESTROY)
-			closeUinput(this.fd)
+			try {
+				ioctlNull(this.fd, UI_DEV_DESTROY)
+			} catch {}
+			try {
+				closeUinput(this.fd)
+			} catch {}
 			this.fd = -1
 		}
 	}
+}
+
+const activeInjectors = new Set<LinuxInputInjector>()
+
+function cleanupAllInjectors(): void {
+	for (const injector of activeInjectors) {
+		try {
+			injector.destroy()
+		} catch {}
+	}
+	activeInjectors.clear()
+}
+
+if (typeof process !== "undefined") {
+	process.once("exit", cleanupAllInjectors)
+	process.once("SIGINT", () => {
+		cleanupAllInjectors()
+		process.kill(process.pid, "SIGINT")
+	})
+	process.once("SIGTERM", () => {
+		cleanupAllInjectors()
+		process.kill(process.pid, "SIGTERM")
+	})
 }
 
 export class LinuxInputInjector {
@@ -174,6 +201,7 @@ export class LinuxInputInjector {
 				"Linux virtual input devices failed to initialize (check /dev/uinput permissions)",
 			)
 		}
+		activeInjectors.add(this)
 	}
 
 	updateConfig(config: Partial<InputConfig>): void {
@@ -246,6 +274,7 @@ export class LinuxInputInjector {
 	// Cleanup
 
 	destroy(): void {
+		activeInjectors.delete(this)
 		this.touch?.releaseAll()
 		this.mouseDev.destroy()
 		this.kbDev.destroy()
@@ -256,8 +285,8 @@ export class LinuxInputInjector {
 	// helpers
 	private initialize(): void {
 		const mouseOk = this.setupMouseDevice()
-		const kbOk = this.setupKeyboardDevice()
-		const touchOk = this.setupTouchDevice()
+		const kbOk = mouseOk ? this.setupKeyboardDevice() : false
+		const touchOk = kbOk ? this.setupTouchDevice() : false
 
 		if (!mouseOk || !kbOk || !touchOk) {
 			const msg =

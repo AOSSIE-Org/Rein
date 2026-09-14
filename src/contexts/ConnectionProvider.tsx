@@ -53,16 +53,13 @@ export function ConnectionProvider({
 			type === "scroll" ||
 			type === "touch" ||
 			type === "zoom"
-		const targetDc = isUnordered ? unorderedDcRef.current : orderedDcRef.current
-
-		if (targetDc?.readyState === "open") {
-			targetDc.send(JSON.stringify(msg))
+		if (isUnordered) {
+			if (unorderedDcRef.current?.readyState === "open") {
+				unorderedDcRef.current.send(JSON.stringify(msg))
+			}
 		} else {
-			const fallbackDc = isUnordered
-				? orderedDcRef.current
-				: unorderedDcRef.current
-			if (fallbackDc?.readyState === "open") {
-				fallbackDc.send(JSON.stringify(msg))
+			if (orderedDcRef.current?.readyState === "open") {
+				orderedDcRef.current.send(JSON.stringify(msg))
 			}
 		}
 	}, [])

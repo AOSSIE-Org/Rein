@@ -13,14 +13,11 @@ export interface SharedFile {
 	size: number
 	mimeType: string
 	uploadedAt: number
-	/** "host" or "client:<sessionId>" */
 	uploadedBy: string
 	data: Buffer
 }
 
 const fileStore = new Map<string, SharedFile>()
-
-// SSE subscribers that receive file-share notifications
 const notifyClients = new Set<ServerResponse>()
 
 const MAX_FILE_BYTES = 512 * 1024 * 1024 // 512 MB hard ceiling

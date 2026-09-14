@@ -1,6 +1,21 @@
-import koffi from "koffi"
+import koffi, { type TypeSpecWithAlignment } from "koffi"
 
-export const InputEvent = koffi.struct("input_event", {
+function registerStruct(
+	name: string,
+	definition: Record<string, TypeSpecWithAlignment>,
+) {
+	try {
+		return koffi.struct(name, definition)
+	} catch {
+		try {
+			return koffi.resolve(name)
+		} catch {
+			return koffi.struct(definition)
+		}
+	}
+}
+
+export const InputEvent = registerStruct("input_event", {
 	tv_sec: "int64",
 	tv_usec: "int64",
 	type: "uint16",
@@ -8,7 +23,7 @@ export const InputEvent = koffi.struct("input_event", {
 	value: "int32",
 })
 
-export const UinputSetup = koffi.struct("uinput_setup", {
+export const UinputSetup = registerStruct("uinput_setup", {
 	bustype: "uint16",
 	vendor: "uint16",
 	product: "uint16",
@@ -17,7 +32,7 @@ export const UinputSetup = koffi.struct("uinput_setup", {
 	ff_effects_max: "uint32",
 })
 
-export const InputAbsinfo = koffi.struct("input_absinfo", {
+export const InputAbsinfo = registerStruct("input_absinfo", {
 	value: "int32",
 	minimum: "int32",
 	maximum: "int32",
@@ -26,7 +41,7 @@ export const InputAbsinfo = koffi.struct("input_absinfo", {
 	resolution: "int32",
 })
 
-export const UinputAbsSetup = koffi.struct("uinput_abs_setup", {
+export const UinputAbsSetup = registerStruct("uinput_abs_setup", {
 	code: "uint16",
 	__pad: "uint16",
 	__pad2: "uint32",

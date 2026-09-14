@@ -26,10 +26,27 @@ export class ImplementDbus {
 	public pipewireNodeId: number | null = null
 	public onFailure?: (err: Error) => void
 
-	public dispose() {
+	public async dispose() {
 		this.onFailure = undefined
+		if (this.sessionPath && this.dbusConnection) {
+			try {
+				const portalDest = "org.freedesktop.portal.Desktop"
+				const sessionObj = await this.dbusConnection.getProxyObject(
+					portalDest,
+					this.sessionPath,
+				)
+				const sessionInterface = sessionObj.getInterface(
+					"org.freedesktop.portal.Session",
+				)
+				await sessionInterface.Close()
+			} catch {}
+		}
+		this.sessionPath = null
+		this.pipewireNodeId = null
 		if (this.dbusConnection) {
-			this.dbusConnection.disconnect()
+			try {
+				this.dbusConnection.disconnect()
+			} catch {}
 			this.dbusConnection = null
 		}
 	}

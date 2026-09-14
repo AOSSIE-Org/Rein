@@ -139,13 +139,6 @@ function TrackpadPage() {
 				const next = !prev
 				if (next) {
 					hiddenInputRef.current?.focus()
-					setTimeout(() => {
-						console.log(
-							document.activeElement?.tagName,
-							"isHiddenInput:",
-							document.activeElement === hiddenInputRef.current,
-						)
-					}, 300)
 					if ("virtualKeyboard" in navigator) {
 						try {
 							// @ts-expect-error

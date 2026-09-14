@@ -4,11 +4,79 @@
 
 export const i18n = {
 	en: {
+		nav: {
+			trackpad: "Trackpad",
+			settings: "Settings",
+			sendFile: "Send Files",
+		},
+		themePicker: {
+			selectTheme: "Select {theme} theme",
+			themes: {
+				dracula: "Dracula",
+				night: "Night",
+				sunset: "Sunset",
+				forest: "Forest",
+				cupcake: "Cupcake",
+				nord: "Nord",
+				lofi: "Lo-Fi",
+				lemonade: "Lemonade",
+			},
+		},
+		clientTab: {
+			mouseSensitivity: "Mouse Sensitivity",
+			slow: "Slow",
+			default: "Default",
+			fast: "Fast",
+			invertScroll: "Invert Scroll",
+			traditionalScrolling: "Traditional scrolling enabled",
+			naturalScrolling: "Natural scrolling",
+			theme: "Theme",
+		},
+		serverTab: {
+			streamQuality: "Stream Quality",
+			qualityPerformance: "Performance",
+			qualityPerformanceDesc:
+				"Ultrafast encode \u00b7 Best for low-end hardware",
+			qualityBalanced: "Balanced",
+			qualityBalancedDesc: "Superfast encode \u00b7 Good quality & latency",
+			qualityQuality: "Quality",
+			qualityQualityDesc: "Fast encode \u00b7 Best visual fidelity",
+			limitFramerate: "Limit Frame Rate",
+			noLimit: "No Limit",
+			serverIp: "Server IP (for Remote)",
+			lanIpHelp: "This Computer's LAN IP",
+			port: "Port",
+			firewallAlert:
+				"Important: Ensure port {port} is allowed in your computer's firewall!",
+			restartWarningAlert:
+				"Important: Any changes made to the server requires a restart and clicking save config will restart the server!",
+			restartRequired:
+				"Server config saved. Please restart Rein for the changes to take effect.",
+			saveConfig: "Save Config",
+			saving: "Saving\u2026",
+			invalidPortAlert: "Please enter a valid port number (1\u201365535).",
+		},
+		controlBar: {
+			scrollMode: "Toggle scroll",
+			leftClick: "Left click",
+			rightClick: "Right click",
+			copy: "Copy",
+			paste: "Paste",
+			keyboard: "Keyboard",
+			modifier: "Modifier",
+		},
 		settings: {
+			title: "Settings",
+			clientTab: "Client Settings",
+			serverTab: "Server Settings",
+			copy: "Copy",
 			copied: "Copied to Clipboard!",
 			appVersion: "Rein Remote v{version}",
 			copyFailed:
 				"Could not copy the link automatically. Please copy it manually.",
+			noOnscreenKeyboard: "No on-screen keyboard found",
+			connectMobile: "Connect Mobile",
+			scanQr: "Scan to open remote",
 		},
 		screenMirror: {
 			ariaLabel: "Remote desktop screen share",
@@ -20,6 +88,9 @@ export const i18n = {
 			checkNetwork: "Attempting to connect to the host.",
 			establishingConnection: "Establishing Connection",
 			negotiatingWebRtc: "Negotiating WebRTC session, please wait\u2026",
+			mouseLockedHint: "Mouse locked. Press {key} to unlock.",
+			enterFullscreen: "Enter Fullscreen",
+			exitFullscreen: "Exit Fullscreen",
 		},
 		errorComponent: {
 			unknownError: "Unknown Error",
