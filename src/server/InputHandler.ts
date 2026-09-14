@@ -13,7 +13,6 @@ import {
 	DEFAULT_SCREEN_WIDTH,
 	MAX_TEXT_LENGTH,
 	MAX_COMBO_KEYS,
-	MAX_COORD,
 	MAX_KEY_LENGTH,
 } from "./constants.ts"
 import type { InputConfig, InputMessage, PlatformInjector } from "./types.ts"
@@ -133,11 +132,10 @@ export class InputHandler {
 
 	private sanitizeMessage(msg: InputMessage): void {
 		if (typeof msg.text === "string" && msg.text.length > MAX_TEXT_LENGTH) {
-			msg.text = msg.text.substring(0, MAX_TEXT_LENGTH)
+			// Use Array.from to split by Unicode code point, not UTF-16 code unit,
+			// so we never cut an emoji in half.
+			msg.text = Array.from(msg.text).slice(0, MAX_TEXT_LENGTH).join("")
 		}
-		msg.dx = clampFinite(msg.dx, -MAX_COORD, MAX_COORD)
-		msg.dy = clampFinite(msg.dy, -MAX_COORD, MAX_COORD)
-		msg.delta = clampFinite(msg.delta, -MAX_COORD, MAX_COORD)
 	}
 
 	private throttle(msg: InputMessage): boolean {
@@ -285,11 +283,6 @@ export class InputHandler {
 				)
 		}
 	}
-}
-
-function clampFinite(value: unknown, min: number, max: number): number {
-	if (typeof value !== "number" || !Number.isFinite(value)) return 0
-	return Math.max(min, Math.min(max, value))
 }
 
 function isValidButton(button: unknown): button is MouseButton {

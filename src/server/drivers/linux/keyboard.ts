@@ -33,7 +33,7 @@ export class LinuxKeyboard {
 				this.sendKeyEvent(code, KEY_RELEASE)
 			}
 			this.sync()
-		} else if (key.length > 0) {
+		} else if (key.length === 1) {
 			this.injectText(key)
 		} else {
 			console.warn("[LinuxKeyboard] Unknown key:", key)
@@ -68,26 +68,67 @@ export class LinuxKeyboard {
 	injectText(text: string): void {
 		if (!text) return
 
+		// Check for any char outside ASCII range (0–127) using code points,
+		// which avoids control-character literals that Biome disallows.
+		let hasNonAscii = false
 		for (const ch of text) {
-			const { code, shifted } = resolveChar(ch, LINUX_KEY_MAP)
-			if (code === undefined) {
-				console.warn("[LinuxKeyboard] No key mapping for char:", ch)
-				continue
+			const cp = ch.codePointAt(0)
+			if (cp !== undefined && cp > 0x7f) {
+				hasNonAscii = true
+				break
 			}
-			if (shifted) {
-				const shiftCode = LINUX_KEY_MAP.shift
-				if (shiftCode === undefined) {
-					console.warn("[LinuxKeyboard] Shift key code not defined in key map")
+		}
+
+		if (!hasNonAscii) {
+			// Pure ASCII — use fast keycode path
+			for (const ch of text) {
+				const { code, shifted } = resolveChar(ch, LINUX_KEY_MAP)
+				if (code === undefined) {
+					this.pasteViaClipboard(ch)
 					continue
 				}
-				this.sendKeyEvent(shiftCode, KEY_PRESS)
+				if (shifted) {
+					this.sendKeyEvent(LINUX_KEY_MAP.shift, KEY_PRESS)
+				}
+				this.sendKeyEvent(code, KEY_PRESS)
+				this.sendKeyEvent(code, KEY_RELEASE)
+				if (shifted) {
+					this.sendKeyEvent(LINUX_KEY_MAP.shift, KEY_RELEASE)
+				}
+				this.sync()
 			}
-			this.sendKeyEvent(code, KEY_PRESS)
-			this.sendKeyEvent(code, KEY_RELEASE)
-			if (shifted) {
-				this.sendKeyEvent(LINUX_KEY_MAP.shift, KEY_RELEASE)
+			return
+		}
+
+		// Unicode present — batch-paste the whole string via clipboard
+		this.pasteViaClipboard(text)
+	}
+
+	private pasteViaClipboard(text: string): void {
+		try {
+			// Write text to the X11 / Wayland clipboard
+			const { execSync } = require("node:child_process")
+			const encoded = Buffer.from(text, "utf8").toString("base64")
+			execSync(
+				`printf '%s' '${encoded}' | base64 -d | ` +
+					`(xclip -selection clipboard 2>/dev/null || ` +
+					`xsel --clipboard --input 2>/dev/null || ` +
+					`wl-copy 2>/dev/null)`,
+				{ stdio: "ignore" },
+			)
+
+			// Simulate Ctrl+V
+			const ctrl = LINUX_KEY_MAP.control
+			const v = LINUX_KEY_MAP.v
+			if (ctrl !== undefined && v !== undefined) {
+				this.sendKeyEvent(ctrl, KEY_PRESS)
+				this.sendKeyEvent(v, KEY_PRESS)
+				this.sendKeyEvent(v, KEY_RELEASE)
+				this.sendKeyEvent(ctrl, KEY_RELEASE)
+				this.sync()
 			}
-			this.sync()
+		} catch (err) {
+			console.warn("[LinuxKeyboard] Clipboard paste failed:", err)
 		}
 	}
 

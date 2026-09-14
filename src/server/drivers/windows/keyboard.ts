@@ -40,7 +40,7 @@ export class WindowsKeyboard {
 				})
 			}
 			this.sendInput(events.length, events)
-		} else if (key.length > 0) {
+		} else if (key.length === 1) {
 			this.injectText(key)
 		} else {
 			console.warn("[Keyboard] Unknown key and not a single character:", key)
@@ -98,37 +98,51 @@ export class WindowsKeyboard {
 			return
 		}
 		for (const ch of text) {
-			const c = ch.charCodeAt(0)
+			const codePoint = ch.codePointAt(0)
+			if (codePoint === undefined) continue
 
-			this.sendInput(2, [
-				{
-					type: INPUT_KEYBOARD,
-					__pad: 0,
-					u: {
-						ki: {
-							wVk: 0,
-							wScan: c,
-							dwFlags: KEYEVENTF_UNICODE,
-							time: 0,
-							dwExtraInfo: 0,
-						},
-					},
-				},
-				{
-					type: INPUT_KEYBOARD,
-					__pad: 0,
-					u: {
-						ki: {
-							wVk: 0,
-							wScan: c,
-							dwFlags: KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
-							time: 0,
-							dwExtraInfo: 0,
-						},
-					},
-				},
-			])
+			if (codePoint > 0xffff) {
+				// Surrogate pair (e.g. 😀 U+1F600)
+				const high = Math.floor((codePoint - 0x10000) / 0x400) + 0xd800
+				const low = ((codePoint - 0x10000) % 0x400) + 0xdc00
+				this.sendUnicodeChar(high)
+				this.sendUnicodeChar(low)
+			} else {
+				// BMP character (capitals, accents, CJK, etc.)
+				this.sendUnicodeChar(codePoint)
+			}
 		}
+	}
+
+	private sendUnicodeChar(code: number): void {
+		this.sendInput(2, [
+			{
+				type: INPUT_KEYBOARD,
+				__pad: 0,
+				u: {
+					ki: {
+						wVk: 0,
+						wScan: code,
+						dwFlags: KEYEVENTF_UNICODE,
+						time: 0,
+						dwExtraInfo: 0,
+					},
+				},
+			},
+			{
+				type: INPUT_KEYBOARD,
+				__pad: 0,
+				u: {
+					ki: {
+						wVk: 0,
+						wScan: code,
+						dwFlags: KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
+						time: 0,
+						dwExtraInfo: 0,
+					},
+				},
+			},
+		])
 	}
 
 	private sendInput(

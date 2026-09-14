@@ -1,4 +1,11 @@
-import koffi from "koffi"
+/**
+ * macOS virtual keyboard implementation.
+ *
+ * Handles key, key-combination, and text injection through CoreGraphics
+ * keyboard events. Supports both key-code based input and Unicode
+ * character injection for characters not present in the standard key map.
+ */
+import { createRequire } from "node:module"
 import {
 	postKeyEvent,
 	postMediaKeyEvent,
@@ -7,7 +14,9 @@ import {
 	NX_KEYTYPE_PREVIOUS,
 } from "./structs.ts"
 import { MAC_KEY_MAP } from "../keyMap.ts"
-import { resolveChar } from "../utils.ts"
+
+// Real CJS require — bypasses Vite's ESM shim so native modules load correctly.
+const nativeRequire = createRequire(`${process.cwd()}/package.json`)
 
 // Media transport keys that require NX_SYSDEFINED events
 const MEDIA_KEY_MAP: Record<string, number> = {
@@ -16,17 +25,6 @@ const MEDIA_KEY_MAP: Record<string, number> = {
 	audionext: NX_KEYTYPE_NEXT,
 	audioprev: NX_KEYTYPE_PREVIOUS,
 	audiostop: NX_KEYTYPE_PLAY,
-}
-
-const MODIFIER_FLAGS: Record<string, number> = {
-	meta: 0x00100000,
-	command: 0x00100000,
-	cmd: 0x00100000,
-	shift: 0x00020000,
-	control: 0x00040000,
-	ctrl: 0x00040000,
-	alt: 0x00080000,
-	option: 0x00080000,
 }
 
 export class MacKeyboard {
@@ -44,7 +42,7 @@ export class MacKeyboard {
 		if (code !== undefined) {
 			if (pos !== "RELEASE") postKeyEvent(code, true)
 			if (pos !== "HOLD") postKeyEvent(code, false)
-		} else if (key.length > 0) {
+		} else if (key.length === 1) {
 			this.injectText(key)
 		} else {
 			console.warn("[MacKeyboard] Unknown key:", key)
@@ -53,14 +51,8 @@ export class MacKeyboard {
 
 	injectCombo(keys: string[]): void {
 		const codes: number[] = []
-		let flags = 0
 		for (const k of keys) {
-			const lower = k.toLowerCase()
-			const modFlag = MODIFIER_FLAGS[lower]
-			if (modFlag !== undefined) {
-				flags |= modFlag
-			}
-			const code = MAC_KEY_MAP[lower]
+			const code = MAC_KEY_MAP[k.toLowerCase()]
 			if (code !== undefined) {
 				codes.push(code)
 			} else {
@@ -69,27 +61,23 @@ export class MacKeyboard {
 		}
 		if (codes.length === 0) return
 
-		// Press all keys down with modifier flags
+		// Press all keys down
 		for (const code of codes) {
-			postKeyEvent(code, true, flags)
+			postKeyEvent(code, true)
 		}
 		// Release in reverse order
 		for (let i = codes.length - 1; i >= 0; i--) {
-			postKeyEvent(codes[i], false, flags)
+			postKeyEvent(codes[i], false)
 		}
 	}
 
 	injectText(text: string): void {
 		if (!text) return
+		// Use Unicode injection for all text — CoreGraphics handles
+		// capitals, special chars, emojis, and any Unicode character
+		// without needing keycode/shift emulation.
 		for (const ch of text) {
-			const { code, shifted } = resolveChar(ch, MAC_KEY_MAP)
-			if (code === undefined || shifted) {
-				// Fall back to Unicode injection for unmapped or shifted characters.
-				this.injectUnicodeChar(ch)
-				continue
-			}
-			postKeyEvent(code, true)
-			postKeyEvent(code, false)
+			this.injectUnicodeChar(ch)
 		}
 	}
 	private injectUnicodeChar(ch: string): void {
@@ -112,6 +100,7 @@ function ensureUnicode() {
 	if (_unicodeInjectorLoaded) return
 	_unicodeInjectorLoaded = true
 	try {
+		const koffi = nativeRequire("koffi")
 		const lib = koffi.load(
 			"/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
 		)
@@ -151,6 +140,7 @@ function injectUnicode(ch: string): void {
 
 	const upRef = _CGEventCreateKeyboardEvent(null, 0, 0)
 	if (!upRef) return
+	_CGEventKeyboardSetUnicodeString(upRef, charCount, buf)
 	_CGEventPost(0, upRef)
 	_CFRelease(upRef)
 }
