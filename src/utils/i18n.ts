@@ -69,6 +69,7 @@ export const i18n = {
 			title: "Settings",
 			clientTab: "Client Settings",
 			serverTab: "Server Settings",
+			copy: "Copy",
 			copied: "Copied to Clipboard!",
 			appVersion: "Rein Remote v{version}",
 			copyFailed:
