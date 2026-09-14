@@ -24,6 +24,7 @@ import {
 import { WHEEL_SCALE } from "../../constants.ts"
 import { MacKeyboard } from "./keyboard.ts"
 import { MacTouch } from "./touch.ts"
+import { MacGamepad } from "./gamepad.ts"
 import type { InputConfig, TouchContact } from "../../types.ts"
 import { DEFAULT_CONFIG } from "../../constants.ts"
 
@@ -56,6 +57,7 @@ export class MacInputInjector {
 	private config: InputConfig
 	private keyboard: MacKeyboard
 	private touch: MacTouch
+	private gamepad: MacGamepad
 	private cursorX = 0
 	private cursorY = 0
 
@@ -65,6 +67,7 @@ export class MacInputInjector {
 		this.config = { ...DEFAULT_CONFIG, ...config }
 		this.keyboard = new MacKeyboard()
 		this.touch = new MacTouch()
+		this.gamepad = new MacGamepad()
 		// Seed cursor at screen centre so the first relative move is reasonable.
 		this.cursorX = this.config.screenWidth / 2
 		this.cursorY = this.config.screenHeight / 2
@@ -151,10 +154,21 @@ export class MacInputInjector {
 		this.touch.injectTouch(contacts)
 	}
 
+	// Gamepad
+
+	injectGamepadButton(button: string, isDown: boolean): void {
+		this.gamepad.injectGamepadButton(button, isDown)
+	}
+
+	injectGamepadAxis(axis: "ls" | "rs", ax: number, ay: number): void {
+		this.gamepad.injectGamepadAxis(axis, ax, ay)
+	}
+
 	// Lifecycle
 
 	destroy(): void {
 		this.touch.releaseAll()
+		this.gamepad.destroy()
 		this.buttonsHeld.forEach((btn) => {
 			this.injectMouseButton(btn, false)
 		})

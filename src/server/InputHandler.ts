@@ -280,18 +280,14 @@ export class InputHandler {
 			}
 
 			case "gamepad": {
-				// Gamepad button press / release — injection implemented in a later driver step.
-				// Validate button id is present and is a non-empty string.
 				if (!msg.button || typeof msg.button !== "string") break
-				console.log(
-					`[InputHandler] Gamepad button "${msg.button}" ${msg.press ? "pressed" : "released"}`,
-				)
+				const isDown =
+					msg.press ?? (msg as { pressed?: boolean }).pressed ?? false
+				this.injector.injectGamepadButton(msg.button, isDown)
 				break
 			}
 
 			case "gamepad-axis": {
-				// Analog stick axis update — ax and ay are normalised -1…+1.
-				// Injection implemented in a later driver step.
 				if (msg.axis !== "ls" && msg.axis !== "rs") break
 				if (
 					typeof msg.ax !== "number" ||
@@ -300,9 +296,7 @@ export class InputHandler {
 					!Number.isFinite(msg.ay)
 				)
 					break
-				console.log(
-					`[InputHandler] Gamepad axis "${msg.axis}" ax=${msg.ax.toFixed(3)} ay=${msg.ay.toFixed(3)}`,
-				)
+				this.injector.injectGamepadAxis(msg.axis, msg.ax, msg.ay)
 				break
 			}
 
@@ -338,6 +332,8 @@ function createStubInjector(): PlatformInjector {
 		injectCombo: () => warn("injectCombo"),
 		injectText: () => warn("injectText"),
 		injectTouch: () => warn("injectTouch"),
+		injectGamepadButton: () => warn("injectGamepadButton"),
+		injectGamepadAxis: () => warn("injectGamepadAxis"),
 		destroy: () => {},
 	}
 }

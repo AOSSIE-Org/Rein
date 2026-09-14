@@ -109,7 +109,7 @@ function GamepadPage() {
 			else next.delete(id)
 			return next
 		})
-		send({ type: "gamepad", button: id, pressed })
+		send({ type: "gamepad", button: id, press: pressed })
 	}
 
 	// Analog stick axis update — sent over the unordered data-channel (high-frequency motion).
