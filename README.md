@@ -1,61 +1,58 @@
-<img width="1915" height="718" alt="Group 13 (1)" src="https://github.com/user-attachments/assets/371217bc-3606-409d-a4ab-2f5b32eae4a1" />
+<img width="1915" height="718" alt="Group 13" src="https://github.com/user-attachments/assets/f1560464-bd32-455b-b5a5-a8bfdb76e1f4" />
 
+# What's Rein
 
-# Rein
+Rein is a **cross-platform remote desktop tool** with a browser-based client. The desktop server runs on supported host platforms, while clients connect through a web browser without requiring a separate native application.
 
-Welcome to Rein. A **cross-platform LAN-based remote control and streaming system** that
-connects a host computer with browser-based clients over the local network.
+Rein provides remote desktop interaction, real-time screen streaming, file transfer, and input support through a single interface.
 
-A client can be a **phone, tablet, laptop, desktop, or any other compatible
-browser-based device**. Use it to control the host with touch and pointer input,
-send keyboard commands, interact with the desktop remotely, and view the host's
-screen in real time.
+## Features
 
-Rein is built to make remote interaction feel like a natural extension of the
-host machine rather than a separate remote-desktop application.
+* **Cross-platform server** - Run the Rein server on a variety of supported desktop platforms.
+* **Browser-based client** - Connect from any modern browser with no native client required.
+* **Multi-client support** - Connect multiple clients to a single host.
+* **Flexible input** - Supports keyboard, mouse, and touchscreen input.
+* **Real-time streaming** - Stream the host's screen using WebRTC.
+* **File transfer** - Transfer files between the host and connected clients.
+* **Cloud-ready interface** - Provides a standardized interface for cloud PC and cloud gaming providers.
+* **Cross-platform input injection** - Uses Rein's input injection library for platform-specific system input, including support for environments such as Wayland.
 
-## What Rein Brings to the table
+## Technical Overview
 
-Rein isn't just a remote trackpad. It brings together the essential tools
-for interacting with a computer remotely from input and streaming to
-gaming and file sharing.
+Rein is designed to provide a common interface between a desktop environment and browser-based clients. This makes it suitable not only for direct remote desktop use, but also as an interface layer for **cloud PC and cloud gaming providers**.
+
+The client is entirely browser-based, so providers can expose Rein without requiring users to install or maintain a separate native client application.
+
+Multiple clients can connect to the same server, with the server coordinating communication and input between connected clients.
+
+## Input
+
+Rein supports multiple forms of remote input, including:
 
 <div align="center">
 
-<img  width="180" height="139" alt="Gaming" src="https://github.com/user-attachments/assets/81498119-c351-4277-b3b5-91de1872d9d4" />
-&nbsp;
-<img  width="180" height="139" alt="Remote Access" src="https://github.com/user-attachments/assets/671cb147-3e8f-4540-954b-39fcb959a52a" />
-&nbsp;
-<img  width="180" height="139" alt="File Transfer" src="https://github.com/user-attachments/assets/cf385d77-386e-4616-955c-0e3cfca0b4a2" />
-&nbsp;
-<img  width="180" height="139" alt="Streaming" src="https://github.com/user-attachments/assets/0afa0607-c09c-42c2-85f4-3611176a243f" />
+<table>
+<tr>
+<td align="center" ><img width="180" height="139" alt="Trackpad" src="https://github.com/user-attachments/assets/1f74a40d-69de-45d7-a878-335c18fa2774" /></td>
+<td align="center"><img width="180" height="139" alt="Keyboard and Mouse" src="https://github.com/user-attachments/assets/6c9e0c38-3544-42c1-885e-b77354a6246e" /></td>
+<td align="center"><img width="180" height="139" alt="Touch" src="https://github.com/user-attachments/assets/477eeaa6-22ce-4fa8-90d1-8d5e58ddeabb" /></td>
+<td align="center"><img width="180" height="139" alt="Virtual Gamepad" src="https://github.com/user-attachments/assets/a332ac8e-89bd-4fed-977b-c13ef2c96b05" /></td>
+</tr>
+<tr>
+<td>Pointer movement, scrolling and gestures.</td>
+<td>Physical keyboard and mouse as input.</td>
+<td>Physical Touchscreen as input.</td>
+<td>Virtual Gamepad for supported applications.</td>
+</tr>
+</table>
 
 </div>
 
-## Why Rein?
+Rein includes a **cross-platform input injection library** for system-level keyboard and mouse input across supported operating systems. This addresses limitations in the Node.js ecosystem, particularly the lack of reliable input injection support on **Wayland**.
 
-A keyboard and mouse aren't always within reach.
+### WebRTC
 
-Your computer might be connected to a TV across the room, running a
-presentation, powering a game, hosting a remote machine, or sitting inside
-a cloud PC. In those moments, reaching for a keyboard and mouse isn't always
-the most convenient option.
-
-Your phone is already in your hand.
-
-**Rein turns it into the interface.**
-
-At its core, Rein is built around a simple idea: **any device can become an
-interface.**
-
-It provides a common layer for remote interaction across platforms and
-computing environments, bringing control, streaming, sharing, and gaming
-together in one experience.
-
-Whether you're sitting across the room or connecting to a cloud machine,
-Rein gives you a consistent way to interact with your computer.
-
----
+Rein uses **WebRTC** for real-time communication instead of implementing a custom UDP-based communication protocol. Using WebRTC provides an established, battle-tested real-time communication stack for transporting media and real-time data while avoiding the need to maintain a custom networking protocol.
 
 ## Tech Stack
 
@@ -67,7 +64,6 @@ Rein gives you a consistent way to interact with your computer.
 <img src="https://github.com/user-attachments/assets/8e0dcc83-c6eb-4235-a9ea-d41580d3020a" height="55" alt="WebRTC" />
 &nbsp;&nbsp;&nbsp;&nbsp;
 <img src="https://github.com/user-attachments/assets/88de3842-b480-4cbe-b985-8521ba134e27" height="55" alt="GStreamer" />
-
 </div>
 
 ## Development Setup
@@ -112,32 +108,42 @@ Rein gives you a consistent way to interact with your computer.
 
 ### Quick Start
 
-1.  Install dependencies:
-    ```bash
-    npm install
-    ```
-2.  Start the development server:
-    ```bash
-    npm run dev
-    ```
-3.  Open the local app: `http://localhost:3000`
+1. Install dependencies:
 
-## How to Use (Remote Control)
+   ```bash
+   npm install
+   ```
 
-To control this computer from your phone/tablet:
+2. Start the development server:
 
-### 1. Configure Firewall
-Ensure your computer allows incoming connections on:
-- **3000/TCP** (Frontend and WebSocket signaling)
-- **4000–4050/UDP** (WebRTC media and input channels)
+   ```bash
+   npm run dev
+   ```
+
+3. Open the local application:
+
+   ```text
+   http://localhost:3000
+   ```
+
+## Connecting a Client
+
+### 1. Configure the Firewall
+
+Ensure the host allows incoming connections on:
+
+* **3000/TCP** — Frontend and WebSocket signaling
+* **4000–4050/UDP** — WebRTC media and input channels
 
 **Linux (UFW):**
+
 ```bash
 sudo ufw allow 3000/tcp
 sudo ufw allow 4000:4050/udp
 ```
 
 **NixOS:**
+
 ```nix
 networking.firewall = {
   allowedTCPPorts = [ 3000 ];
@@ -147,43 +153,36 @@ networking.firewall = {
 };
 ```
 
-Port `5004/UDP` is an internal loopback relay between GStreamer and Rein and
-must not be exposed.
+Port `5004/UDP` is an internal loopback relay between GStreamer and Rein and must not be exposed.
 
-### 2. Connect Mobile Device
-1.  Ensure your phone and computer are on the **same Wi-Fi network**.
-2.  On your computer, open the app (`http://localhost:3000/settings`).
-3.  Scan the QR code with your phone OR manually enter:
-    `http://<YOUR_PC_IP>:3000`
+### 2. Connect Through a Browser
 
-### 3. Usage Tips
-- **Trackpad**: Swipe to move, tap to click.
-- **Scroll**: Toggle "Scroll Mode" or use two fingers.
-- **Keyboard**: Tap the "Keyboard" button to use your phone's native keyboard.
+Open the Rein server from a browser using:
 
-Visit the [Discord Channel](https://discord.com/invite/C8wHmwtczs) for interacting with the community!
-(Go to Project-> Rein)
+```text
+http://<YOUR_PC_IP>:3000
+```
 
----
-
+The client does not require a separate installation.
 
 ## Testing Rein on Virtual Machines
 
-When testing Rein inside a Virtual Machine (VirtualBox), the VM must allow devices on the same network to access the server.
+When testing Rein inside a Virtual Machine (VirtualBox), the VM must allow other devices on the network to access the server.
 
 ### Network Configuration
 
-1. Open **VM Settings**
-2. Go to **Network**
-3. Change Adapter from **NAT → Bridged Adapter**
-4. Select your active **Wi-Fi or Ethernet interface**
+1. Open **VM Settings**.
+2. Go to **Network**.
+3. Change the adapter from **NAT → Bridged Adapter**.
+4. Select your active **Wi-Fi or Ethernet interface**.
 
-This allows devices on the same LAN to connect to the Rein server running inside the VM.
+This allows devices on the same network to connect to the Rein server running inside the VM.
 
-### For MacOS
+### macOS
 
-Grant Accessibility permission to your terminal/IDE in System Settings → Privacy & Security → Accessibility.
+Grant Accessibility permission to your terminal or IDE in:
 
+**System Settings → Privacy & Security → Accessibility**
 
 ---
 
@@ -191,16 +190,18 @@ Grant Accessibility permission to your terminal/IDE in System Settings → Priva
 
 <img width="1280" height="946" alt="Rein application architecture and data flow" src="https://github.com/user-attachments/assets/335632e6-de89-41fa-b9a7-fe222548e578" />
 
-### At a glance
+### At a Glance
 
-- **Host / Application** — Runs Rein and coordinates the required services.
-- **Server** — Handles client connections and communication with the host.
-- **Client / Viewer** — Browser-based interface used to control and interact with the host.
-- **GStreamer** — Handles screen capture and streaming.
-- **Input Manager / Drivers** — Converts remote input into platform-specific system input.
-- **WebRTC** — Provides real-time communication for input and media.
-- **HTTP** — Used during the connection setup and handshake.
-- **FTP / File Transfer** — Handles file transfers between the client and host.
+* **Host / Application** - Runs Rein and coordinates the required services.
+* **Server** - Handles client connections and communication with the host.
+* **Client / Viewer** - Browser-based interface used to interact with the host.
+* **GStreamer** - Handles screen capture and streaming.
+* **Input Manager / Drivers** - Converts remote input into platform-specific system input.
+* **WebRTC** - Provides real-time communication for input and media.
+* **HTTP** - Used during connection setup and handshake.
+* **FTP / File Transfer** - Handles file transfers between the client and host.
+
+The architecture separates the browser-based client from the host-side services, allowing multiple clients to connect while keeping platform-specific functionality on the desktop server.
 
 For a deeper look at the architecture, communication flow, WebRTC,
 screen capture, input handling, and platform-specific implementation,
