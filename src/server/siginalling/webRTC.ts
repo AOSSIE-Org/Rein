@@ -298,6 +298,15 @@ export class WebRTCManager {
 	public getSessions(): SessionSnapshot[] {
 		return snapshotSessions(this.clients)
 	}
+	/**
+	 * Look up the InputHandler for a given session.
+	 * Returns null when the session ID is missing, unknown, or already closed.
+	 */
+	public getInputHandler(sessionId?: string): InputHandler | null {
+		if (!sessionId) return null
+		const session = this.clients.get(sessionId)
+		return session?.inputHandler ?? null
+	}
 
 	public updateConfig(config: Partial<InputConfig>) {
 		for (const client of this.clients.values()) {

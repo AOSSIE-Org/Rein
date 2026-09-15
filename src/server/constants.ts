@@ -13,7 +13,7 @@ export const DEFAULT_CONFIG: InputConfig = {
 	screenWidth: DEFAULT_SCREEN_WIDTH,
 	screenHeight: DEFAULT_SCREEN_HEIGHT,
 }
-export const MAX_TEXT_LENGTH = 10000
+export const MAX_TEXT_LENGTH = 100_000
 export const MAX_COORD = 2000
 export const MAX_COMBO_KEYS = 10
 export const MAX_KEY_LENGTH = 50
