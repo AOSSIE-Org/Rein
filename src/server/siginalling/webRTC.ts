@@ -189,10 +189,42 @@ export class WebRTCManager {
 				candidate: candidate.toJSON() as RTCIceCandidateInit,
 			})
 		})
+		let disconnectTimer: ReturnType<typeof setTimeout> | null = null
 
 		pc.iceConnectionStateChange.subscribe((state) => {
 			logger.info(`ICE state [${sessionId}]: ${state}`)
-			if (state === "failed" || state === "closed") {
+
+			if (state === "disconnected") {
+				if (!disconnectTimer) {
+					disconnectTimer = setTimeout(() => {
+						disconnectTimer = null
+						logger.warn(
+							`ICE stayed disconnected for 10 s — cleaning up session: ${sessionId}`,
+						)
+						cleanupSession(this.clients, sessionId)
+					}, 10_000)
+				}
+				return
+			}
+
+			// Connection recovered — cancel the grace-period timer.
+			if (state === "connected" || state === "completed") {
+				if (disconnectTimer) {
+					clearTimeout(disconnectTimer)
+					disconnectTimer = null
+				}
+				return
+			}
+
+			// "failed": immediate cleanup. "closed" is intentionally excluded —
+			// werift only emits it when we call pc.close() from inside
+			// cleanupSession itself, so handling it here would cause a
+			// redundant double-cleanup.
+			if (state === "failed") {
+				if (disconnectTimer) {
+					clearTimeout(disconnectTimer)
+					disconnectTimer = null
+				}
 				cleanupSession(this.clients, sessionId)
 			}
 		})
