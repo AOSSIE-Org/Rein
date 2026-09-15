@@ -44,7 +44,7 @@ export type PlatformInjector = {
 	injectMouseWheel(dx: number, dy: number): void
 	injectKey(key: string, pos?: string): void
 	injectCombo(keys: string[]): void
-	injectText(text: string): void
+	injectText(text: string): void | Promise<void>
 	injectTouch(contacts: NonNullable<InputMessage["contacts"]>): void
 	destroy(): void
 }
