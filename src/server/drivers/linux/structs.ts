@@ -44,7 +44,6 @@ export const InputAbsinfo = registerStruct("input_absinfo", {
 export const UinputAbsSetup = registerStruct("uinput_abs_setup", {
 	code: "uint16",
 	__pad: "uint16",
-	__pad2: "uint32",
 	absinfo: InputAbsinfo,
 })
 

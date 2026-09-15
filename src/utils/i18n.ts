@@ -6,6 +6,7 @@ export const i18n = {
 	en: {
 		nav: {
 			trackpad: "Trackpad",
+			gamepad: "GamePad",
 			settings: "Settings",
 			sendFile: "Send Files",
 		},

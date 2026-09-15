@@ -13,4 +13,4 @@ count.txt
 todos.json
 tokens.json
 SPEC.md
-bin/
+bin/gstreamer
