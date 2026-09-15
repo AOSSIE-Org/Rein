@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import QRCode from "qrcode"
 
 import { useEffect, useRef, useState } from "react"
+import { Copy, Check, Link2 } from "lucide-react"
 import { ClientTab } from "@/components/Settings/ClientTab"
 import { ServerTab } from "@/components/Settings/ServerTab"
 import { APP_CONFIG } from "../config"
