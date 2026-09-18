@@ -2,7 +2,7 @@
 
 # What's Rein
 
-Rein is a **cross-platform remote desktop tool** with a browser-based client. The desktop server runs on supported host platforms, while clients connect through a web browser without requiring a separate native application.
+Rein is a **cross-platform remote desktop tool** with a browser-based client for both **Touch Screen** as well as non-touch devices. The desktop server runs on supported host platforms, while clients connect through a web browser without requiring a separate native application.
 
 Rein provides remote desktop interaction, real-time screen streaming, file transfer, and input support through a single interface.
 
