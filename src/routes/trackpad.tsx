@@ -344,6 +344,10 @@ function TrackpadPage() {
 								if (modifier !== "Release") handleModifier(k)
 								else broadcastMessage({ type: "key", key: k })
 							}}
+							sendKeyHold={(k, state) => {
+								const pos = state === "down" ? "HOLD" : "RELEASE"
+								broadcastMessage({ type: "key", key: k, pos })
+							}}
 							onInputFocus={focusInput}
 						/>
 					</div>

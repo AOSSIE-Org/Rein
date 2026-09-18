@@ -375,3 +375,92 @@ export const SHIFTED_CHARS: Record<string, string> = {
 	"?": "/",
 	"~": "`",
 }
+
+/**
+ * Maps Windows Virtual Key codes to hardware scancodes.
+ *
+ * Games (especially those using DirectInput or RawInput) listen for
+ * scancode-based keyboard events rather than virtual-key events. The
+ * SendInput API requires the KEYEVENTF_SCANCODE flag together with the
+ * hardware scancode for such input to be recognized by games.
+ */
+export const VK_TO_SCANCODE: Record<number, number> = {
+	// Letters
+	65: 0x1e, // A
+	66: 0x30, // B
+	67: 0x2e, // C
+	68: 0x20, // D
+	69: 0x12, // E
+	70: 0x21, // F
+	71: 0x22, // G
+	72: 0x23, // H
+	73: 0x17, // I
+	74: 0x24, // J
+	75: 0x25, // K
+	76: 0x26, // L
+	77: 0x32, // M
+	78: 0x31, // N
+	79: 0x18, // O
+	80: 0x19, // P
+	81: 0x10, // Q
+	82: 0x13, // R
+	83: 0x1f, // S
+	84: 0x14, // T
+	85: 0x16, // U
+	86: 0x2f, // V
+	87: 0x11, // W
+	88: 0x2d, // X
+	89: 0x15, // Y
+	90: 0x2c, // Z
+
+	// Digits (top row)
+	48: 0x0b, // 0
+	49: 0x02, // 1
+	50: 0x03, // 2
+	51: 0x04, // 3
+	52: 0x05, // 4
+	53: 0x06, // 5
+	54: 0x07, // 6
+	55: 0x08, // 7
+	56: 0x09, // 8
+	57: 0x0a, // 9
+
+	// Special keys
+	32: 0x39, // Space
+	13: 0x1c, // Enter
+	27: 0x01, // Escape
+	8: 0x0e, // Backspace
+	9: 0x0f, // Tab
+	16: 0x2a, // Shift (left)
+	17: 0x1d, // Ctrl (left)
+	18: 0x38, // Alt (left)
+	20: 0x3a, // Caps Lock
+
+	// Arrow keys
+	37: 0x4b, // Left
+	38: 0x48, // Up
+	39: 0x4d, // Right
+	40: 0x50, // Down
+
+	// Navigation
+	36: 0x47, // Home
+	35: 0x4f, // End
+	33: 0x49, // Page Up
+	34: 0x51, // Page Down
+	45: 0x52, // Insert
+	46: 0x53, // Delete
+
+	// Function keys
+	112: 0x3b, // F1
+	113: 0x3c, // F2
+	114: 0x3d, // F3
+	115: 0x3e, // F4
+	116: 0x3f, // F5
+	117: 0x40, // F6
+	118: 0x41, // F7
+	119: 0x42, // F8
+	120: 0x43, // F9
+	121: 0x44, // F10
+	122: 0x57, // F11
+	123: 0x58, // F12
+}
