@@ -5,6 +5,7 @@
  * keyboard events. Supports both key-code based input and Unicode
  * character injection for characters not present in the standard key map.
  */
+import { createRequire } from "node:module"
 import {
 	postKeyEvent,
 	postMediaKeyEvent,
@@ -13,7 +14,9 @@ import {
 	NX_KEYTYPE_PREVIOUS,
 } from "./structs.ts"
 import { MAC_KEY_MAP } from "../keyMap.ts"
-import { resolveChar } from "../utils.ts"
+
+// Real CJS require — bypasses Vite's ESM shim so native modules load correctly.
+const nativeRequire = createRequire(`${process.cwd()}/package.json`)
 
 // Media transport keys that require NX_SYSDEFINED events
 const MEDIA_KEY_MAP: Record<string, number> = {
@@ -70,22 +73,11 @@ export class MacKeyboard {
 
 	injectText(text: string): void {
 		if (!text) return
+		// Use Unicode injection for all text — CoreGraphics handles
+		// capitals, special chars, emojis, and any Unicode character
+		// without needing keycode/shift emulation.
 		for (const ch of text) {
-			const { code, shifted } = resolveChar(ch, MAC_KEY_MAP)
-			const shiftCode = MAC_KEY_MAP.shift
-			if (code === undefined) {
-				// Fall back to Unicode injection for unmapped characters.
-				this.injectUnicodeChar(ch)
-				continue
-			}
-			if (shiftCode === undefined) {
-				console.warn("[MacKeyboard] Shift key code not defined in key map")
-				continue
-			}
-			if (shifted) postKeyEvent(shiftCode, true)
-			postKeyEvent(code, true)
-			postKeyEvent(code, false)
-			if (shifted) postKeyEvent(shiftCode, false)
+			this.injectUnicodeChar(ch)
 		}
 	}
 	private injectUnicodeChar(ch: string): void {
@@ -108,7 +100,7 @@ function ensureUnicode() {
 	if (_unicodeInjectorLoaded) return
 	_unicodeInjectorLoaded = true
 	try {
-		const koffi = require("koffi")
+		const koffi = nativeRequire("koffi")
 		const lib = koffi.load(
 			"/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
 		)

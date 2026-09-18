@@ -40,6 +40,36 @@ const hasOnScreenKeyboard = (): boolean => {
 	)
 }
 
+function legacyCopyToClipboard(text: string): void {
+	const ta = document.createElement("textarea")
+	ta.value = text
+	ta.style.position = "fixed"
+	ta.style.top = "-9999px"
+	ta.style.left = "-9999px"
+	ta.style.opacity = "0"
+	document.body.appendChild(ta)
+	ta.focus()
+	ta.select()
+	try {
+		document.execCommand("copy")
+		console.log("[Clipboard] Wrote via execCommand fallback")
+	} catch (err) {
+		console.error("[Clipboard] execCommand failed:", err)
+	}
+	document.body.removeChild(ta)
+}
+
+const MAX_CHUNK_SIZE = 8000 // ~8 KB per WebRTC message — safe everywhere
+
+function sendTextInChunks(text: string, send: (msg: unknown) => void): void {
+	// Array.from splits by Unicode code point — emojis stay intact
+	const chars = Array.from(text)
+	for (let i = 0; i < chars.length; i += MAX_CHUNK_SIZE) {
+		const chunk = chars.slice(i, i + MAX_CHUNK_SIZE).join("")
+		send({ type: "text", text: chunk })
+	}
+}
+
 function TrackpadPage() {
 	const searchParams = new URLSearchParams(
 		typeof window !== "undefined" ? window.location.search : "",
@@ -65,7 +95,7 @@ function TrackpadPage() {
 	const [extraKeysVisible, setExtraKeysVisible] = useState(true)
 	const [noKeyboardToast, setNoKeyboardToast] = useState(false)
 	const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-	const { status, send, sendCombo } = useRemoteConnection()
+	const { status } = useRemoteConnection()
 	const {
 		trackActive,
 		videoStream,
@@ -73,13 +103,15 @@ function TrackpadPage() {
 		errorHandle,
 		connecting,
 		reconnect,
+		sendInputEvent,
+		activeSessionId,
 	} = useWebRtcStream({
 		token,
 	})
 
 	// Send input actions safely over WebRTC DataChannels
 	const broadcastMessage = (payload: unknown) => {
-		send(payload)
+		sendInputEvent(payload)
 	}
 
 	const gesture = useTrackpadGesture(broadcastMessage, scrollMode)
@@ -147,10 +179,68 @@ function TrackpadPage() {
 		)
 	}
 
-	const handleCopy = () => broadcastMessage({ type: "copy" })
-	const handlePaste = async () => broadcastMessage({ type: "paste" })
+	const handleCopy = async () => {
+		if (!activeSessionId) {
+			console.warn("[Clipboard] No active session yet")
+			return
+		}
+		try {
+			const res = await fetch("/api/clipboard/copy", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+				body: JSON.stringify({ sessionId: activeSessionId }),
+			})
+			if (!res.ok) throw new Error(`Copy failed: ${res.status}`)
+			const data = (await res.json()) as { text?: string }
+			if (!data.text) return
+
+			// Try modern Clipboard API first (works on HTTPS)
+			if (navigator.clipboard?.writeText) {
+				try {
+					await navigator.clipboard.writeText(data.text)
+					console.log("[Clipboard] Wrote via Clipboard API")
+					return
+				} catch {
+					console.warn("[Clipboard] Clipboard API failed, using fallback")
+				}
+			}
+			// Fallback for HTTP / older browsers
+			legacyCopyToClipboard(data.text)
+		} catch (err) {
+			console.error("[Clipboard] Copy error:", err)
+		}
+	}
+
+	const handlePaste = async () => {
+		if (!activeSessionId) {
+			console.warn("[Clipboard] No active session yet")
+			return
+		}
+		try {
+			const text = await navigator.clipboard.readText().catch(() => "")
+			const res = await fetch("/api/clipboard/paste", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+				body: JSON.stringify({ sessionId: activeSessionId, text }),
+			})
+			if (!res.ok) throw new Error(`Paste failed: ${res.status}`)
+		} catch (err) {
+			console.error("[Clipboard] Paste error:", err)
+		}
+	}
 
 	const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+		console.log(
+			e.target.value,
+			"inputType:",
+			(e.nativeEvent as InputEvent).inputType,
+		)
 		const nativeEvent = e.nativeEvent as InputEvent
 		const inputType = nativeEvent.inputType
 		const data = nativeEvent.data
@@ -184,7 +274,7 @@ function TrackpadPage() {
 				if (textToSend === " ") {
 					broadcastMessage({ type: "key", key: "space" })
 				} else {
-					broadcastMessage({ type: "text", text: textToSend })
+					sendTextInChunks(textToSend, broadcastMessage)
 				}
 			}
 			resetInput()
@@ -206,7 +296,7 @@ function TrackpadPage() {
 			if (modifier !== "Release") {
 				handleModifier(textToSend)
 			} else {
-				broadcastMessage({ type: "text", text: textToSend })
+				sendTextInChunks(textToSend, broadcastMessage)
 			}
 		}
 
@@ -269,7 +359,8 @@ function TrackpadPage() {
 	const handleModifier = (key: string) => {
 		if (modifier === "Hold") {
 			const comboKeys = [...buffer, key]
-			sendCombo(comboKeys)
+			sendInputEvent({ type: "combo", keys: comboKeys })
+			setBuffer([])
 		} else if (modifier === "Active") {
 			setBuffer((prev) => [...prev, key])
 		}
