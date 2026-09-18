@@ -31,6 +31,7 @@ export interface InputMessage {
 	button?: "left" | "right" | "middle"
 	press?: boolean
 	key?: string
+	pos?: "HOLD" | "RELEASE" | ""
 	keys?: string[]
 	text?: string
 	delta?: number
