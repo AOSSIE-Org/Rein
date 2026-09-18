@@ -7,6 +7,7 @@ import {
 	setLocalStorageItem,
 } from "../../utils/safeLocalStorage"
 import ThemePicker, { THEME_LIST } from "../ThemePicker/ThemePicker"
+import { GamepadLayoutSettings } from "../Gamepad/GamepadLayoutSettings"
 
 export interface ClientTabProps {
 	authToken: string
@@ -141,6 +142,19 @@ export function ClientTab({ authToken }: ClientTabProps) {
 				</label>
 				<ThemePicker value={theme ?? "dracula"} onChange={setTheme} />
 			</div>
+
+			{/* Gamepad button layout customisation */}
+			<details className="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box">
+				<summary
+					className="collapse-title text-sm font-medium cursor-pointer select-none"
+					id="gamepad-layout-section"
+				>
+					{t("clientTab", "gamepadButtonLayout")}
+				</summary>
+				<div className="collapse-content pt-2">
+					<GamepadLayoutSettings />
+				</div>
+			</details>
 		</div>
 	)
 }

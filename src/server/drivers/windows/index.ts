@@ -22,6 +22,7 @@ import { INPUT_MOUSE, DEFAULT_CONFIG } from "../../constants.ts"
 import type { InputConfig, TouchContact } from "../../types.ts"
 import { WindowsKeyboard } from "./keyboard.ts"
 import { WindowsTouch } from "./touch.ts"
+import { WindowsGamepad } from "./gamepad.ts"
 
 if (process.platform !== "win32") {
 	throw new Error("WindowsInputInjector can only be used on Windows")
@@ -30,12 +31,14 @@ if (process.platform !== "win32") {
 export class WindowsInputInjector {
 	private keyboard: WindowsKeyboard
 	private touch: WindowsTouch
+	private gamepad: WindowsGamepad
 	private config: InputConfig
 
 	constructor(config: Partial<InputConfig> = {}) {
 		this.config = { ...DEFAULT_CONFIG, ...config }
 		this.keyboard = new WindowsKeyboard()
 		this.touch = new WindowsTouch()
+		this.gamepad = new WindowsGamepad()
 	}
 
 	updateConfig(config: Partial<InputConfig>): void {
@@ -162,8 +165,18 @@ export class WindowsInputInjector {
 		this.touch.injectTouch(contacts)
 	}
 
+	// Gamepad
+	injectGamepadButton(button: string, isDown: boolean): void {
+		this.gamepad.injectGamepadButton(button, isDown)
+	}
+
+	injectGamepadAxis(axis: "ls" | "rs", ax: number, ay: number): void {
+		this.gamepad.injectGamepadAxis(axis, ax, ay)
+	}
+
 	// Cleanup
 	destroy(): void {
 		this.touch.destroy()
+		this.gamepad.destroy()
 	}
 }

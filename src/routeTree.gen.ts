@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DebugRouteImport } from './routes/debug'
+import { Route as GamepadRouteImport } from './routes/gamepad'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TrackpadRouteImport } from './routes/trackpad'
 
@@ -22,6 +23,11 @@ const IndexRoute = IndexRouteImport.update({
 const DebugRoute = DebugRouteImport.update({
   id: '/debug',
   path: '/debug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GamepadRoute = GamepadRouteImport.update({
+  id: '/gamepad',
+  path: '/gamepad',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -38,12 +44,14 @@ const TrackpadRoute = TrackpadRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/debug': typeof DebugRoute
+  '/gamepad': typeof GamepadRoute
   '/settings': typeof SettingsRoute
   '/trackpad': typeof TrackpadRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/debug': typeof DebugRoute
+  '/gamepad': typeof GamepadRoute
   '/settings': typeof SettingsRoute
   '/trackpad': typeof TrackpadRoute
 }
@@ -51,20 +59,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/debug': typeof DebugRoute
+  '/gamepad': typeof GamepadRoute
   '/settings': typeof SettingsRoute
   '/trackpad': typeof TrackpadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/debug' | '/settings' | '/trackpad'
+  fullPaths: '/' | '/debug' | '/gamepad' | '/settings' | '/trackpad'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/debug' | '/settings' | '/trackpad'
-  id: '__root__' | '/' | '/debug' | '/settings' | '/trackpad'
+  to: '/' | '/debug' | '/gamepad' | '/settings' | '/trackpad'
+  id: '__root__' | '/' | '/debug' | '/gamepad' | '/settings' | '/trackpad'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DebugRoute: typeof DebugRoute
+  GamepadRoute: typeof GamepadRoute
   SettingsRoute: typeof SettingsRoute
   TrackpadRoute: typeof TrackpadRoute
 }
@@ -83,6 +93,13 @@ declare module '@tanstack/react-router' {
       path: '/debug'
       fullPath: '/debug'
       preLoaderRoute: typeof DebugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gamepad': {
+      id: '/gamepad'
+      path: '/gamepad'
+      fullPath: '/gamepad'
+      preLoaderRoute: typeof GamepadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -105,6 +122,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DebugRoute: DebugRoute,
+  GamepadRoute: GamepadRoute,
   SettingsRoute: SettingsRoute,
   TrackpadRoute: TrackpadRoute,
 }
