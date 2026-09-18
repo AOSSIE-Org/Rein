@@ -71,4 +71,6 @@ Contribution workflow
 - Reference issues using `#<number>` in PR titles and descriptions.
 
 Definition of done
-A change is not finished until `npm run check` and `npm run test` pass with zero errors locally. If you touched input drivers, gestures, or WebRTC signaling, test end-to-end via QR code scan on a mobile device or VM.
+## Definition of done
+
+A change is not finished until the relevant checks pass locally. At minimum, run `npm run check` and `npm run test`. If you changed the web application or production build configuration, also run `npm run build`. If you touched input drivers, gestures, or WebRTC signaling, test end-to-end via QR code scan on a mobile device or VM.
