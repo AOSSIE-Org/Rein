@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useEffect, useState, useRef } from "react"
+import { t } from "../../utils/i18n"
 
 export type LayoutGroup =
 	| "leftShoulder"
@@ -112,7 +113,7 @@ function Btn({
 		<button
 			type="button"
 			id={`gamepad-btn-${id}`}
-			aria-label={`Gamepad ${label}`}
+			aria-label={t("gamepad", "gamepadButtonAriaLabel", { label })}
 			aria-pressed={active}
 			className={`
 				select-none touch-none flex items-center justify-center
@@ -281,6 +282,8 @@ function AnalogStick({
 	const containerRef = useRef<HTMLDivElement | null>(null)
 	const nubElRef = useRef<HTMLDivElement | null>(null)
 	const isDragging = useRef(false)
+	const stickPressPointerId = useRef<number | null>(null)
+	const dragPointerId = useRef<number | null>(null)
 
 	const applyNub = (rawX: number, rawY: number, release = false) => {
 		let nx = rawX
@@ -309,7 +312,10 @@ function AnalogStick({
 		e.stopPropagation()
 		e.currentTarget.setPointerCapture(e.pointerId)
 
-		isDragging.current = true
+		if (dragPointerId.current === null) {
+			dragPointerId.current = e.pointerId
+			isDragging.current = true
+		}
 
 		const rect = containerRef.current?.getBoundingClientRect()
 		if (!rect) return
@@ -325,12 +331,19 @@ function AnalogStick({
 		const distance = Math.sqrt(dx * dx + dy * dy)
 
 		if (distance <= innerSize / 2) {
+			stickPressPointerId.current = e.pointerId
 			onPress(idPrefix, true)
 		}
 	}
 
 	const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-		if (!interactive || !isDragging.current || !containerRef.current) return
+		if (
+			!interactive ||
+			!isDragging.current ||
+			dragPointerId.current !== e.pointerId ||
+			!containerRef.current
+		)
+			return
 
 		e.stopPropagation()
 
@@ -346,11 +359,17 @@ function AnalogStick({
 
 		e.stopPropagation()
 
-		isDragging.current = false
-		applyNub(0, 0, true)
+		if (dragPointerId.current === e.pointerId) {
+			dragPointerId.current = null
+			isDragging.current = false
+			applyNub(0, 0, true)
+		}
 
-		// Release LS/RS button
-		onPress(idPrefix, false)
+		// Release LS/RS button only for the pointer that pressed it
+		if (stickPressPointerId.current === e.pointerId) {
+			stickPressPointerId.current = null
+			onPress(idPrefix, false)
+		}
 	}
 
 	return (
@@ -684,7 +703,7 @@ export function GamepadOverlay({
 					<div className="flex flex-col items-center gap-3">
 						<Btn
 							id="lt"
-							label="LT"
+							label={t("gamepad", "lt")}
 							className={`
 				${SHOULDER_BASE}
 				rounded-full
@@ -704,7 +723,7 @@ export function GamepadOverlay({
 
 						<Btn
 							id="lb"
-							label="LB"
+							label={t("gamepad", "lb")}
 							className={`
 				${SHOULDER_BASE}
 				rounded-full
@@ -729,7 +748,7 @@ export function GamepadOverlay({
 					<div className="flex flex-col items-center gap-3">
 						<Btn
 							id="rt"
-							label="RT"
+							label={t("gamepad", "rt")}
 							className={`
 				${SHOULDER_BASE}
 				rounded-full
@@ -749,7 +768,7 @@ export function GamepadOverlay({
 
 						<Btn
 							id="rb"
-							label="RB"
+							label={t("gamepad", "rb")}
 							className={`
 				${SHOULDER_BASE}
 				rounded-full
@@ -796,7 +815,7 @@ export function GamepadOverlay({
 					<div className="flex gap-3">
 						<Btn
 							id="select"
-							label="select"
+							label={t("gamepad", "select")}
 							className={`
 								${SHOULDER_BASE}
 								px-7
@@ -816,7 +835,7 @@ export function GamepadOverlay({
 
 						<Btn
 							id="start"
-							label="start"
+							label={t("gamepad", "start")}
 							className={`
 								${SHOULDER_BASE}
 								px-7

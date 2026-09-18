@@ -11,18 +11,19 @@ import {
 	getLocalStorageItem,
 	setLocalStorageItem,
 } from "../../utils/safeLocalStorage"
+import { t } from "../../utils/i18n"
 
 const STORAGE_KEY = "rein_gamepad_layout"
 
-const GROUP_LABELS: Record<LayoutGroup, string> = {
-	leftShoulder: "LT / LB",
-	rightShoulder: "RT / RB",
-	dpad: "D-Pad",
-	leftStick: "Left Stick",
-	rightStick: "Right Stick",
-	startSelect: "Select / Start",
-	faceButtons: "Face Buttons",
-}
+const getGroupLabels = (): Record<LayoutGroup, string> => ({
+	leftShoulder: t("gamepad", "leftShoulder"),
+	rightShoulder: t("gamepad", "rightShoulder"),
+	dpad: t("gamepad", "dpad"),
+	leftStick: t("gamepad", "leftStick"),
+	rightStick: t("gamepad", "rightStick"),
+	startSelect: t("gamepad", "startSelect"),
+	faceButtons: t("gamepad", "faceButtons"),
+})
 
 function loadLayout(): GamepadButtonLayout {
 	const raw = getLocalStorageItem(STORAGE_KEY)
@@ -82,6 +83,7 @@ export function useGamepadLayout(): [
 export function GamepadLayoutSettings() {
 	const [layout, setLayout] = useGamepadLayout()
 	const [selected, setSelected] = useState<LayoutGroup>("faceButtons")
+	const groupLabels = getGroupLabels()
 
 	const updateGroup = (
 		id: LayoutGroup,
@@ -102,16 +104,18 @@ export function GamepadLayoutSettings() {
 		<div className="space-y-6">
 			{/* Live, drag-to-position preview */}
 			<div className="form-control w-full">
-				<label className="label mb-1">
-					<span className="label-text font-medium">Button Layout Preview</span>
+				<div className="label mb-1">
+					<span className="label-text font-medium">
+						{t("gamepad", "buttonLayoutPreview")}
+					</span>
 					<button
 						type="button"
 						className="btn btn-xs btn-ghost opacity-60"
 						onClick={resetAll}
 					>
-						Reset All
+						{t("gamepad", "resetAll")}
 					</button>
-				</label>
+				</div>
 
 				<div
 					id="gamepad-layout-preview"
@@ -120,7 +124,7 @@ export function GamepadLayoutSettings() {
 				>
 					<div className="absolute inset-0 flex items-center justify-center opacity-20">
 						<span className="text-xs text-neutral-content font-mono uppercase tracking-widest">
-							Screen Mirror Preview
+							{t("gamepad", "screenMirrorPreview")}
 						</span>
 					</div>
 
@@ -134,21 +138,21 @@ export function GamepadLayoutSettings() {
 					/>
 				</div>
 				<p className="mt-1 text-xs opacity-50">
-					Drag any group directly on the preview to reposition it.
+					{t("gamepad", "dragInstruction")}
 				</p>
 			</div>
 
 			{/* Group picker */}
 			<div className="form-control w-full">
 				<div className="flex flex-wrap gap-2">
-					{(Object.keys(GROUP_LABELS) as LayoutGroup[]).map((id) => (
+					{(Object.keys(groupLabels) as LayoutGroup[]).map((id) => (
 						<button
 							key={id}
 							type="button"
 							className={`btn btn-xs ${selected === id ? "btn-primary" : "btn-ghost border-base-300"}`}
 							onClick={() => setSelected(id)}
 						>
-							{GROUP_LABELS[id]}
+							{groupLabels[id]}
 						</button>
 					))}
 				</div>
@@ -157,7 +161,9 @@ export function GamepadLayoutSettings() {
 			{/* Scale slider for the selected group */}
 			<div className="form-control w-full">
 				<label className="label" htmlFor="gamepad-scale-slider">
-					<span className="label-text">{GROUP_LABELS[selected]} Scale</span>
+					<span className="label-text">
+						{groupLabels[selected]} {t("gamepad", "scale")}
+					</span>
 					<span className="label-text-alt font-mono">
 						{current.scale.toFixed(2)}×
 					</span>
@@ -166,7 +172,7 @@ export function GamepadLayoutSettings() {
 						className="btn btn-xs btn-ghost opacity-60"
 						onClick={() => resetGroup(selected)}
 					>
-						Reset
+						{t("gamepad", "reset")}
 					</button>
 				</label>
 				<input
@@ -182,9 +188,9 @@ export function GamepadLayoutSettings() {
 					className="range range-primary range-sm w-full"
 				/>
 				<div className="mt-1 flex w-full justify-between px-2 text-xs opacity-50">
-					<span>Small</span>
-					<span>Default</span>
-					<span>Large</span>
+					<span>{t("gamepad", "small")}</span>
+					<span>{t("gamepad", "defaultSize")}</span>
+					<span>{t("gamepad", "large")}</span>
 				</div>
 			</div>
 
@@ -192,7 +198,7 @@ export function GamepadLayoutSettings() {
 			<div className="grid grid-cols-2 gap-4">
 				<div className="form-control w-full">
 					<label className="label" htmlFor="gamepad-offset-x-slider">
-						<span className="label-text">X Position</span>
+						<span className="label-text">{t("gamepad", "xPosition")}</span>
 						<span className="label-text-alt font-mono">
 							{current.x.toFixed(1)}%
 						</span>
@@ -212,7 +218,7 @@ export function GamepadLayoutSettings() {
 				</div>
 				<div className="form-control w-full">
 					<label className="label" htmlFor="gamepad-offset-y-slider">
-						<span className="label-text">Y Position</span>
+						<span className="label-text">{t("gamepad", "yPosition")}</span>
 						<span className="label-text-alt font-mono">
 							{current.y.toFixed(1)}%
 						</span>

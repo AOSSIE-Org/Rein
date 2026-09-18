@@ -50,4 +50,19 @@ describe("LinuxGamepad", () => {
 
 		writeSpy.mockRestore()
 	})
+
+	it("should clamp out-of-range axis values before writing", () => {
+		const writeSpy = vi.spyOn(structs, "writeEvent").mockReturnValue(true)
+		const mockFd = 42
+		const gamepad = new LinuxGamepad(mockFd)
+
+		// Values outside [-1.0, 1.0] must clamp to -32767 and 32767
+		gamepad.injectGamepadAxis("ls", -2.5, 3.5)
+
+		expect(writeSpy).toHaveBeenCalledWith(mockFd, 0x03, 0x00, -32767)
+		expect(writeSpy).toHaveBeenCalledWith(mockFd, 0x03, 0x01, 32767)
+		expect(writeSpy).toHaveBeenCalledWith(mockFd, 0x00, 0x00, 0)
+
+		writeSpy.mockRestore()
+	})
 })

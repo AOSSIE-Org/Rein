@@ -149,7 +149,7 @@ export function ClientTab({ authToken }: ClientTabProps) {
 					className="collapse-title text-sm font-medium cursor-pointer select-none"
 					id="gamepad-layout-section"
 				>
-					Gamepad Button Layout
+					{t("clientTab", "gamepadButtonLayout")}
 				</summary>
 				<div className="collapse-content pt-2">
 					<GamepadLayoutSettings />
