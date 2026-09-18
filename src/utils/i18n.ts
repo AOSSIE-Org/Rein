@@ -33,6 +33,12 @@ export const i18n = {
 			naturalScrolling: "Natural scrolling",
 			theme: "Theme",
 			gamepadButtonLayout: "Gamepad Button Layout",
+			stopMirror: "Stop Screen Mirror",
+			stopMirrorDesc: "Hides the remote screen",
+			resumeMirrorDesc: "Screen mirror is hidden",
+			muteAudio: "Mute Audio",
+			muteAudioDesc: "Stream audio is muted",
+			unmuteAudioDesc: "Stream audio is playing",
 		},
 		gamepad: {
 			buttonLayoutPreview: "Button Layout Preview",

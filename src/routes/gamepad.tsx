@@ -44,6 +44,26 @@ function GamepadPage() {
 		reconnect,
 	} = useWebRtcStream({ token })
 
+	const [mirrorPaused, setMirrorPaused] = useState<boolean>(
+		() => getLocalStorageItem("rein_mirror_paused") === "true",
+	)
+	const [audioMuted, setAudioMuted] = useState<boolean>(
+		() => getLocalStorageItem("rein_audio_muted") === "true",
+	)
+
+	useEffect(() => {
+		const onStorage = (e: StorageEvent) => {
+			if (e.key === "rein_mirror_paused") {
+				setMirrorPaused(e.newValue === "true")
+			}
+			if (e.key === "rein_audio_muted") {
+				setAudioMuted(e.newValue === "true")
+			}
+		}
+		window.addEventListener("storage", onStorage)
+		return () => window.removeEventListener("storage", onStorage)
+	}, [])
+
 	const [layout] = useGamepadLayout()
 
 	// Track which digital buttons are currently held down
@@ -144,6 +164,8 @@ function GamepadPage() {
 						connecting={connecting}
 						status={status}
 						disableFullscreen={true}
+						paused={mirrorPaused}
+						muted={audioMuted}
 					/>
 				)}
 

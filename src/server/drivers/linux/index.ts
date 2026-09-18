@@ -325,6 +325,7 @@ export class LinuxInputInjector {
 		if (gamepadOk) {
 			this.gamepad = new LinuxGamepad(this.gamepadDev.fd)
 		} else {
+			this.gamepadDev.destroy()
 			console.warn(
 				"[LinuxInputInjector] Virtual Gamepad device failed to initialize — gamepad injection disabled",
 			)

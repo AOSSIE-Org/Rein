@@ -152,8 +152,10 @@ export class InputHandler {
 		msg.dx = clampFinite(msg.dx, -MAX_COORD, MAX_COORD)
 		msg.dy = clampFinite(msg.dy, -MAX_COORD, MAX_COORD)
 		msg.delta = clampFinite(msg.delta, -MAX_COORD, MAX_COORD)
-		if (typeof msg.ax === "number") msg.ax = clampFinite(msg.ax, -1, 1)
-		if (typeof msg.ay === "number") msg.ay = clampFinite(msg.ay, -1, 1)
+		if (typeof msg.ax === "number" && Number.isFinite(msg.ax))
+			msg.ax = clampFinite(msg.ax, -1, 1)
+		if (typeof msg.ay === "number" && Number.isFinite(msg.ay))
+			msg.ay = clampFinite(msg.ay, -1, 1)
 	}
 
 	private throttle(msg: InputMessage): boolean {

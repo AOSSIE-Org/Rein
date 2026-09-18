@@ -3,6 +3,7 @@
 import type React from "react"
 import { useEffect, useState, useRef } from "react"
 import { t } from "../../utils/i18n"
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from "lucide-react"
 
 export type LayoutGroup =
 	| "leftShoulder"
@@ -74,7 +75,8 @@ const SHOULDER_BASE =
 
 interface BtnProps {
 	id: GamepadButtonId
-	label: string
+	label?: string
+	icon?: React.ReactNode
 	className?: string
 	style?: React.CSSProperties
 	active: boolean
@@ -84,9 +86,10 @@ interface BtnProps {
 
 function Btn({
 	id,
-	label,
+	label = "",
 	className = "",
 	style,
+	icon = <div />,
 	active,
 	onPress,
 	interactive,
@@ -136,6 +139,7 @@ function Btn({
 			style={style}
 			{...handlers}
 		>
+			{icon && <div className="flex items-center justify-center">{icon}</div>}
 			{label}
 		</button>
 	)
@@ -163,7 +167,7 @@ function DPad({ size, active, onPress, interactive }: DPadProps) {
 	const directions = [
 		{
 			id: "dpad-up" as const,
-			label: "▲",
+			icon: <ArrowUp />,
 			style: {
 				width: arm,
 				height: arm,
@@ -175,7 +179,7 @@ function DPad({ size, active, onPress, interactive }: DPadProps) {
 		},
 		{
 			id: "dpad-down" as const,
-			label: "▼",
+			icon: <ArrowDown />,
 			style: {
 				width: arm,
 				height: arm,
@@ -187,7 +191,7 @@ function DPad({ size, active, onPress, interactive }: DPadProps) {
 		},
 		{
 			id: "dpad-left" as const,
-			label: "◀",
+			icon: <ArrowLeft />,
 			style: {
 				width: arm,
 				height: arm,
@@ -199,7 +203,7 @@ function DPad({ size, active, onPress, interactive }: DPadProps) {
 		},
 		{
 			id: "dpad-right" as const,
-			label: "▶",
+			icon: <ArrowRight />,
 			style: {
 				width: arm,
 				height: arm,
@@ -237,11 +241,11 @@ function DPad({ size, active, onPress, interactive }: DPadProps) {
 				}}
 			/>
 
-			{directions.map(({ id, label, style }) => (
+			{directions.map(({ id, icon, style }) => (
 				<Btn
 					key={id}
 					id={id}
-					label={label}
+					icon={icon}
 					active={active.has(id)}
 					onPress={onPress}
 					interactive={interactive}
@@ -312,10 +316,9 @@ function AnalogStick({
 		e.stopPropagation()
 		e.currentTarget.setPointerCapture(e.pointerId)
 
-		if (dragPointerId.current === null) {
-			dragPointerId.current = e.pointerId
-			isDragging.current = true
-		}
+		if (dragPointerId.current !== null) return
+		dragPointerId.current = e.pointerId
+		isDragging.current = true
 
 		const rect = containerRef.current?.getBoundingClientRect()
 		if (!rect) return

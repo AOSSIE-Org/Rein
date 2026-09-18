@@ -8,9 +8,60 @@ import {
 } from "../../utils/safeLocalStorage"
 import ThemePicker, { THEME_LIST } from "../ThemePicker/ThemePicker"
 import { GamepadLayoutSettings } from "../Gamepad/GamepadLayoutSettings"
+import { MonitorOff, VolumeX,MousePointerClick } from "lucide-react"
 
 export interface ClientTabProps {
 	authToken: string
+}
+
+function SettingToggle({
+	id,
+	icon,
+	label,
+	description,
+	checked,
+	onChange,
+}: {
+	id: string
+	icon: React.ReactNode
+	label: string
+	description: string
+	checked: boolean
+	onChange: (next: boolean) => void
+}) {
+	return (
+		<label
+			htmlFor={id}
+			className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl border cursor-pointer select-none transition-all duration-200 ${
+				checked
+					? "bg-primary/10 border-primary/40 text-primary"
+					: "bg-base-100 border-base-300 text-base-content hover:border-base-content/30"
+			}`}
+		>
+			<span
+				className={`shrink-0 transition-colors duration-200 ${checked ? "text-primary" : "text-base-content/50"}`}
+			>
+				{icon}
+			</span>
+
+			<span className="flex flex-col flex-1 min-w-0">
+				<span className="text-sm font-semibold leading-tight">{label}</span>
+				<span
+					className={`text-xs leading-tight mt-0.5 transition-colors duration-200 ${checked ? "text-primary/70" : "opacity-50"}`}
+				>
+					{description}
+				</span>
+			</span>
+
+			<input
+				id={id}
+				type="checkbox"
+				className="toggle toggle-primary toggle-sm shrink-0"
+				checked={checked}
+				onChange={(e) => onChange(e.target.checked)}
+			/>
+		</label>
+	)
 }
 
 export function ClientTab({ authToken }: ClientTabProps) {
@@ -22,6 +73,14 @@ export function ClientTab({ authToken }: ClientTabProps) {
 
 	const [invertScroll, setInvertScroll] = useState<boolean>(() => {
 		return getLocalStorageItem("rein_invert") === "true"
+	})
+
+	const [mirrorPaused, setMirrorPaused] = useState<boolean>(() => {
+		return getLocalStorageItem("rein_mirror_paused") === "true"
+	})
+
+	const [audioMuted, setAudioMuted] = useState<boolean>(() => {
+		return getLocalStorageItem("rein_audio_muted") === "true"
 	})
 
 	const [theme, setTheme] = useState(() => {
@@ -75,6 +134,16 @@ export function ClientTab({ authToken }: ClientTabProps) {
 		document.documentElement.setAttribute("data-theme", theme ?? "dracula")
 	}, [theme])
 
+	const handleMirrorPausedChange = (val: boolean) => {
+		setMirrorPaused(val)
+		setLocalStorageItem("rein_mirror_paused", JSON.stringify(val))
+	}
+
+	const handleAudioMutedChange = (val: boolean) => {
+		setAudioMuted(val)
+		setLocalStorageItem("rein_audio_muted", JSON.stringify(val))
+	}
+
 	return (
 		<div className="space-y-8">
 			<div className="form-control w-full">
@@ -109,31 +178,49 @@ export function ClientTab({ authToken }: ClientTabProps) {
 				</div>
 			</div>
 
-			<div className="form-control w-full">
-				<label className="label cursor-pointer" htmlFor="invert-scroll-toggle">
-					<span className="label-text font-medium">
-						{t("clientTab", "invertScroll")}
-					</span>
-					<input
-						id="invert-scroll-toggle"
-						type="checkbox"
-						className="toggle toggle-primary"
-						checked={invertScroll}
-						onChange={(e) => {
-							const val = e.target.checked
-							setInvertScroll(val)
-							setClientConfig(sensitivity, val)
-						}}
-					/>
-				</label>
-
-				<label className="label" htmlFor="invert-scroll-toggle">
-					<span className="label-text-alt opacity-50">
-						{invertScroll
+			{/* Boolean toggles — shared card-pill style */}
+			<div className="flex flex-col gap-3">
+				<SettingToggle
+					id="invert-scroll-toggle"
+					icon={<MousePointerClick />}
+					label={t("clientTab", "invertScroll")}
+					description={
+						invertScroll
 							? t("clientTab", "traditionalScrolling")
-							: t("clientTab", "naturalScrolling")}
-					</span>
-				</label>
+							: t("clientTab", "naturalScrolling")
+					}
+					checked={invertScroll}
+					onChange={(val) => {
+						setInvertScroll(val)
+						setClientConfig(sensitivity, val)
+					}}
+				/>
+
+				<SettingToggle
+					id="stop-mirror-toggle"
+					icon={<MonitorOff size={18} aria-hidden="true" />}
+					label={t("clientTab", "stopMirror")}
+					description={
+						mirrorPaused
+							? t("clientTab", "resumeMirrorDesc")
+							: t("clientTab", "stopMirrorDesc")
+					}
+					checked={mirrorPaused}
+					onChange={handleMirrorPausedChange}
+				/>
+
+				<SettingToggle
+					id="mute-audio-toggle"
+					icon={<VolumeX size={18} aria-hidden="true" />}
+					label={t("clientTab", "muteAudio")}
+					description={
+						audioMuted
+							? t("clientTab", "muteAudioDesc")
+							: t("clientTab", "unmuteAudioDesc")
+					}
+					checked={audioMuted}
+					onChange={handleAudioMutedChange}
+				/>
 			</div>
 
 			<div className="form-control w-full">

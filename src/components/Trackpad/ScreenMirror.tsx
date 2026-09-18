@@ -28,10 +28,9 @@ interface ScreenMirrorProps {
 	onMouseClick?: (e: React.MouseEvent) => void
 	isPointerLocked?: boolean
 	showLockHint?: boolean
-	/** When true the built-in fullscreen button is hidden.
-	 *  Use this when the parent wants to fullscreen a larger container
-	 *  that also contains overlays (e.g. the gamepad page). */
 	disableFullscreen?: boolean
+	paused?: boolean
+	muted?: boolean
 }
 
 const TEXTS = {
@@ -53,6 +52,8 @@ export const ScreenMirror = ({
 	isPointerLocked,
 	showLockHint,
 	disableFullscreen = false,
+	paused = false,
+	muted: audioMuted = false,
 }: ScreenMirrorProps) => {
 	const videoElementRef = useRef<HTMLVideoElement | null>(null)
 	const [isFullscreen, setIsFullscreen] = useState(false)
@@ -66,14 +67,16 @@ export const ScreenMirror = ({
 		}
 
 		if (videoStream && videoStream.getTracks().length > 0) {
-			// Try to play unmuted first
-			video.muted = false
+			video.muted = audioMuted
 			video.play().catch((err) => {
 				if (err.name === "AbortError") return
-				console.log(
-					"[ScreenMirror] Unmuted autoplay blocked, retrying muted (expected behavior):",
-					err.message,
-				)
+				if (!audioMuted) {
+					// Unmuted autoplay was blocked — retry muted as a fallback.
+					console.log(
+						"[ScreenMirror] Unmuted autoplay blocked, retrying muted (expected behavior):",
+						err.message,
+					)
+				}
 				if (video) {
 					video.muted = true
 					video.play().catch((e) => {
@@ -89,11 +92,17 @@ export const ScreenMirror = ({
 				video.srcObject = null
 			}
 		}
-	}, [videoStream])
+	}, [videoStream, audioMuted])
+
+	useEffect(() => {
+		const video = videoElementRef.current
+		if (!video) return
+		video.muted = audioMuted
+	}, [audioMuted])
 
 	const handleInteraction = () => {
 		const video = videoElementRef.current
-		if (video?.muted) {
+		if (video?.muted && !audioMuted) {
 			console.log("[ScreenMirror] User interaction detected, unmuting audio.")
 			video.muted = false
 			if (video.paused) {
@@ -217,6 +226,31 @@ export const ScreenMirror = ({
 						<p className="font-semibold text-lg">{getWaitingText()}</p>
 						<p className="text-sm opacity-60">{getSubText()}</p>
 					</div>
+				</div>
+			)}
+			{paused && trackActive && (
+				<div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-base-200 transition-opacity duration-300">
+					<span className="text-base-content/30">
+						<svg
+							width="48"
+							height="48"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="1.5"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							aria-hidden="true"
+						>
+							<path d="M17 17H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h16a2 2 0 0 1 2 2v10" />
+							<path d="M8 21h8" />
+							<path d="M12 17v4" />
+							<line x1="2" y1="2" x2="22" y2="22" />
+						</svg>
+					</span>
+					<p className="text-sm font-medium text-base-content/40 select-none">
+						Screen mirror paused
+					</p>
 				</div>
 			)}
 
