@@ -70,6 +70,21 @@ function GamepadPage() {
 	const [activeButtons, setActiveButtons] = useState<Set<GamepadButtonId>>(
 		new Set(),
 	)
+	const activeButtonsRef = useRef<Set<GamepadButtonId>>(activeButtons)
+	useEffect(() => {
+		activeButtonsRef.current = activeButtons
+	}, [activeButtons])
+
+	useEffect(() => {
+		return () => {
+			for (const id of activeButtonsRef.current) {
+				send({ type: "gamepad", button: id, press: false })
+			}
+			send({ type: "gamepad-axis", axis: "ls", ax: 0, ay: 0 })
+			send({ type: "gamepad-axis", axis: "rs", ax: 0, ay: 0 })
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [send])
 
 	const containerRef = useRef<HTMLDivElement | null>(null)
 	const [isFullscreen, setIsFullscreen] = useState(false)

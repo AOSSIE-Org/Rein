@@ -64,6 +64,10 @@ const AXIS_MAX = 32767
 
 export class LinuxGamepad {
 	private fd: number
+	private dpadUp = false
+	private dpadDown = false
+	private dpadLeft = false
+	private dpadRight = false
 
 	constructor(fd: number) {
 		this.fd = fd
@@ -81,13 +85,37 @@ export class LinuxGamepad {
 
 		// Update dual ABS values for D-Pad and triggers for max compatibility
 		if (lowerBtn === "dpad-up") {
-			writeEvent(this.fd, EV_ABS, ABS_HAT0Y, isDown ? -1 : 0)
+			this.dpadUp = isDown
+			writeEvent(
+				this.fd,
+				EV_ABS,
+				ABS_HAT0Y,
+				this.dpadUp ? -1 : this.dpadDown ? 1 : 0,
+			)
 		} else if (lowerBtn === "dpad-down") {
-			writeEvent(this.fd, EV_ABS, ABS_HAT0Y, isDown ? 1 : 0)
+			this.dpadDown = isDown
+			writeEvent(
+				this.fd,
+				EV_ABS,
+				ABS_HAT0Y,
+				this.dpadDown ? 1 : this.dpadUp ? -1 : 0,
+			)
 		} else if (lowerBtn === "dpad-left") {
-			writeEvent(this.fd, EV_ABS, ABS_HAT0X, isDown ? -1 : 0)
+			this.dpadLeft = isDown
+			writeEvent(
+				this.fd,
+				EV_ABS,
+				ABS_HAT0X,
+				this.dpadLeft ? -1 : this.dpadRight ? 1 : 0,
+			)
 		} else if (lowerBtn === "dpad-right") {
-			writeEvent(this.fd, EV_ABS, ABS_HAT0X, isDown ? 1 : 0)
+			this.dpadRight = isDown
+			writeEvent(
+				this.fd,
+				EV_ABS,
+				ABS_HAT0X,
+				this.dpadRight ? 1 : this.dpadLeft ? -1 : 0,
+			)
 		} else if (lowerBtn === "lt") {
 			writeEvent(this.fd, EV_ABS, ABS_Z, isDown ? 255 : 0)
 		} else if (lowerBtn === "rt") {

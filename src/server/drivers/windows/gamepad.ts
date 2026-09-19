@@ -38,9 +38,11 @@ type KoffiFunc = ReturnType<KoffiLib["func"]>
 let _vigem: KoffiLib | null = null
 let _vigem_alloc: KoffiFunc | null = null
 let _vigem_connect: KoffiFunc | null = null
+let _vigem_disconnect: KoffiFunc | null = null
 let _vigem_target_x360_alloc: KoffiFunc | null = null
 let _vigem_target_add: KoffiFunc | null = null
 let _vigem_target_remove: KoffiFunc | null = null
+let _vigem_target_free: KoffiFunc | null = null
 let _vigem_target_x360_update: KoffiFunc | null = null
 let _vigem_free: KoffiFunc | null = null
 
@@ -50,6 +52,7 @@ function loadViGEm(): boolean {
 		_vigem = koffi.load(VIGEM_DLL)
 		_vigem_alloc = _vigem.func("void * vigem_alloc()")
 		_vigem_connect = _vigem.func("int vigem_connect(void *client)")
+		_vigem_disconnect = _vigem.func("void vigem_disconnect(void *client)")
 		_vigem_target_x360_alloc = _vigem.func("void * vigem_target_x360_alloc()")
 		_vigem_target_add = _vigem.func(
 			"int vigem_target_add(void *client, void *target)",
@@ -57,6 +60,7 @@ function loadViGEm(): boolean {
 		_vigem_target_remove = _vigem.func(
 			"int vigem_target_remove(void *client, void *target)",
 		)
+		_vigem_target_free = _vigem.func("void vigem_target_free(void *target)")
 		_vigem_target_x360_update = _vigem.func(
 			"int vigem_target_x360_update(void *client, void *target, XUSB_REPORT report)",
 		)
@@ -74,6 +78,9 @@ export class WindowsGamepad {
 	private client: unknown = null
 	private target: unknown = null
 	private available = false
+	// Track which init steps succeeded so cleanup() can undo them in reverse order
+	private _clientConnected = false
+	private _targetAdded = false
 
 	// Current report state — mutated in place and flushed on every change
 	private wButtons = 0
@@ -99,12 +106,15 @@ export class WindowsGamepad {
 				console.warn(
 					`[WindowsGamepad] vigem_connect() failed (err=0x${connectResult.toString(16).toUpperCase()}) — is ViGEmBus installed?`,
 				)
+				this.cleanup()
 				return
 			}
+			this._clientConnected = true
 
 			this.target = _vigem_target_x360_alloc?.()
 			if (!this.target) {
 				console.warn("[WindowsGamepad] vigem_target_x360_alloc() returned null")
+				this.cleanup()
 				return
 			}
 
@@ -113,13 +123,16 @@ export class WindowsGamepad {
 				console.warn(
 					`[WindowsGamepad] vigem_target_add() failed (err=0x${addResult.toString(16).toUpperCase()})`,
 				)
+				this.cleanup()
 				return
 			}
+			this._targetAdded = true
 
 			this.available = true
 			console.log("[WindowsGamepad] Virtual Xbox 360 controller connected")
 		} catch (err) {
 			console.warn("[WindowsGamepad] Initialization error:", err)
+			this.cleanup()
 		}
 	}
 
@@ -166,20 +179,32 @@ export class WindowsGamepad {
 	}
 
 	destroy(): void {
-		if (!this.available) return
+		this.available = false
+		this.cleanup()
+	}
+
+	/** Release all acquired ViGEm resources in reverse-acquisition order. */
+	private cleanup(): void {
 		try {
-			if (this.target && this.client) {
+			if (this._targetAdded && this.target && this.client) {
 				_vigem_target_remove?.(this.client, this.target)
+				this._targetAdded = false
+			}
+			if (this.target) {
+				_vigem_target_free?.(this.target)
+				this.target = null
+			}
+			if (this._clientConnected && this.client) {
+				_vigem_disconnect?.(this.client)
+				this._clientConnected = false
 			}
 			if (this.client) {
 				_vigem_free?.(this.client)
+				this.client = null
 			}
 		} catch (err) {
 			console.warn("[WindowsGamepad] Error during cleanup:", err)
 		}
-		this.client = null
-		this.target = null
-		this.available = false
 	}
 
 	private flush(): void {
