@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useEffect, useRef, useState } from "react"
-import { Lock, Maximize, Minimize } from "lucide-react"
+import { Lock, Maximize, Minimize, ScreenShareOff } from "lucide-react"
 
 import { t } from "../../utils/i18n"
 
@@ -230,30 +230,14 @@ export const ScreenMirror = ({
 			)}
 			{paused && trackActive && (
 				<div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-base-200 transition-opacity duration-300">
-					<span className="text-base-content/30">
-						<svg
-							width="48"
-							height="48"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="1.5"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							aria-hidden="true"
-						>
-							<path d="M17 17H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h16a2 2 0 0 1 2 2v10" />
-							<path d="M8 21h8" />
-							<path d="M12 17v4" />
-							<line x1="2" y1="2" x2="22" y2="22" />
-						</svg>
+					<span className="text-base-content">
+						<ScreenShareOff className="size-12" />
 					</span>
 					<p className="text-sm font-medium text-base-content/40 select-none">
-						Screen mirror paused
+						{t("screenMirror", "disabled")}
 					</p>
 				</div>
 			)}
-
 			{/* Mouse Lock Notification Popup */}
 			{isPointerLocked && showLockHint && (
 				<div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-base-100/90 backdrop-blur-md px-4 py-2 rounded-full border border-base-300 shadow-xl text-xs md:text-sm text-base-content pointer-events-none transition-all duration-300 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2">

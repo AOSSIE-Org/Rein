@@ -8,7 +8,7 @@ import {
 } from "../../utils/safeLocalStorage"
 import ThemePicker, { THEME_LIST } from "../ThemePicker/ThemePicker"
 import { GamepadLayoutSettings } from "../Gamepad/GamepadLayoutSettings"
-import { MonitorOff, VolumeX,MousePointerClick } from "lucide-react"
+import { MonitorOff, VolumeX, MousePointerClick } from "lucide-react"
 
 export interface ClientTabProps {
 	authToken: string

@@ -116,6 +116,7 @@ export const i18n = {
 		},
 		screenMirror: {
 			ariaLabel: "Remote desktop screen share",
+			disabled: "Screen mirror is disabled",
 			connecting: "Connecting to host...",
 			disconnected: "Disconnected from host",
 			connectedButNoVideo: "Establishing stream...",
