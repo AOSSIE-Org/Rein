@@ -23,6 +23,7 @@ export class WindowsCaptureProvider implements CaptureProvider {
 		return [
 			"d3d11screencapturesrc",
 			"do-timestamp=true",
+			"show-cursor=true",
 			"!",
 			"queue",
 			"max-size-buffers=5",
