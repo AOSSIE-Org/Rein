@@ -23,6 +23,9 @@ describe("connection message routing", () => {
 
 	it("routes high-frequency messages through the unordered channel", () => {
 		expect(usesUnorderedChannel({ type: "move" })).toBe(true)
+		expect(usesUnorderedChannel({ type: "scroll" })).toBe(true)
+		expect(usesUnorderedChannel({ type: "touch" })).toBe(true)
+		expect(usesUnorderedChannel({ type: "zoom" })).toBe(true)
 		expect(usesUnorderedChannel({ type: "gamepad-axis", ax: 1, ay: 0 })).toBe(
 			true,
 		)
