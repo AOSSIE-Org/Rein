@@ -66,33 +66,37 @@ export const ScreenMirror = ({
 			video.srcObject = videoStream
 		}
 
+		// Mobile browsers (Chrome, iOS Safari) silently pause the mirror on
+		// big frame changes (e.g. window switches); restart playback when
+		// that happens instead of holding the last frame forever.
+		const forcePlay = () => {
+			if (!video?.paused) return
+			video.muted = true
+			video.play().catch(() => {})
+		}
+
 		if (videoStream && videoStream.getTracks().length > 0) {
-			video.muted = audioMuted
-			video.play().catch((err) => {
-				if (err.name === "AbortError") return
-				if (!audioMuted) {
-					// Unmuted autoplay was blocked — retry muted as a fallback.
-					console.log(
-						"[ScreenMirror] Unmuted autoplay blocked, retrying muted (expected behavior):",
-						err.message,
-					)
-				}
-				if (video) {
-					video.muted = true
-					video.play().catch((e) => {
-						if (e.name !== "AbortError") {
-							console.error("[ScreenMirror] Muted autoplay failed:", e)
-						}
-					})
+			// Start muted: mobile autoplay policies (Chrome, iOS Safari) block
+			// unmuted playback without a user gesture, so always begin silent.
+			video.muted = true
+			video.play().catch((e) => {
+				if (e.name !== "AbortError") {
+					console.error("[ScreenMirror] Muted autoplay failed:", e)
 				}
 			})
 		}
+
+		video.addEventListener("pause", forcePlay)
+		video.addEventListener("stalled", forcePlay)
+
 		return () => {
+			video.removeEventListener("pause", forcePlay)
+			video.removeEventListener("stalled", forcePlay)
 			if (!videoStream && video) {
 				video.srcObject = null
 			}
 		}
-	}, [videoStream, audioMuted])
+	}, [videoStream])
 
 	useEffect(() => {
 		const video = videoElementRef.current
