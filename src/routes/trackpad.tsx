@@ -96,6 +96,28 @@ function TrackpadPage() {
 	const [noKeyboardToast, setNoKeyboardToast] = useState(false)
 	const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 	const { status } = useRemoteConnection()
+
+	const [mirrorPaused, setMirrorPaused] = useState<boolean>(
+		() => getLocalStorageItem("rein_mirror_paused") === "true",
+	)
+	const [audioMuted, setAudioMuted] = useState<boolean>(
+		() => getLocalStorageItem("rein_audio_muted") === "true",
+	)
+
+	// Sync mirror/audio flags when changed in the Settings tab (same origin)
+	useEffect(() => {
+		const onStorage = (e: StorageEvent) => {
+			if (e.key === "rein_mirror_paused") {
+				setMirrorPaused(e.newValue === "true")
+			}
+			if (e.key === "rein_audio_muted") {
+				setAudioMuted(e.newValue === "true")
+			}
+		}
+		window.addEventListener("storage", onStorage)
+		return () => window.removeEventListener("storage", onStorage)
+	}, [])
+
 	const {
 		trackActive,
 		videoStream,
@@ -397,6 +419,8 @@ function TrackpadPage() {
 								onMouseClick={mouseHandlers.onClick}
 								isPointerLocked={isPointerLocked}
 								showLockHint={showLockHint}
+								paused={mirrorPaused}
+								muted={audioMuted}
 							/>
 						)}
 						{bufferText !== "" && <BufferBar bufferText={bufferText} />}

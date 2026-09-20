@@ -36,6 +36,12 @@ export class InputHandler {
 	private pendingScroll: InputMessage | null = null
 	private moveTimer: ReturnType<typeof setTimeout> | null = null
 	private scrollTimer: ReturnType<typeof setTimeout> | null = null
+	private lastLsTime = 0
+	private lastRsTime = 0
+	private pendingLs: InputMessage | null = null
+	private pendingRs: InputMessage | null = null
+	private lsTimer: ReturnType<typeof setTimeout> | null = null
+	private rsTimer: ReturnType<typeof setTimeout> | null = null
 	private throttleMs: number
 	private onError?: (errorType: string, message: string) => void
 
@@ -109,6 +115,10 @@ export class InputHandler {
 			if (this.throttle(msg)) return
 		}
 
+		if (msg.type === "gamepad-axis") {
+			if (this.throttleAxis(msg)) return
+		}
+
 		try {
 			this.dispatch(msg)
 		} catch (err: unknown) {
@@ -132,8 +142,12 @@ export class InputHandler {
 		this.injector.destroy()
 		clearTimeout(this.moveTimer ?? undefined)
 		clearTimeout(this.scrollTimer ?? undefined)
+		clearTimeout(this.lsTimer ?? undefined)
+		clearTimeout(this.rsTimer ?? undefined)
 		this.moveTimer = null
 		this.scrollTimer = null
+		this.lsTimer = null
+		this.rsTimer = null
 		console.log("[InputHandler] Destroyed")
 	}
 
@@ -147,6 +161,10 @@ export class InputHandler {
 		msg.dx = clampFinite(msg.dx, -MAX_COORD, MAX_COORD)
 		msg.dy = clampFinite(msg.dy, -MAX_COORD, MAX_COORD)
 		msg.delta = clampFinite(msg.delta, -MAX_COORD, MAX_COORD)
+		if (typeof msg.ax === "number" && Number.isFinite(msg.ax))
+			msg.ax = clampFinite(msg.ax, -1, 1)
+		if (typeof msg.ay === "number" && Number.isFinite(msg.ay))
+			msg.ay = clampFinite(msg.ay, -1, 1)
 	}
 
 	private throttle(msg: InputMessage): boolean {
@@ -180,6 +198,54 @@ export class InputHandler {
 		return false
 	}
 
+	private throttleAxis(msg: InputMessage): boolean {
+		if (
+			msg.type !== "gamepad-axis" ||
+			(msg.axis !== "ls" && msg.axis !== "rs")
+		) {
+			return false
+		}
+		const now = Date.now()
+		const isLs = msg.axis === "ls"
+		const lastKey = isLs ? "lastLsTime" : "lastRsTime"
+		const pendingKey = isLs ? "pendingLs" : "pendingRs"
+		const timerKey = isLs ? "lsTimer" : "rsTimer"
+
+		// Neutral (0, 0) dispatches immediately and cancels pending timer
+		if (msg.ax === 0 && msg.ay === 0) {
+			if (this[timerKey]) {
+				clearTimeout(this[timerKey])
+				this[timerKey] = null
+			}
+			this[pendingKey] = null
+			this[lastKey] = now
+			return false
+		}
+
+		if (now - this[lastKey] < this.throttleMs) {
+			this[pendingKey] = msg
+			if (!this[timerKey]) {
+				this[timerKey] = setTimeout(() => {
+					this[timerKey] = null
+					const pending = this[pendingKey]
+					if (pending) {
+						this[pendingKey] = null
+						this.handleMessage(pending).catch((err) =>
+							console.error(
+								`[InputHandler] Error flushing pending gamepad-axis (${isLs ? "ls" : "rs"}):`,
+								err,
+							),
+						)
+					}
+				}, this.throttleMs)
+			}
+			return true
+		}
+
+		this[lastKey] = now
+		return false
+	}
+
 	private dispatch(msg: InputMessage): void {
 		switch (msg.type) {
 			case "move": {
@@ -191,7 +257,8 @@ export class InputHandler {
 
 			case "click": {
 				if (!isValidButton(msg.button)) break
-				this.injector.injectMouseButton(msg.button, !!msg.press)
+				if (typeof msg.press !== "boolean") break
+				this.injector.injectMouseButton(msg.button, msg.press)
 				break
 			}
 
@@ -293,6 +360,26 @@ export class InputHandler {
 				break
 			}
 
+			case "gamepad": {
+				if (!msg.button || typeof msg.button !== "string") break
+				if (typeof msg.press !== "boolean") break
+				this.injector.injectGamepadButton(msg.button, msg.press)
+				break
+			}
+
+			case "gamepad-axis": {
+				if (msg.axis !== "ls" && msg.axis !== "rs") break
+				if (
+					typeof msg.ax !== "number" ||
+					!Number.isFinite(msg.ax) ||
+					typeof msg.ay !== "number" ||
+					!Number.isFinite(msg.ay)
+				)
+					break
+				this.injector.injectGamepadAxis(msg.axis, msg.ax, msg.ay)
+				break
+			}
+
 			default:
 				console.warn(
 					`[InputHandler] Unknown message type: ${(msg as { type?: unknown }).type}`,
@@ -320,6 +407,8 @@ function createStubInjector(): PlatformInjector {
 		injectCombo: () => warn("injectCombo"),
 		injectText: () => warn("injectText"),
 		injectTouch: () => warn("injectTouch"),
+		injectGamepadButton: () => warn("injectGamepadButton"),
+		injectGamepadAxis: () => warn("injectGamepadAxis"),
 		destroy: () => {},
 	}
 }
