@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useEffect, useRef, useState } from "react"
-import { Lock, Maximize, Minimize } from "lucide-react"
+import { Lock, Maximize, Minimize, ScreenShareOff } from "lucide-react"
 
 import { t } from "../../utils/i18n"
 
@@ -28,6 +28,9 @@ interface ScreenMirrorProps {
 	onMouseClick?: (e: React.MouseEvent) => void
 	isPointerLocked?: boolean
 	showLockHint?: boolean
+	disableFullscreen?: boolean
+	paused?: boolean
+	muted?: boolean
 }
 
 const TEXTS = {
@@ -48,6 +51,9 @@ export const ScreenMirror = ({
 	onMouseClick,
 	isPointerLocked,
 	showLockHint,
+	disableFullscreen = false,
+	paused = false,
+	muted: audioMuted = false,
 }: ScreenMirrorProps) => {
 	const videoElementRef = useRef<HTMLVideoElement | null>(null)
 	const [isFullscreen, setIsFullscreen] = useState(false)
@@ -61,14 +67,16 @@ export const ScreenMirror = ({
 		}
 
 		if (videoStream && videoStream.getTracks().length > 0) {
-			// Try to play unmuted first
-			video.muted = false
+			video.muted = audioMuted
 			video.play().catch((err) => {
 				if (err.name === "AbortError") return
-				console.log(
-					"[ScreenMirror] Unmuted autoplay blocked, retrying muted (expected behavior):",
-					err.message,
-				)
+				if (!audioMuted) {
+					// Unmuted autoplay was blocked — retry muted as a fallback.
+					console.log(
+						"[ScreenMirror] Unmuted autoplay blocked, retrying muted (expected behavior):",
+						err.message,
+					)
+				}
 				if (video) {
 					video.muted = true
 					video.play().catch((e) => {
@@ -84,11 +92,17 @@ export const ScreenMirror = ({
 				video.srcObject = null
 			}
 		}
-	}, [videoStream])
+	}, [videoStream, audioMuted])
+
+	useEffect(() => {
+		const video = videoElementRef.current
+		if (!video) return
+		video.muted = audioMuted
+	}, [audioMuted])
 
 	const handleInteraction = () => {
 		const video = videoElementRef.current
-		if (video?.muted) {
+		if (video?.muted && !audioMuted) {
 			console.log("[ScreenMirror] User interaction detected, unmuting audio.")
 			video.muted = false
 			if (video.paused) {
@@ -191,7 +205,6 @@ export const ScreenMirror = ({
 			}}
 			className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden select-none touch-none focus:outline-none focus:ring-2 focus:ring-primary"
 		>
-			{/* Hardware Accelerated Video/Audio Renderer */}
 			{/* biome-ignore lint/a11y/useMediaCaption: screen mirror stream does not contain timed text track */}
 			<video
 				ref={videoElementRef}
@@ -202,6 +215,7 @@ export const ScreenMirror = ({
 				className={`w-full h-full object-contain transition-opacity duration-500 ${
 					trackActive ? "opacity-100" : "opacity-0"
 				}`}
+				id="screenMirror"
 			/>
 
 			{/* Standby Loading UI */}
@@ -214,7 +228,16 @@ export const ScreenMirror = ({
 					</div>
 				</div>
 			)}
-
+			{paused && trackActive && (
+				<div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-base-200 transition-opacity duration-300">
+					<span className="text-base-content">
+						<ScreenShareOff className="size-12" />
+					</span>
+					<p className="text-sm font-medium text-base-content/40 select-none">
+						{t("screenMirror", "disabled")}
+					</p>
+				</div>
+			)}
 			{/* Mouse Lock Notification Popup */}
 			{isPointerLocked && showLockHint && (
 				<div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-base-100/90 backdrop-blur-md px-4 py-2 rounded-full border border-base-300 shadow-xl text-xs md:text-sm text-base-content pointer-events-none transition-all duration-300 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2">
@@ -224,25 +247,27 @@ export const ScreenMirror = ({
 			)}
 
 			{/* Toggleable Fullscreen Button in Lower Right Corner */}
-			<button
-				type="button"
-				onClick={handleFullscreenToggle}
-				onPointerDown={(e) => e.stopPropagation()}
-				onTouchStart={(e) => e.stopPropagation()}
-				className="absolute bottom-4 right-4 z-30 flex items-center justify-center w-10 h-10 bg-base-100/80 hover:bg-base-100 active:scale-95 text-base-content backdrop-blur-md border border-base-300 shadow-xl rounded-full transition-all duration-200"
-				aria-label={
-					isFullscreen
-						? t("screenMirror", "exitFullscreen")
-						: t("screenMirror", "enterFullscreen")
-				}
-				title={
-					isFullscreen
-						? t("screenMirror", "exitFullscreen")
-						: t("screenMirror", "enterFullscreen")
-				}
-			>
-				{isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
-			</button>
+			{!disableFullscreen && (
+				<button
+					type="button"
+					onClick={handleFullscreenToggle}
+					onPointerDown={(e) => e.stopPropagation()}
+					onTouchStart={(e) => e.stopPropagation()}
+					className="absolute bottom-4 right-4 z-30 flex items-center justify-center w-10 h-10 bg-base-100/80 hover:bg-base-100 active:scale-95 text-base-content backdrop-blur-md border border-base-300 shadow-xl rounded-full transition-all duration-200"
+					aria-label={
+						isFullscreen
+							? t("screenMirror", "exitFullscreen")
+							: t("screenMirror", "enterFullscreen")
+					}
+					title={
+						isFullscreen
+							? t("screenMirror", "exitFullscreen")
+							: t("screenMirror", "enterFullscreen")
+					}
+				>
+					{isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+				</button>
+			)}
 
 			{/* Gesture Event Interaction Overlay */}
 			<div

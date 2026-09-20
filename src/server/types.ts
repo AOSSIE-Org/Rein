@@ -13,29 +13,56 @@ export interface InputConfig {
 	screenHeight: number
 }
 
-export interface InputMessage {
-	type:
-		| "move"
-		| "paste"
-		| "copy"
-		| "click"
-		| "scroll"
-		| "key"
-		| "text"
-		| "zoom"
-		| "combo"
-		| "touch"
+export type MouseButton = "left" | "right" | "middle"
+export type GamepadButtonId =
+	| "a"
+	| "b"
+	| "x"
+	| "y"
+	| "lb"
+	| "rb"
+	| "lt"
+	| "rt"
+	| "start"
+	| "select"
+	| "dpad-up"
+	| "dpad-down"
+	| "dpad-left"
+	| "dpad-right"
+	| "ls"
+	| "rs"
+
+type BaseMessage = {
 	dx?: number
 	dy?: number
 	config?: Partial<InputConfig>
-	button?: "left" | "right" | "middle"
-	press?: boolean
 	key?: string
 	keys?: string[]
 	text?: string
 	delta?: number
 	contacts?: TouchContact[]
+	axis?: "ls" | "rs"
+	ax?: number
+	ay?: number
 }
+
+export type InputMessage = BaseMessage &
+	(
+		| { type: "move" }
+		| { type: "paste" }
+		| { type: "copy" }
+		| { type: "click"; button: MouseButton; press: boolean }
+		| { type: "scroll" }
+		| { type: "key" }
+		| { type: "text" }
+		| { type: "zoom" }
+		| { type: "combo" }
+		| { type: "touch" }
+		// Gamepad: button press / release
+		| { type: "gamepad"; button: GamepadButtonId; press: boolean }
+		// Gamepad: analog stick axis update (continuous, sent on every pointer move)
+		| { type: "gamepad-axis" }
+	)
 
 export type PlatformInjector = {
 	updateConfig(config: Partial<InputConfig>): void
@@ -46,5 +73,7 @@ export type PlatformInjector = {
 	injectCombo(keys: string[]): void
 	injectText(text: string): void
 	injectTouch(contacts: NonNullable<InputMessage["contacts"]>): void
+	injectGamepadButton(button: string, isDown: boolean): void
+	injectGamepadAxis(axis: "ls" | "rs", ax: number, ay: number): void
 	destroy(): void
 }

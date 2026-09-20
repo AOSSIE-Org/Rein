@@ -41,6 +41,12 @@ import {
 	ABS_MT_PRESSURE,
 	ABS_X,
 	ABS_Y,
+	ABS_Z,
+	ABS_RX,
+	ABS_RY,
+	ABS_RZ,
+	ABS_HAT0X,
+	ABS_HAT0Y,
 	UI_SET_EVBIT,
 	UI_SET_KEYBIT,
 	UI_SET_RELBIT,
@@ -57,6 +63,7 @@ import {
 import { WHEEL_SCALE } from "../../constants.ts"
 import { LinuxKeyboard } from "./keyboard.ts"
 import { LinuxTouch } from "./touch.ts"
+import { LinuxGamepad, GAMEPAD_BUTTON_MAP } from "./gamepad.ts"
 import { LINUX_KEY_MAP } from "../keyMap.ts"
 import type { InputConfig, TouchContact } from "../../types.ts"
 import { DEFAULT_CONFIG } from "../../constants.ts"
@@ -186,8 +193,10 @@ export class LinuxInputInjector {
 	private mouseDev = new UinputDevice("Mouse")
 	private kbDev = new UinputDevice("Keyboard")
 	private touchDev = new UinputDevice("Touch")
+	private gamepadDev = new UinputDevice("Gamepad")
 	private keyboard: LinuxKeyboard | null = null
 	private touch: LinuxTouch | null = null
+	private gamepad: LinuxGamepad | null = null
 	private initialized = false
 
 	constructor(config: Partial<InputConfig> = {}) {
@@ -271,6 +280,16 @@ export class LinuxInputInjector {
 		this.touch?.injectTouch(contacts)
 	}
 
+	// Gamepad
+
+	injectGamepadButton(button: string, isDown: boolean): void {
+		this.gamepad?.injectGamepadButton(button, isDown)
+	}
+
+	injectGamepadAxis(axis: "ls" | "rs", ax: number, ay: number): void {
+		this.gamepad?.injectGamepadAxis(axis, ax, ay)
+	}
+
 	// Cleanup
 
 	destroy(): void {
@@ -279,6 +298,7 @@ export class LinuxInputInjector {
 		this.mouseDev.destroy()
 		this.kbDev.destroy()
 		this.touchDev.destroy()
+		this.gamepadDev.destroy()
 		this.initialized = false
 	}
 
@@ -299,8 +319,22 @@ export class LinuxInputInjector {
 
 		this.keyboard = new LinuxKeyboard(this.kbDev.fd)
 		this.touch = new LinuxTouch(this.touchDev.fd)
+
+		// Gamepad is best-effort — failure does not block core mouse/keyboard/touch input
+		const gamepadOk = this.setupGamepadDevice()
+		if (gamepadOk) {
+			this.gamepad = new LinuxGamepad(this.gamepadDev.fd)
+		} else {
+			this.gamepadDev.destroy()
+			console.warn(
+				"[LinuxInputInjector] Virtual Gamepad device failed to initialize — gamepad injection disabled",
+			)
+		}
+
 		this.initialized = true
-		console.log("[LinuxInputInjector] All virtual devices initialized")
+		console.log(
+			`[LinuxInputInjector] Virtual devices initialized (gamepad: ${gamepadOk ? "ok" : "unavailable"})`,
+		)
 	}
 
 	private setupMouseDevice(): boolean {
@@ -370,5 +404,40 @@ export class LinuxInputInjector {
 		this.touchDev.setupAbs(ABS_Y, 0, this.config.screenHeight)
 
 		return this.touchDev.create("Virtual Touchpad")
+	}
+
+	private setupGamepadDevice(): boolean {
+		if (!this.gamepadDev.open()) return false
+
+		this.gamepadDev.setEvbit(EV_KEY)
+		this.gamepadDev.setEvbit(EV_ABS)
+		this.gamepadDev.setEvbit(EV_SYN)
+
+		// Gamepad buttons
+		for (const code of Object.values(GAMEPAD_BUTTON_MAP)) {
+			this.gamepadDev.setKeybit(code)
+		}
+
+		// Absolute axes
+		this.gamepadDev.setAbsbit(ABS_X)
+		this.gamepadDev.setAbsbit(ABS_Y)
+		this.gamepadDev.setAbsbit(ABS_Z)
+		this.gamepadDev.setAbsbit(ABS_RX)
+		this.gamepadDev.setAbsbit(ABS_RY)
+		this.gamepadDev.setAbsbit(ABS_RZ)
+		this.gamepadDev.setAbsbit(ABS_HAT0X)
+		this.gamepadDev.setAbsbit(ABS_HAT0Y)
+
+		// Abs ranges
+		this.gamepadDev.setupAbs(ABS_X, -32767, 32767, 16, 128)
+		this.gamepadDev.setupAbs(ABS_Y, -32767, 32767, 16, 128)
+		this.gamepadDev.setupAbs(ABS_Z, 0, 255)
+		this.gamepadDev.setupAbs(ABS_RX, -32767, 32767, 16, 128)
+		this.gamepadDev.setupAbs(ABS_RY, -32767, 32767, 16, 128)
+		this.gamepadDev.setupAbs(ABS_RZ, 0, 255)
+		this.gamepadDev.setupAbs(ABS_HAT0X, -1, 1)
+		this.gamepadDev.setupAbs(ABS_HAT0Y, -1, 1)
+
+		return this.gamepadDev.create("Virtual Gamepad")
 	}
 }

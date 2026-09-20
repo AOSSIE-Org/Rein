@@ -17,7 +17,12 @@ import { DebugProvider } from "../contexts/DebugContext"
 import { FileShareProvider, useFileShare } from "../contexts/FileShareContext"
 import { FileShareOverlay } from "../components/FileTransfer/SendFileComponent"
 import { IncomingFileNotifications } from "../components/FileTransfer/IncomingFileNotification"
-import { FolderOpen, MousePointer2, SlidersHorizontal } from "lucide-react"
+import {
+	FolderOpen,
+	Gamepad,
+	MousePointer2,
+	SlidersHorizontal,
+} from "lucide-react"
 
 export const Route = createRootRoute({
 	shellComponent: AppProviders,
@@ -118,6 +123,12 @@ function Navbar() {
 			label: t("nav", "trackpad"),
 			icon: MousePointer2,
 			id: "nav-link-trackpad",
+		},
+		{
+			to: "/gamepad",
+			label: t("nav", "gamepad"),
+			icon: Gamepad,
+			id: "nav-link-gamepad",
 		},
 		{
 			to: "/settings",

@@ -105,6 +105,10 @@ Rein uses **WebRTC** for real-time communication instead of implementing a custo
 > ```
 >
 > Additionally, some native dependencies are required. Install them via your package manager (see [`shell.nix`](shell.nix) for the list), or use `nix-shell` directly.
+>
+> **For Windows (Virtual Gamepad)**
+>
+> Virtual gamepad emulation requires the [ViGEmBus](https://github.com/nefarius/ViGEmBus/releases) kernel driver installed on the host machine. If ViGEmBus is not installed, virtual controller input injection will be disabled.
 
 ### Quick Start
 
