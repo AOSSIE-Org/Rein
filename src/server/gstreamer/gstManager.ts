@@ -7,12 +7,14 @@ import {
 	type CaptureProvider,
 	createCaptureProvider,
 } from "./captureProvider.ts"
-import { resolveGstPaths } from "./gstPaths.ts"
 import { RTP_HOST, RTP_PORT, RTP_PORT_AUDIO } from "../constants.ts"
 import {
 	loadServerConfig,
 	type ServerConfig,
 } from "../../utils/configHelper.ts"
+
+const GST_LAUNCH =
+	os.platform() === "win32" ? "gst-launch-1.0.exe" : "gst-launch-1.0"
 
 export class GstManager {
 	private process: ChildProcess | null = null
@@ -180,8 +182,7 @@ export class GstManager {
 	}
 
 	private executePipeline(pipelineArgs: string[]): void {
-		const gst = resolveGstPaths()
-		const spawnedEnv = { ...process.env, ...gst.env }
+		const spawnedEnv = { ...process.env }
 		if (!spawnedEnv.DISPLAY) spawnedEnv.DISPLAY = ":0"
 		if (!spawnedEnv.XAUTHORITY) {
 			const homeDir = os.homedir()
@@ -202,7 +203,7 @@ export class GstManager {
 		}
 
 		logger.info(`GStreamer args: gst-launch-1.0 ${pipelineArgs.join(" ")}`)
-		this.process = spawn(gst.gstLaunch, pipelineArgs, { env: spawnedEnv })
+		this.process = spawn(GST_LAUNCH, pipelineArgs, { env: spawnedEnv })
 
 		this.process.on("error", async (err) => {
 			logger.error(`GStreamer spawn failed: ${err.message}`)

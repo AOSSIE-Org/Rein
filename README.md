@@ -110,21 +110,103 @@ Rein uses **WebRTC** for real-time communication instead of implementing a custo
 >
 > Virtual gamepad emulation requires the [ViGEmBus](https://github.com/nefarius/ViGEmBus/releases) kernel driver installed on the host machine. If ViGEmBus is not installed, virtual controller input injection will be disabled.
 
+### Prerequisites - GStreamer
+
+Rein relies on a **system-installed GStreamer** for screen capture and streaming. Install the required packages before running the project.
+
+> GStreamer **1.0** with the `good`, `bad`, and `ugly` plugin sets is required. The `gst-launch-1.0` binary must be available on your `PATH`.
+
+**Linux (Debian / Ubuntu)**
+
+```bash
+sudo apt-get install -y \
+  gstreamer1.0-tools \
+  gstreamer1.0-plugins-base \
+  gstreamer1.0-plugins-good \
+  gstreamer1.0-plugins-bad \
+  gstreamer1.0-plugins-ugly \
+  gstreamer1.0-libav
+```
+
+**Linux (Arch / Manjaro)**
+
+```bash
+sudo pacman -S --needed \
+  gstreamer \
+  gst-plugins-base \
+  gst-plugins-good \
+  gst-plugins-bad \
+  gst-plugins-ugly \
+  gst-libav
+```
+
+**Linux (Fedora / RHEL)**
+
+```bash
+sudo dnf install -y \
+  gstreamer1 \
+  gstreamer1-plugins-base \
+  gstreamer1-plugins-good \
+  gstreamer1-plugins-bad-free \
+  gstreamer1-plugins-ugly \
+  gstreamer1-libav
+```
+
+**Linux (NixOS)**
+
+Add the following to your `shell.nix` or `devShell`:
+
+```nix
+gst_all_1.gstreamer
+gst_all_1.gst-plugins-base
+gst_all_1.gst-plugins-good
+gst_all_1.gst-plugins-bad
+gst_all_1.gst-plugins-ugly
+gst_all_1.gst-libav
+```
+
+Or use the provided `shell.nix` directly:
+
+```bash
+nix-shell
+```
+
+**macOS**
+
+```bash
+brew install gstreamer gst-plugins-base gst-plugins-good \
+             gst-plugins-bad gst-plugins-ugly gst-libav
+```
+
+**Windows**
+
+Download and run the official GStreamer MSVC runtime installer from the [GStreamer download page](https://gstreamer.freedesktop.org/download/). Install both the **runtime** and **development** packages. During installation, select the **Complete** install type to include all plugins.
+
+After installation, ensure `C:\gstreamer\1.0\msvc_x86_64\bin` (or your install path) is added to your system `PATH`.
+
+Verify the installation on any platform with:
+
+```bash
+gst-launch-1.0 --version
+```
+
 ### Quick Start
 
-1. Install dependencies:
+1. Install GStreamer for your platform (see [Prerequisites - GStreamer](#prerequisites--gstreamer) above).
+
+2. Install Node.js dependencies:
 
    ```bash
    npm install
    ```
 
-2. Start the development server:
+3. Start the development server:
 
    ```bash
    npm run dev
    ```
 
-3. Open the local application:
+4. Open the local application:
 
    ```text
    http://localhost:3000
