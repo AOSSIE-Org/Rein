@@ -18,8 +18,7 @@
 		"preview": "vite preview",
 		"test": "vitest run",
 		"check": "biome check .",
-		"check:fix": "biome check . --write",
-		"postinstall": "node scripts/install-gstreamer.js"
+		"check:fix": "biome check . --write"
 	},
 	"dependencies": {
 		"@tanstack/react-router": "^1.169.2",
