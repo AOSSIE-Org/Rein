@@ -10,6 +10,11 @@ import {
 	useEffect,
 } from "react"
 import { getLocalStorageItem } from "../utils/safeLocalStorage"
+import {
+	getConnectionMessageType,
+	isNeutralGamepadAxis,
+	usesUnorderedChannel,
+} from "../utils/connectionMessage"
 
 type ConnectionStatus = "connecting" | "connected" | "disconnected"
 
@@ -42,26 +47,12 @@ export function ConnectionProvider({
 	const [latency, setLatency] = useState<number | null>(null)
 
 	const send = useCallback((msg: unknown) => {
-		const type =
-			msg && typeof msg === "object" && "type" in msg
-				? (msg as { type: string }).type
-				: null
-
-		const isNeutralAxis =
-			type === "gamepad-axis" &&
-			typeof msg === "object" &&
-			msg !== null &&
-			(msg as { ax?: unknown; ay?: unknown }).ax === 0 &&
-			(msg as { ax?: unknown; ay?: unknown }).ay === 0
+		const type = getConnectionMessageType(msg)
+		const isNeutralAxis = isNeutralGamepadAxis(msg, type)
 
 		// High frequency mouse/touch inputs go to unordered; keyboard/clicks and others go to ordered.
 		// Terminal neutral gamepad-axis (0, 0) is routed through the reliable ordered channel to guarantee neutralization.
-		const isUnordered =
-			type === "move" ||
-			type === "scroll" ||
-			type === "touch" ||
-			type === "zoom" ||
-			(type === "gamepad-axis" && !isNeutralAxis)
+		const isUnordered = usesUnorderedChannel(msg)
 
 		if (isUnordered) {
 			if (unorderedDcRef.current?.readyState === "open") {
