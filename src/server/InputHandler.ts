@@ -21,6 +21,12 @@ import type { InputConfig, InputMessage, PlatformInjector } from "./types.ts"
 const VALID_BUTTONS = ["left", "right", "middle"] as const
 type MouseButton = (typeof VALID_BUTTONS)[number]
 
+function codePointLength(s: string): number {
+	let count = 0
+	for (const _ of s) count++
+	return count
+}
+
 export class InputHandler {
 	private injector: PlatformInjector
 	private platform: "win32" | "linux" | "darwin" | "other"
@@ -146,8 +152,11 @@ export class InputHandler {
 	}
 
 	private sanitizeMessage(msg: InputMessage): void {
-		if (typeof msg.text === "string" && msg.text.length > MAX_TEXT_LENGTH) {
-			msg.text = msg.text.substring(0, MAX_TEXT_LENGTH)
+		if (
+			typeof msg.text === "string" &&
+			codePointLength(msg.text) > MAX_TEXT_LENGTH
+		) {
+			msg.text = Array.from(msg.text).slice(0, MAX_TEXT_LENGTH).join("")
 		}
 		msg.dx = clampFinite(msg.dx, -MAX_COORD, MAX_COORD)
 		msg.dy = clampFinite(msg.dy, -MAX_COORD, MAX_COORD)
@@ -326,10 +335,15 @@ export class InputHandler {
 				if (
 					!msg.text ||
 					typeof msg.text !== "string" ||
-					msg.text.length > MAX_TEXT_LENGTH
+					codePointLength(msg.text) > MAX_TEXT_LENGTH
 				)
 					break
-				this.injector.injectText(msg.text)
+				const result = this.injector.injectText(msg.text)
+				if (result instanceof Promise) {
+					result.catch((err) => {
+						console.error("[InputHandler] injectText failed:", err)
+					})
+				}
 				break
 			}
 
@@ -374,11 +388,6 @@ export class InputHandler {
 	}
 }
 
-function clampFinite(value: unknown, min: number, max: number): number {
-	if (typeof value !== "number" || !Number.isFinite(value)) return 0
-	return Math.max(min, Math.min(max, value))
-}
-
 function isValidButton(button: unknown): button is MouseButton {
 	return (
 		typeof button === "string" &&
@@ -402,4 +411,9 @@ function createStubInjector(): PlatformInjector {
 		injectGamepadAxis: () => warn("injectGamepadAxis"),
 		destroy: () => {},
 	}
+}
+
+function clampFinite(value: unknown, min: number, max: number): number {
+	if (typeof value !== "number" || !Number.isFinite(value)) return 0
+	return Math.max(min, Math.min(max, value))
 }
