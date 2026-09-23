@@ -45,14 +45,7 @@ export const useMouseInput = (send: (msg: unknown) => void, enabled = true) => {
 	const requestLock = useCallback(
 		(e?: React.PointerEvent | PointerEvent | React.MouseEvent | MouseEvent) => {
 			if (!enabled) return
-
-			// Strictly restrict pointer lock to physical mouse events
-			if (
-				e &&
-				"pointerType" in e &&
-				e.pointerType &&
-				e.pointerType !== "mouse"
-			) {
+			if (e && "pointerType" in e && e.pointerType !== "mouse") {
 				return
 			}
 
@@ -267,7 +260,9 @@ export const useMouseInput = (send: (msg: unknown) => void, enabled = true) => {
 
 	const handleClick = useCallback(
 		(e: React.MouseEvent | React.PointerEvent) => {
-			if ("pointerType" in e && e.pointerType && e.pointerType !== "mouse") {
+			// Reject touch-synthesized clicks (pointerType is "touch", "pen", or "" for
+			// legacy synthesized events). Only physical mouse clicks should trigger lock.
+			if ("pointerType" in e && e.pointerType !== "mouse") {
 				return
 			}
 			if (!isLocked) {

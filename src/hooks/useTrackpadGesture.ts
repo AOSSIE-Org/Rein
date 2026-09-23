@@ -85,9 +85,8 @@ export const useTrackpadGesture = (
 	const handleTouchStart = (e: React.TouchEvent) => {
 		if (ongoingTouches.current.size === 0) {
 			startTimeStamp.current = e.timeStamp
-			moved.current = false
 		}
-
+		moved.current = false
 		const touches = e.changedTouches
 		for (let i = 0; i < touches.length; i++) {
 			const touch = touches[i]
