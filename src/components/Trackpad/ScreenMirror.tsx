@@ -71,8 +71,14 @@ export const ScreenMirror = ({
 		// that happens instead of holding the last frame forever.
 		const forcePlay = () => {
 			if (!video?.paused) return
-			video.muted = true
-			video.play().catch(() => {})
+			// Respect the current mute state: try unmuted first (a user gesture
+			// may have enabled audio), and only fall back to muted playback if
+			// the browser rejects unmuted autoplay.
+			video.play().catch((err) => {
+				if (err.name === "AbortError") return
+				video.muted = true
+				video.play().catch(() => {})
+			})
 		}
 
 		if (videoStream && videoStream.getTracks().length > 0) {
