@@ -298,7 +298,7 @@ export class InputHandler {
 					msg.key === " " || msg.key.toLowerCase() === "space"
 						? "space"
 						: msg.key
-				this.injector.injectKey(key)
+				this.injector.injectKey(key, msg.pos ?? "")
 				break
 			}
 

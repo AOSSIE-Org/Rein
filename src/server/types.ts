@@ -37,6 +37,7 @@ type BaseMessage = {
 	dy?: number
 	config?: Partial<InputConfig>
 	key?: string
+	pos?: "HOLD" | "RELEASE" | ""
 	keys?: string[]
 	text?: string
 	delta?: number
