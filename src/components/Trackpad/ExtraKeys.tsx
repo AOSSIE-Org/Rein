@@ -133,7 +133,7 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({
 	]
 
 	const keyGroupsVertical = [
-		keyGroups[0], // Media
+		keyGroups[0], // WASD
 		[
 			...keyGroups[1],
 			...[
@@ -145,6 +145,7 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({
 				{ label: "Menu", key: "menu", type: "mod" },
 			],
 		],
+		keyGroups[2],
 		[
 			{ label: "Del", key: "delete", type: "action" },
 			{ icon: <FaArrowUp />, key: "arrowup", type: "arrow", label: "Up" },

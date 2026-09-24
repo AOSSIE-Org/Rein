@@ -464,3 +464,16 @@ export const VK_TO_SCANCODE: Record<number, number> = {
 	122: 0x57, // F11
 	123: 0x58, // F12
 }
+
+export const EXTENDED_KEY_VKS = new Set<number>([
+        37, // Left
+        38, // Up
+        39, // Right
+        40, // Down
+        36, // Home
+        35, // End
+        33, // Page Up
+        34, // Page Down
+        45, // Insert
+        46, // Delete
+])

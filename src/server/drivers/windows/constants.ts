@@ -13,6 +13,7 @@ export const MOUSEEVENTF_HWHEEL = 0x1000
 export const KEYEVENTF_KEYUP = 0x0002
 export const KEYEVENTF_UNICODE = 0x0004
 export const KEYEVENTF_SCANCODE = 0x0008
+export const KEYEVENTF_EXTENDEDKEY = 0x0001
 
 // Touch constants
 export const PT_TOUCHPAD = 5
