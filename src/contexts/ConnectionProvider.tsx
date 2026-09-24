@@ -47,17 +47,30 @@ export function ConnectionProvider({
 				? (msg as { type: string }).type
 				: null
 
+		const isNeutralAxis =
+			type === "gamepad-axis" &&
+			typeof msg === "object" &&
+			msg !== null &&
+			(msg as { ax?: unknown; ay?: unknown }).ax === 0 &&
+			(msg as { ax?: unknown; ay?: unknown }).ay === 0
+
 		// High frequency mouse/touch inputs go to unordered; keyboard/clicks and others go to ordered.
+		// Terminal neutral gamepad-axis (0, 0) is routed through the reliable ordered channel to guarantee neutralization.
 		const isUnordered =
 			type === "move" ||
 			type === "scroll" ||
 			type === "touch" ||
-			type === "zoom"
+			type === "zoom" ||
+			(type === "gamepad-axis" && !isNeutralAxis)
+
 		if (isUnordered) {
 			if (unorderedDcRef.current?.readyState === "open") {
 				unorderedDcRef.current.send(JSON.stringify(msg))
 			}
 		} else {
+			if (isNeutralAxis && unorderedDcRef.current?.readyState === "open") {
+				unorderedDcRef.current.send(JSON.stringify(msg))
+			}
 			if (orderedDcRef.current?.readyState === "open") {
 				orderedDcRef.current.send(JSON.stringify(msg))
 			}

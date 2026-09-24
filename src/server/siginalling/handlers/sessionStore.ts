@@ -20,6 +20,7 @@ export interface ClientSession {
 	dcOrdered: RTCDataChannel
 	sessionSseRes: ServerResponse | null
 	pendingEvents: SessionSseEvent[]
+	disconnectTimer?: ReturnType<typeof setTimeout> | null
 	createdAt: number
 }
 
@@ -117,6 +118,10 @@ export function cleanupSession(
 	const client = clients.get(sessionId)
 	if (!client) return
 	logger.info(`Cleaning up session: ${sessionId}`)
+	if (client.disconnectTimer) {
+		clearTimeout(client.disconnectTimer)
+		client.disconnectTimer = null
+	}
 	try {
 		client.pc.close()
 	} catch {}
