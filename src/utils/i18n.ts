@@ -190,6 +190,13 @@ export const i18n = {
 			minutesAgo: "{m}m ago",
 			hoursAgo: "{h}h ago",
 		},
+		notFound: {
+			code: "404",
+			title: "Page not found",
+			description:
+				"The page you're looking for doesn't exist or may have been moved.",
+			backToApp: "Back to Trackpad",
+		},
 	},
 } as const
 
