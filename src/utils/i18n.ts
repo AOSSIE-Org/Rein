@@ -190,6 +190,12 @@ export const i18n = {
 			minutesAgo: "{m}m ago",
 			hoursAgo: "{h}h ago",
 		},
+		sendFile: {
+			close: "Close",
+			removeFile: "Remove file",
+			download: "Download file",
+			delete: "Delete file",
+		},
 	},
 } as const
 

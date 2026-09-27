@@ -1,5 +1,5 @@
 "use client"
-
+import { t } from "../../utils/i18n"
 import type React from "react"
 import { useRef, useState, useCallback, useEffect } from "react"
 import { useFileShare } from "../../contexts/FileShareContext"
@@ -191,6 +191,7 @@ export function FileShareOverlay() {
 					<button
 						type="button"
 						id="file-share-overlay-close"
+						aria-label={t("sendFile", "close")}
 						className="btn btn-ghost btn-sm btn-circle"
 						onClick={() => setOverlayOpen(false)}
 					>
@@ -352,6 +353,7 @@ function QueueRow({
 				{item.status === "error" && (
 					<button
 						type="button"
+						aria-label={t("sendFile", "removeFile")}
 						className="btn btn-ghost btn-xs btn-circle text-error"
 						onClick={onRemove}
 					>
@@ -361,6 +363,7 @@ function QueueRow({
 				{item.status === "queued" && (
 					<button
 						type="button"
+						aria-label={t("sendFile", "removeFile")}
 						className="btn btn-ghost btn-xs btn-circle opacity-50"
 						onClick={onRemove}
 					>
@@ -411,6 +414,7 @@ function SharedFileRow({
 					className="btn btn-ghost btn-xs btn-circle"
 					onClick={onDownload}
 					title="Download"
+					aria-label={t("sendFile", "download")}
 				>
 					<Download size={15} />
 				</button>
@@ -420,6 +424,7 @@ function SharedFileRow({
 					className="btn btn-ghost btn-xs btn-circle text-error transition-opacity"
 					onClick={onDelete}
 					title="Delete"
+					aria-label={t("sendFile", "delete")}
 				>
 					<Trash2 size={15} />
 				</button>
