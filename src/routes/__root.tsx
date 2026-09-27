@@ -29,14 +29,16 @@ export const Route = createRootRoute({
 	shellComponent: AppProviders,
 	component: RootComponent,
 	errorComponent: (props) => {
+		const errorMessage =
+			props.error instanceof Error ? props.error.message : String(props.error)
 		return (
 			<RootDocument>
 				<div className="text-center">
-				<div className="w-auto inline-flex items-center p-1 pe-2 mb-4 text-sm rounded-lg bg-red-700 border border-red-400">
-					<div className="ms-2 text-sm self-center">
-						Error: {props.error.message}
+					<div className="w-auto inline-flex items-center p-1 pe-2 mb-4 text-sm rounded-lg bg-red-700 border border-red-400">
+						<div className="ms-2 text-sm self-center">
+							{t("errorComponent", "errorPrefix")} {errorMessage}
+						</div>
 					</div>
-				</div>
 				</div>
 			</RootDocument>
 		)
@@ -44,25 +46,31 @@ export const Route = createRootRoute({
 	notFoundComponent: () => {
 		const navigate = useNavigate()
 		return (
-			<div className="w-full h-full bg-base-200 flex items-center justify-center">
-				<div className="flex flex-col gap-3 p-2 items-center justify-center">
-					<div className="text-sm text-zinc-500">404 Not Found</div>
-					<div className="text-4xl text-white">Oops! Page Not Found</div>
-					<div className="text-zinc-500 text-sm flex flex-col items-center">
-						<span>The page you are looking for doesn't exist,</span>
-						<span>Click button below to go back.</span>
+			<RootDocument>
+				<div className="w-full h-full bg-base-200 flex items-center justify-center">
+					<div className="flex flex-col gap-3 p-2 items-center justify-center">
+						<div className="text-sm text-zinc-500">
+							{t("notFound", "title")}
+						</div>
+						<div className="text-4xl text-base-content">
+							{t("notFound", "subtitle")}
+						</div>
+						<div className="text-zinc-500 text-sm flex flex-col items-center">
+							<span>{t("notFound", "description")}</span>
+							<span>{t("notFound", "subDescription")}</span>
+						</div>
+						<button
+							type="button"
+							title={t("notFound", "buttonText")}
+							onClick={() => navigate({ to: "/trackpad" })}
+							aria-label={t("notFound", "buttonText")}
+							className="bg-zinc-300 text-zinc-900 btn border-zinc-100 rounded-lg w-1/2 mt-8 shadow-2xl shadow-zinc-400"
+						>
+							{t("notFound", "buttonText")}
+						</button>
 					</div>
-					<button
-						type="button"
-						title={t("errorComponent", "noSuchRoute")}
-						onClick={() => navigate({ to: "/trackpad" })}
-						aria-label={t("errorComponent", "noSuchRoute")}
-						className="bg-zinc-300 text-zinc-900 btn border-zinc-100 rounded-lg w-1/2 mt-8 shadow-2xl shadow-zinc-400"
-					>
-						Go Back
-					</button>
 				</div>
-			</div>
+			</RootDocument>
 		)
 	},
 })
