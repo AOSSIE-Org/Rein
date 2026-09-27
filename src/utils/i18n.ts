@@ -197,6 +197,12 @@ export const i18n = {
 				"The page you're looking for doesn't exist or may have been moved.",
 			backToApp: "Back to Trackpad",
 		},
+		sendFile: {
+			close: "Close",
+			removeFile: "Remove file",
+			download: "Download file",
+			delete: "Delete file",
+		},
 	},
 } as const
 
