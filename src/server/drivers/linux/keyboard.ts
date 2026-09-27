@@ -68,25 +68,94 @@ export class LinuxKeyboard {
 	injectText(text: string): void {
 		if (!text) return
 
+		// Check for any char outside ASCII range (0–127) using code points,
+		// which avoids control-character literals that Biome disallows.
+		let hasNonAscii = false
 		for (const ch of text) {
-			const { code, shifted } = resolveChar(ch, LINUX_KEY_MAP)
-			if (code === undefined) {
-				console.warn("[LinuxKeyboard] No key mapping for char:", ch)
-				continue
+			const cp = ch.codePointAt(0)
+			if (cp !== undefined && cp > 0x7f) {
+				hasNonAscii = true
+				break
 			}
-			if (shifted) {
-				const shiftCode = LINUX_KEY_MAP.shift
-				if (shiftCode === undefined) {
-					console.warn("[LinuxKeyboard] Shift key code not defined in key map")
+		}
+
+		if (!hasNonAscii) {
+			// Pure ASCII — use fast keycode path
+			for (const ch of text) {
+				const { code, shifted } = resolveChar(ch, LINUX_KEY_MAP)
+				if (code === undefined) {
+					this.pasteViaClipboard(ch).catch((err) => {
+						console.warn("[LinuxKeyboard] pasteViaClipboard failed:", err)
+					})
 					continue
 				}
-				this.sendKeyEvent(shiftCode, KEY_PRESS)
+				if (shifted) {
+					this.sendKeyEvent(LINUX_KEY_MAP.shift, KEY_PRESS)
+				}
+				this.sendKeyEvent(code, KEY_PRESS)
+				this.sendKeyEvent(code, KEY_RELEASE)
+				if (shifted) {
+					this.sendKeyEvent(LINUX_KEY_MAP.shift, KEY_RELEASE)
+				}
+				this.sync()
 			}
-			this.sendKeyEvent(code, KEY_PRESS)
-			this.sendKeyEvent(code, KEY_RELEASE)
-			if (shifted) {
-				this.sendKeyEvent(LINUX_KEY_MAP.shift, KEY_RELEASE)
-			}
+			return
+		}
+
+		// Unicode present — batch-paste the whole string via clipboard
+		this.pasteViaClipboard(text).catch((err) => {
+			console.warn("[LinuxKeyboard] pasteViaClipboard failed:", err)
+		})
+	}
+
+	private async pasteViaClipboard(text: string): Promise<void> {
+		const { spawn } = await import("node:child_process")
+
+		const tryClip = (cmd: string, args: string[]): Promise<boolean> =>
+			new Promise((resolve) => {
+				try {
+					const child = spawn(cmd, args, {
+						stdio: ["pipe", "ignore", "ignore"],
+					})
+					const timer = setTimeout(() => {
+						child.kill("SIGKILL")
+						resolve(false)
+					}, 3000)
+					child.on("error", () => {
+						clearTimeout(timer)
+						resolve(false)
+					})
+					child.on("close", (code) => {
+						clearTimeout(timer)
+						resolve(code === 0)
+					})
+					child.stdin.end(text, "utf8")
+				} catch {
+					resolve(false)
+				}
+			})
+
+		const ok =
+			(await tryClip("xclip", ["-selection", "clipboard"])) ||
+			(await tryClip("xsel", ["--clipboard", "--input"])) ||
+			(await tryClip("wl-copy", []))
+
+		if (!ok) {
+			console.warn("[LinuxKeyboard] No clipboard writer available")
+			return
+		}
+
+		// Small delay — X11 / Wayland need a moment to propagate the clipboard
+		// selection before the paste target reads it.
+		await new Promise((r) => setTimeout(r, 30))
+
+		const ctrl = LINUX_KEY_MAP.control
+		const v = LINUX_KEY_MAP.v
+		if (ctrl !== undefined && v !== undefined) {
+			this.sendKeyEvent(ctrl, KEY_PRESS)
+			this.sendKeyEvent(v, KEY_PRESS)
+			this.sendKeyEvent(v, KEY_RELEASE)
+			this.sendKeyEvent(ctrl, KEY_RELEASE)
 			this.sync()
 		}
 	}

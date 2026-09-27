@@ -13,10 +13,16 @@ function cg() {
 }
 
 // ── CGPoint ────────────────────────────────────────────────────────────────
-export const CGPoint = koffi.struct("CGPoint", {
-	x: "double",
-	y: "double",
-})
+export const CGPoint = (() => {
+	try {
+		return koffi.struct("CGPoint", {
+			x: "double",
+			y: "double",
+		})
+	} catch {
+		return koffi.resolve("CGPoint")
+	}
+})()
 
 let _CGEventCreateMouseEvent: koffi.KoffiFunction | null = null
 let _CGEventCreateKeyboardEvent: koffi.KoffiFunction | null = null
@@ -27,6 +33,8 @@ let _CGEventSetIntegerValueField: koffi.KoffiFunction | null = null
 export let _CGEventSetDoubleValueField: koffi.KoffiFunction | null = null
 export let _CGEventGetLocation: koffi.KoffiFunction | null = null
 
+let _CGEventSetFlags: koffi.KoffiFunction | null = null
+
 function ensureFunctions() {
 	const lib = cg()
 	if (!_CGEventCreateMouseEvent) {
@@ -36,6 +44,7 @@ function ensureFunctions() {
 		_CGEventCreateKeyboardEvent = lib.func(
 			"void * CGEventCreateKeyboardEvent(void *, uint16, uint8)",
 		)
+		_CGEventSetFlags = lib.func("void CGEventSetFlags(void *, uint64)")
 		// koffi variadic: declare only fixed args; pass extras manually.
 		_CGEventCreateScrollWheelEvent = lib.func(
 			"void * CGEventCreateScrollWheelEvent(void *, uint32, uint32, int32, int32)",
@@ -80,13 +89,20 @@ export function postMouseEvent(
 	_CFRelease?.(ref)
 }
 
-export function postKeyEvent(keyCode: number, keyDown: boolean): void {
+export function postKeyEvent(
+	keyCode: number,
+	keyDown: boolean,
+	flags?: number,
+): void {
 	ensureFunctions()
 	const ref = _CGEventCreateKeyboardEvent?.(null, keyCode, keyDown ? 1 : 0) as
 		| bigint
 		| number
 		| null
 	if (!ref) return
+	if (flags !== undefined && _CGEventSetFlags) {
+		_CGEventSetFlags(ref, BigInt(flags))
+	}
 	_CGEventPost?.(0, ref)
 	_CFRelease?.(ref)
 }
