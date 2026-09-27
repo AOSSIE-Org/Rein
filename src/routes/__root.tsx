@@ -4,6 +4,7 @@ import {
 	Outlet,
 	Scripts,
 	createRootRoute,
+	useNavigate,
 } from "@tanstack/react-router"
 import { useEffect } from "react"
 import { APP_CONFIG, THEMES } from "../config"
@@ -30,11 +31,40 @@ export const Route = createRootRoute({
 	errorComponent: (props) => {
 		return (
 			<RootDocument>
-				<div>Error: {props.error.message}</div>
+				<div className="text-center">
+				<div className="w-auto inline-flex items-center p-1 pe-2 mb-4 text-sm rounded-lg bg-red-700 border border-red-400">
+					<div className="ms-2 text-sm self-center">
+						Error: {props.error.message}
+					</div>
+				</div>
+				</div>
 			</RootDocument>
 		)
 	},
-	notFoundComponent: () => <div>Not Found</div>,
+	notFoundComponent: () => {
+		const navigate = useNavigate()
+		return (
+			<div className="w-full h-full bg-base-200 flex items-center justify-center">
+				<div className="flex flex-col gap-3 p-2 items-center justify-center">
+					<div className="text-sm text-zinc-500">404 Not Found</div>
+					<div className="text-4xl text-white">Oops! Page Not Found</div>
+					<div className="text-zinc-500 text-sm flex flex-col items-center">
+						<span>The page you are looking for doesn't exist,</span>
+						<span>Click button below to go back.</span>
+					</div>
+					<button
+						type="button"
+						title={t("errorComponent", "noSuchRoute")}
+						onClick={() => navigate({ to: "/trackpad" })}
+						aria-label={t("errorComponent", "noSuchRoute")}
+						className="bg-zinc-300 text-zinc-900 btn border-zinc-100 rounded-lg w-1/2 mt-8 shadow-2xl shadow-zinc-400"
+					>
+						Go Back
+					</button>
+				</div>
+			</div>
+		)
+	},
 })
 
 function AppProviders({ children }: { children: React.ReactNode }) {

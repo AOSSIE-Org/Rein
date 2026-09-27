@@ -134,6 +134,7 @@ export const i18n = {
 			unexpectedNetworkError: "An unexpected network error occurred.",
 			connectionFailedTitle: "Connection Failed",
 			connectionFailedBody: "Unable to establish WebRTC stream connection.",
+			noSuchRoute: "Go back to trackpad",
 		},
 		server: {
 			welcomeTitle: "Welcome to Rein",
