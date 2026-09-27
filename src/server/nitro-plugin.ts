@@ -1,5 +1,5 @@
 import net from "node:net"
-import { attachSignalingRoutes } from "./siginalling/server"
+import { attachSignalingRoutes } from "./signalling/server"
 
 // Nitro server plugin – wires up signaling API routes in production.
 // Runs inside the compiled .output/server/index.mjs.

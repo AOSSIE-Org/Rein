@@ -5,7 +5,7 @@ import { nitro } from "nitro/vite"
 import { defineConfig } from "vite"
 import pkg from "./package.json" with { type: "json" }
 import react from "@vitejs/plugin-react"
-import { attachSignalingRoutes } from "./src/server/siginalling/server.ts"
+import { attachSignalingRoutes } from "./src/server/signalling/server.ts"
 import { printWelcome } from "./src/utils/welcome.ts"
 import fs from "node:fs"
 import path from "node:path"
