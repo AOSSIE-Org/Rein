@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
+import { getLocalStorageItem } from "@/utils/safeLocalStorage"
 
 /**
  * DOM key names mapped to Rein internal key names.
@@ -30,6 +31,47 @@ const DOM_KEY_MAP: Record<string, string> = {
 const normalizeDOMKey = (k: string): string => DOM_KEY_MAP[k] ?? k.toLowerCase()
 
 /**
+ * Converts a client-relative click point to normalised [0, 1] screen ratios
+ * using the #screenMirror video element's rendered rect and intrinsic resolution.
+ * Correctly accounts for object-fit: contain letterboxing/pillarboxing.
+ * Returns null when the video is unavailable or has no rendered size.
+ */
+function toNormalisedRatio(
+	clientX: number,
+	clientY: number,
+): { x: number; y: number } | null {
+	const video = document.getElementById(
+		"screenMirror",
+	) as HTMLVideoElement | null
+	if (!video) return null
+	const rect = video.getBoundingClientRect()
+	if (rect.width === 0 || rect.height === 0) return null
+
+	const intrinsicW = video.videoWidth || rect.width
+	const intrinsicH = video.videoHeight || rect.height
+	const intrinsicAspect = intrinsicW / intrinsicH
+	const renderedAspect = rect.width / rect.height
+
+	let contentW: number
+	let contentH: number
+	if (intrinsicAspect > renderedAspect) {
+		// Letterboxed top/bottom
+		contentW = rect.width
+		contentH = rect.width / intrinsicAspect
+	} else {
+		// Pillarboxed left/right
+		contentH = rect.height
+		contentW = rect.height * intrinsicAspect
+	}
+	const offsetX = rect.left + (rect.width - contentW) / 2
+	const offsetY = rect.top + (rect.height - contentH) / 2
+
+	const x = Math.max(0, Math.min(1, (clientX - offsetX) / contentW))
+	const y = Math.max(0, Math.min(1, (clientY - offsetY) / contentH))
+	return { x, y }
+}
+
+/**
  * Hook for capturing direct physical mouse movement, mouse clicks, wheel scrolling,
  * pointer lock management, and physical keyboard input on the screen mirror.
  *
@@ -41,6 +83,20 @@ export const useMouseInput = (send: (msg: unknown) => void, enabled = true) => {
 	const [isLocked, setIsLocked] = useState(false)
 	const [showLockHint, setShowLockHint] = useState(false)
 	const lockHintTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+	const [mouseMode, setMouseMode] = useState<boolean>(
+		() => getLocalStorageItem("rein_mouse_mode") === "true",
+	)
+
+	// Sync mouseMode when changed in Settings (same origin)
+	useEffect(() => {
+		const onStorage = (e: StorageEvent) => {
+			if (e.key === "rein_mouse_mode") {
+				setMouseMode(e.newValue === "true")
+			}
+		}
+		window.addEventListener("storage", onStorage)
+		return () => window.removeEventListener("storage", onStorage)
+	}, [])
 
 	const requestLock = useCallback(
 		(e?: React.PointerEvent | PointerEvent | React.MouseEvent | MouseEvent) => {
@@ -267,14 +323,40 @@ export const useMouseInput = (send: (msg: unknown) => void, enabled = true) => {
 
 	const handleClick = useCallback(
 		(e: React.MouseEvent | React.PointerEvent) => {
+			// Strictly exclude touch events — touch clicks are handled by useTrackpadGesture
 			if ("pointerType" in e && e.pointerType && e.pointerType !== "mouse") {
 				return
 			}
+
+			if (mouseMode) {
+				// In touchscreen / mouse-mode: compute absolute position and teleport the
+				// remote cursor to exactly where the user clicked.
+				const ratio = toNormalisedRatio(e.clientX, e.clientY)
+				if (ratio) {
+					const button: "left" | "right" | "middle" = "left"
+					send({
+						type: "absoluteClick",
+						button,
+						press: true,
+						x: ratio.x,
+						y: ratio.y,
+					})
+					send({
+						type: "absoluteClick",
+						button,
+						press: false,
+						x: ratio.x,
+						y: ratio.y,
+					})
+				}
+				return
+			}
+
 			if (!isLocked) {
 				requestLock(e)
 			}
 		},
-		[isLocked, requestLock],
+		[isLocked, mouseMode, requestLock, send],
 	)
 
 	return {

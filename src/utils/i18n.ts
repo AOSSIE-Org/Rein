@@ -39,6 +39,9 @@ export const i18n = {
 			muteAudio: "Mute Audio",
 			muteAudioDesc: "Stream audio is muted",
 			unmuteAudioDesc: "Stream audio is playing",
+			interactionMode: "Toggle Interaction Mode",
+			mouseModeDesc: "Interactions will behave like a trackpad",
+			touchModeDesc: "Interactions will behave like a touchscreen",
 		},
 		gamepad: {
 			buttonLayoutPreview: "Button Layout Preview",

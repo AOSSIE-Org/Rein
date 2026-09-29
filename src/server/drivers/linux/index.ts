@@ -15,6 +15,7 @@ import {
 	ioctlStruct,
 	ioctlNull,
 } from "./structs.ts"
+
 import {
 	EV_SYN,
 	EV_KEY,
@@ -191,6 +192,7 @@ if (typeof process !== "undefined") {
 export class LinuxInputInjector {
 	private config: InputConfig
 	private mouseDev = new UinputDevice("Mouse")
+	private absMouseDev = new UinputDevice("AbsMouse")
 	private kbDev = new UinputDevice("Keyboard")
 	private touchDev = new UinputDevice("Touch")
 	private gamepadDev = new UinputDevice("Gamepad")
@@ -219,9 +221,19 @@ export class LinuxInputInjector {
 	injectMouseMove(dx: number, dy: number): void {
 		if (!this.initialized || (dx === 0 && dy === 0)) return
 		const fd = this.mouseDev.fd
-
 		writeEvent(fd, EV_REL, REL_X, Math.round(dx))
 		writeEvent(fd, EV_REL, REL_Y, Math.round(dy))
+		writeEvent(fd, EV_SYN, SYN_REPORT, 0)
+	}
+	// Warps the cursor to an absolute pixel position using a dedicated uinput ABS pointer device.
+	// Bypasses mouse acceleration and relative delta scaling for exact pixel positioning.
+	injectMouseAbsolute(x: number, y: number): void {
+		if (!this.initialized) return
+		const absX = Math.round(Math.max(0, Math.min(this.config.screenWidth, x)))
+		const absY = Math.round(Math.max(0, Math.min(this.config.screenHeight, y)))
+		const fd = this.absMouseDev.fd
+		writeEvent(fd, EV_ABS, ABS_X, absX)
+		writeEvent(fd, EV_ABS, ABS_Y, absY)
 		writeEvent(fd, EV_SYN, SYN_REPORT, 0)
 	}
 
@@ -296,6 +308,7 @@ export class LinuxInputInjector {
 		activeInjectors.delete(this)
 		this.touch?.releaseAll()
 		this.mouseDev.destroy()
+		this.absMouseDev.destroy()
 		this.kbDev.destroy()
 		this.touchDev.destroy()
 		this.gamepadDev.destroy()
@@ -305,10 +318,11 @@ export class LinuxInputInjector {
 	// helpers
 	private initialize(): void {
 		const mouseOk = this.setupMouseDevice()
-		const kbOk = mouseOk ? this.setupKeyboardDevice() : false
+		const absMouseOk = mouseOk ? this.setupAbsMouseDevice() : false
+		const kbOk = absMouseOk ? this.setupKeyboardDevice() : false
 		const touchOk = kbOk ? this.setupTouchDevice() : false
 
-		if (!mouseOk || !kbOk || !touchOk) {
+		if (!mouseOk || !absMouseOk || !kbOk || !touchOk) {
 			const msg =
 				"One or more virtual uinput devices failed to initialize (check /dev/uinput permissions)"
 			console.error(`[LinuxInputInjector] ${msg}`)
@@ -353,6 +367,25 @@ export class LinuxInputInjector {
 		this.mouseDev.setRelbit(REL_HWHEEL)
 
 		return this.mouseDev.create("Virtual Mouse")
+	}
+
+	private setupAbsMouseDevice(): boolean {
+		if (!this.absMouseDev.open()) return false
+		this.absMouseDev.setEvbit(EV_ABS)
+		this.absMouseDev.setEvbit(EV_KEY)
+		this.absMouseDev.setEvbit(EV_SYN)
+
+		this.absMouseDev.setKeybit(BTN_LEFT)
+		this.absMouseDev.setKeybit(BTN_RIGHT)
+		this.absMouseDev.setKeybit(BTN_MIDDLE)
+
+		this.absMouseDev.setAbsbit(ABS_X)
+		this.absMouseDev.setAbsbit(ABS_Y)
+
+		this.absMouseDev.setupAbs(ABS_X, 0, this.config.screenWidth)
+		this.absMouseDev.setupAbs(ABS_Y, 0, this.config.screenHeight)
+
+		return this.absMouseDev.create("Virtual Absolute Pointer")
 	}
 
 	private setupKeyboardDevice(): boolean {

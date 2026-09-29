@@ -1,5 +1,6 @@
 // Mouse flags
 export const MOUSEEVENTF_MOVE = 0x0001
+export const MOUSEEVENTF_ABSOLUTE = 0x8000
 export const MOUSEEVENTF_LEFTDOWN = 0x0002
 export const MOUSEEVENTF_LEFTUP = 0x0004
 export const MOUSEEVENTF_RIGHTDOWN = 0x0008

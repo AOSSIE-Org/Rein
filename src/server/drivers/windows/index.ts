@@ -8,6 +8,7 @@
 import { SendInput, INPUT_STRUCT_SIZE } from "./structs.ts"
 import {
 	MOUSEEVENTF_MOVE,
+	MOUSEEVENTF_ABSOLUTE,
 	MOUSEEVENTF_LEFTDOWN,
 	MOUSEEVENTF_LEFTUP,
 	MOUSEEVENTF_RIGHTDOWN,
@@ -60,6 +61,33 @@ export class WindowsInputInjector {
 							dy: Math.round(dy),
 							mouseData: 0,
 							dwFlags: MOUSEEVENTF_MOVE,
+							time: 0,
+							dwExtraInfo: 0,
+						},
+					},
+				},
+			],
+			INPUT_STRUCT_SIZE,
+		)
+	}
+
+	// Teleports the cursor to an absolute screen position.
+	// Win32 absolute coords are in the [0, 65535] space normalised over the virtual desktop.
+	injectMouseAbsolute(x: number, y: number): void {
+		const absX = Math.round((x / this.config.screenWidth) * 65535)
+		const absY = Math.round((y / this.config.screenHeight) * 65535)
+		SendInput(
+			1,
+			[
+				{
+					type: INPUT_MOUSE,
+					__pad: 0,
+					u: {
+						mi: {
+							dx: absX,
+							dy: absY,
+							mouseData: 0,
+							dwFlags: MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
 							time: 0,
 							dwExtraInfo: 0,
 						},

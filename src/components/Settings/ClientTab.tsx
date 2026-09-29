@@ -8,7 +8,14 @@ import {
 } from "../../utils/safeLocalStorage"
 import ThemePicker, { THEME_LIST } from "../ThemePicker/ThemePicker"
 import { GamepadLayoutSettings } from "../Gamepad/GamepadLayoutSettings"
-import { MonitorOff, VolumeX, MousePointerClick } from "lucide-react"
+import {
+	MonitorOff,
+	VolumeX,
+	MousePointerClick,
+	MousePointerClickIcon,
+	MouseIcon,
+} from "lucide-react"
+import { FaHands } from "react-icons/fa6"
 
 export interface ClientTabProps {
 	authToken: string
@@ -78,6 +85,9 @@ export function ClientTab({ authToken }: ClientTabProps) {
 	const [mirrorPaused, setMirrorPaused] = useState<boolean>(() => {
 		return getLocalStorageItem("rein_mirror_paused") === "true"
 	})
+	const [mouseMode, setMouseMode] = useState<boolean>(() => {
+		return getLocalStorageItem("rein_mouse_mode") === "true"
+	})
 
 	const [audioMuted, setAudioMuted] = useState<boolean>(() => {
 		return getLocalStorageItem("rein_audio_muted") === "true"
@@ -138,6 +148,10 @@ export function ClientTab({ authToken }: ClientTabProps) {
 		setMirrorPaused(val)
 		setLocalStorageItem("rein_mirror_paused", JSON.stringify(val))
 	}
+	const handleInteractionModeChange = (val: boolean) => {
+		setMouseMode(val)
+		setLocalStorageItem("rein_mouse_mode", JSON.stringify(val))
+	}
 
 	const handleAudioMutedChange = (val: boolean) => {
 		setAudioMuted(val)
@@ -182,7 +196,7 @@ export function ClientTab({ authToken }: ClientTabProps) {
 			<div className="flex flex-col gap-3">
 				<SettingToggle
 					id="invert-scroll-toggle"
-					icon={<MousePointerClick />}
+					icon={<MouseIcon />}
 					label={t("clientTab", "invertScroll")}
 					description={
 						invertScroll
@@ -220,6 +234,18 @@ export function ClientTab({ authToken }: ClientTabProps) {
 					}
 					checked={audioMuted}
 					onChange={handleAudioMutedChange}
+				/>
+				<SettingToggle
+					id="switch-interaction-mode"
+					icon={<MousePointerClick size={18} aria-hidden="true" />}
+					label={t("clientTab", "interactionMode")}
+					description={
+						mouseMode
+							? t("clientTab", "touchModeDesc")
+							: t("clientTab", "mouseModeDesc")
+					}
+					checked={mouseMode}
+					onChange={handleInteractionModeChange}
 				/>
 			</div>
 

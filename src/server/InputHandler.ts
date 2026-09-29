@@ -156,6 +156,11 @@ export class InputHandler {
 			msg.ax = clampFinite(msg.ax, -1, 1)
 		if (typeof msg.ay === "number" && Number.isFinite(msg.ay))
 			msg.ay = clampFinite(msg.ay, -1, 1)
+		// Clamp normalised absolute coordinates to [0, 1]
+		if (msg.type === "absoluteClick") {
+			msg.x = clampFinite(msg.x, 0, 1)
+			msg.y = clampFinite(msg.y, 0, 1)
+		}
 	}
 
 	private throttle(msg: InputMessage): boolean {
@@ -249,6 +254,17 @@ export class InputHandler {
 			case "click": {
 				if (!isValidButton(msg.button)) break
 				if (typeof msg.press !== "boolean") break
+				this.injector.injectMouseButton(msg.button, msg.press)
+				break
+			}
+
+			case "absoluteClick": {
+				if (!isValidButton(msg.button)) break
+				if (typeof msg.press !== "boolean") break
+				const absX = msg.x * this.config.screenWidth
+				const absY = msg.y * this.config.screenHeight
+				this.injector.injectMouseAbsolute(absX, absY)
+				console.log({ "Injected at": { absX, absY } })
 				this.injector.injectMouseButton(msg.button, msg.press)
 				break
 			}
@@ -392,6 +408,7 @@ function createStubInjector(): PlatformInjector {
 	return {
 		updateConfig: () => {},
 		injectMouseMove: () => warn("injectMouseMove"),
+		injectMouseAbsolute: () => warn("injectMouseAbsolute"),
 		injectMouseButton: () => warn("injectMouseButton"),
 		injectMouseWheel: () => warn("injectMouseWheel"),
 		injectKey: () => warn("injectKey"),

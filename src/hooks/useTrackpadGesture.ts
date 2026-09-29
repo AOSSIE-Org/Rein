@@ -1,3 +1,4 @@
+import { getLocalStorageItem } from "@/utils/safeLocalStorage"
 import { useEffect, useRef, useState } from "react"
 
 interface TrackedTouch {
@@ -27,7 +28,9 @@ export const useTrackpadGesture = (
 	axisThreshold = 2.5,
 ) => {
 	const [isTracking, setIsTracking] = useState(false)
-
+	const [mouseMode, setMouseMode] = useState<boolean>(
+		() => getLocalStorageItem("rein_mouse_mode") === "true",
+	)
 	// Refs for tracking state (avoids re-renders during rapid movement)
 	const ongoingTouches = useRef<Map<number, TrackedTouch>>(new Map())
 	const moved = useRef(false)
@@ -35,11 +38,70 @@ export const useTrackpadGesture = (
 	const releasedCount = useRef(0)
 	const dragging = useRef(false)
 	const draggingTimeout = useRef<NodeJS.Timeout | null>(null)
+	// Store the starting touch position for absolute-position calculation in mouse mode
+	const tapStartPageX = useRef(0)
+	const tapStartPageY = useRef(0)
 	const TOUCH_MOVE_THRESHOLD = [10, 15, 15]
 	const TOUCH_TIMEOUT = 250
 	const PINCH_THRESHOLD = 10
 	const lastPinchDist = useRef<number | null>(null)
 	const pinching = useRef(false)
+
+	/**
+	 * Converts a page-relative touch point to normalised [0, 1] screen ratios
+	 * using the #screenMirror video element's rendered rect and intrinsic resolution.
+	 * Returns null when the video is unavailable or the video has no size.
+	 */
+	const toNormalisedRatio = (
+		pageX: number,
+		pageY: number,
+	): { x: number; y: number } | null => {
+		const video = document.getElementById(
+			"screenMirror",
+		) as HTMLVideoElement | null
+		if (!video) return null
+
+		const rect = video.getBoundingClientRect()
+		if (rect.width === 0 || rect.height === 0) return null
+
+		// The video is rendered with object-fit: contain, so compute the actual
+		// rendered content box within the element rect.
+		const intrinsicW = video.videoWidth || rect.width
+		const intrinsicH = video.videoHeight || rect.height
+		const intrinsicAspect = intrinsicW / intrinsicH
+		const renderedAspect = rect.width / rect.height
+
+		let contentW: number
+		let contentH: number
+		if (intrinsicAspect > renderedAspect) {
+			// Letterboxed top/bottom
+			contentW = rect.width
+			contentH = rect.width / intrinsicAspect
+		} else {
+			// Pillarboxed left/right
+			contentH = rect.height
+			contentW = rect.height * intrinsicAspect
+		}
+		const offsetX = rect.left + (rect.width - contentW) / 2
+		const offsetY = rect.top + (rect.height - contentH) / 2
+
+		const relX = pageX - offsetX
+		const relY = pageY - offsetY
+
+		const x = relX / contentW
+		const y = relY / contentH
+
+		if (x < 0 || x > 1 || y < 0 || y > 1) return null
+		console.log({
+			x,
+			y,
+			contentW,
+			contentH,
+			offsetX,
+			offsetY,
+		})
+		return { x, y }
+	}
 
 	const processMovement = (sumX: number, sumY: number) => {
 		const touchCount = ongoingTouches.current.size
@@ -73,6 +135,7 @@ export const useTrackpadGesture = (
 			}
 			send({ type: "scroll", dx: -dx, dy: -dy })
 		} else if (touchCount === 1) {
+			// In mouse mode, single-finger movement still moves the cursor relatively
 			send({ type: "move", dx: sumX, dy: sumY })
 		}
 	}
@@ -99,6 +162,11 @@ export const useTrackpadGesture = (
 				pageYStart: touch.pageY,
 				timeStamp: e.timeStamp,
 			})
+			// Record the very first touch-down position for absolute tap calculation
+			if (ongoingTouches.current.size === 1) {
+				tapStartPageX.current = touch.pageX
+				tapStartPageY.current = touch.pageY
+			}
 		}
 
 		if (ongoingTouches.current.size === 2) {
@@ -205,16 +273,45 @@ export const useTrackpadGesture = (
 				const button = BUTTON_MAP[releasedCount.current]
 
 				if (button) {
-					send({ type: "click", button, press: true })
-
-					// For left click, set up drag timeout
-					if (button === "left") {
-						draggingTimeout.current = setTimeout(
-							handleDraggingTimeout,
-							TOUCH_TIMEOUT,
+					// In mouse mode, single-finger taps send absolute position so the
+					// cursor teleports to exactly where the user tapped.
+					if (mouseMode && releasedCount.current === 1) {
+						const ratio = toNormalisedRatio(
+							tapStartPageX.current,
+							tapStartPageY.current,
 						)
+						if (ratio) {
+							send({
+								type: "absoluteClick",
+								button,
+								press: true,
+								x: ratio.x,
+								y: ratio.y,
+							})
+							send({
+								type: "absoluteClick",
+								button,
+								press: false,
+								x: ratio.x,
+								y: ratio.y,
+							})
+						} else {
+							// Fallback if video rect unavailable
+							send({ type: "click", button, press: true })
+							send({ type: "click", button, press: false })
+						}
 					} else {
-						send({ type: "click", button, press: false })
+						send({ type: "click", button, press: true })
+
+						// For left click, set up drag timeout
+						if (button === "left") {
+							draggingTimeout.current = setTimeout(
+								handleDraggingTimeout,
+								TOUCH_TIMEOUT,
+							)
+						} else {
+							send({ type: "click", button, press: false })
+						}
 					}
 				}
 			}
@@ -256,7 +353,14 @@ export const useTrackpadGesture = (
 
 	// Cleanup: clear any pending drag timeout on unmount
 	useEffect(() => {
+		const onStorage = (e: StorageEvent) => {
+			if (e.key === "rein_mouse_mode") {
+				setMouseMode(e.newValue === "true")
+			}
+		}
+		window.addEventListener("storage", onStorage)
 		return () => {
+			window.removeEventListener("storage", onStorage)
 			if (draggingTimeout.current) {
 				clearTimeout(draggingTimeout.current)
 				draggingTimeout.current = null
