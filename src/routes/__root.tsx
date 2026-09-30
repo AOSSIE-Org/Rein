@@ -17,12 +17,14 @@ import { DebugProvider } from "../contexts/DebugContext"
 import { FileShareProvider, useFileShare } from "../contexts/FileShareContext"
 import { FileShareOverlay } from "../components/FileTransfer/SendFileComponent"
 import { IncomingFileNotifications } from "../components/FileTransfer/IncomingFileNotification"
+import { NotFound } from "../components/NotFound/NotFound"
 import {
 	FolderOpen,
 	Gamepad,
 	MousePointer2,
 	SlidersHorizontal,
 } from "lucide-react"
+import { t } from "../utils/i18n"
 
 export const Route = createRootRoute({
 	shellComponent: AppProviders,
@@ -34,7 +36,7 @@ export const Route = createRootRoute({
 			</RootDocument>
 		)
 	},
-	notFoundComponent: () => <div>Not Found</div>,
+	notFoundComponent: NotFound,
 })
 
 function AppProviders({ children }: { children: React.ReactNode }) {
@@ -114,7 +116,6 @@ function LatencyBadge() {
 		</div>
 	)
 }
-import { t } from "../utils/i18n"
 
 function Navbar() {
 	const navItems = [
