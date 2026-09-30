@@ -8,14 +8,7 @@ import {
 } from "../../utils/safeLocalStorage"
 import ThemePicker, { THEME_LIST } from "../ThemePicker/ThemePicker"
 import { GamepadLayoutSettings } from "../Gamepad/GamepadLayoutSettings"
-import {
-	MonitorOff,
-	VolumeX,
-	MousePointerClick,
-	MousePointerClickIcon,
-	MouseIcon,
-} from "lucide-react"
-import { FaHands } from "react-icons/fa6"
+import { MonitorOff, VolumeX, MousePointerClick, MouseIcon } from "lucide-react"
 
 export interface ClientTabProps {
 	authToken: string
@@ -149,8 +142,9 @@ export function ClientTab({ authToken }: ClientTabProps) {
 		setLocalStorageItem("rein_mirror_paused", JSON.stringify(val))
 	}
 	const handleInteractionModeChange = (val: boolean) => {
-		setMouseMode(val)
-		setLocalStorageItem("rein_mouse_mode", JSON.stringify(val))
+		if (setLocalStorageItem("rein_mouse_mode", JSON.stringify(val))) {
+			setMouseMode(val)
+		}
 	}
 
 	const handleAudioMutedChange = (val: boolean) => {

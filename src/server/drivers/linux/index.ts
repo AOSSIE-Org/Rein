@@ -70,6 +70,7 @@ import type { InputConfig, TouchContact } from "../../types.ts"
 import { DEFAULT_CONFIG } from "../../constants.ts"
 
 const BUS_USB = 0x03
+const ABS_MAX_COORD = 65535
 
 class UinputDevice {
 	fd = -1
@@ -200,6 +201,8 @@ export class LinuxInputInjector {
 	private touch: LinuxTouch | null = null
 	private gamepad: LinuxGamepad | null = null
 	private initialized = false
+	private lastAbsX: number | null = null
+	private lastAbsY: number | null = null
 
 	constructor(config: Partial<InputConfig> = {}) {
 		if (process.platform !== "linux") {
@@ -229,12 +232,36 @@ export class LinuxInputInjector {
 	// Bypasses mouse acceleration and relative delta scaling for exact pixel positioning.
 	injectMouseAbsolute(x: number, y: number): void {
 		if (!this.initialized) return
-		const absX = Math.round(Math.max(0, Math.min(this.config.screenWidth, x)))
-		const absY = Math.round(Math.max(0, Math.min(this.config.screenHeight, y)))
+
+		// Normalize pixel coordinates against current config screen dimensions over fixed [0, 65535] range
+		const width = Math.max(1, this.config.screenWidth)
+		const height = Math.max(1, this.config.screenHeight)
+		const normX = Math.round(
+			Math.max(0, Math.min(ABS_MAX_COORD, (x / width) * ABS_MAX_COORD)),
+		)
+		const normY = Math.round(
+			Math.max(0, Math.min(ABS_MAX_COORD, (y / height) * ABS_MAX_COORD)),
+		)
+
 		const fd = this.absMouseDev.fd
-		writeEvent(fd, EV_ABS, ABS_X, absX)
-		writeEvent(fd, EV_ABS, ABS_Y, absY)
+
+		// Linux kernel filters unchanged EV_ABS values. If the target coordinates match the last written
+		// values, write a 1-unit dummy offset first to force kernel absinfo state change.
+		if (this.lastAbsX === normX) {
+			const dummyX = normX > 0 ? normX - 1 : normX + 1
+			writeEvent(fd, EV_ABS, ABS_X, dummyX)
+		}
+		if (this.lastAbsY === normY) {
+			const dummyY = normY > 0 ? normY - 1 : normY + 1
+			writeEvent(fd, EV_ABS, ABS_Y, dummyY)
+		}
+
+		writeEvent(fd, EV_ABS, ABS_X, normX)
+		writeEvent(fd, EV_ABS, ABS_Y, normY)
 		writeEvent(fd, EV_SYN, SYN_REPORT, 0)
+
+		this.lastAbsX = normX
+		this.lastAbsY = normY
 	}
 
 	injectMouseButton(
@@ -382,8 +409,8 @@ export class LinuxInputInjector {
 		this.absMouseDev.setAbsbit(ABS_X)
 		this.absMouseDev.setAbsbit(ABS_Y)
 
-		this.absMouseDev.setupAbs(ABS_X, 0, this.config.screenWidth)
-		this.absMouseDev.setupAbs(ABS_Y, 0, this.config.screenHeight)
+		this.absMouseDev.setupAbs(ABS_X, 0, ABS_MAX_COORD)
+		this.absMouseDev.setupAbs(ABS_Y, 0, ABS_MAX_COORD)
 
 		return this.absMouseDev.create("Virtual Absolute Pointer")
 	}

@@ -39,8 +39,8 @@ export const useTrackpadGesture = (
 	const dragging = useRef(false)
 	const draggingTimeout = useRef<NodeJS.Timeout | null>(null)
 	// Store the starting touch position for absolute-position calculation in mouse mode
-	const tapStartPageX = useRef(0)
-	const tapStartPageY = useRef(0)
+	const tapStartClientX = useRef(0)
+	const tapStartClientY = useRef(0)
 	const TOUCH_MOVE_THRESHOLD = [10, 15, 15]
 	const TOUCH_TIMEOUT = 250
 	const PINCH_THRESHOLD = 10
@@ -48,13 +48,13 @@ export const useTrackpadGesture = (
 	const pinching = useRef(false)
 
 	/**
-	 * Converts a page-relative touch point to normalised [0, 1] screen ratios
+	 * Converts a client-relative touch point to normalised [0, 1] screen ratios
 	 * using the #screenMirror video element's rendered rect and intrinsic resolution.
 	 * Returns null when the video is unavailable or the video has no size.
 	 */
 	const toNormalisedRatio = (
-		pageX: number,
-		pageY: number,
+		clientX: number,
+		clientY: number,
 	): { x: number; y: number } | null => {
 		const video = document.getElementById(
 			"screenMirror",
@@ -85,21 +85,13 @@ export const useTrackpadGesture = (
 		const offsetX = rect.left + (rect.width - contentW) / 2
 		const offsetY = rect.top + (rect.height - contentH) / 2
 
-		const relX = pageX - offsetX
-		const relY = pageY - offsetY
+		const relX = clientX - offsetX
+		const relY = clientY - offsetY
 
 		const x = relX / contentW
 		const y = relY / contentH
 
 		if (x < 0 || x > 1 || y < 0 || y > 1) return null
-		console.log({
-			x,
-			y,
-			contentW,
-			contentH,
-			offsetX,
-			offsetY,
-		})
 		return { x, y }
 	}
 
@@ -164,8 +156,8 @@ export const useTrackpadGesture = (
 			})
 			// Record the very first touch-down position for absolute tap calculation
 			if (ongoingTouches.current.size === 1) {
-				tapStartPageX.current = touch.pageX
-				tapStartPageY.current = touch.pageY
+				tapStartClientX.current = touch.clientX
+				tapStartClientY.current = touch.clientY
 			}
 		}
 
@@ -275,10 +267,11 @@ export const useTrackpadGesture = (
 				if (button) {
 					// In mouse mode, single-finger taps send absolute position so the
 					// cursor teleports to exactly where the user tapped.
+					let sentAbsolutePress = false
 					if (mouseMode && releasedCount.current === 1) {
 						const ratio = toNormalisedRatio(
-							tapStartPageX.current,
-							tapStartPageY.current,
+							tapStartClientX.current,
+							tapStartClientY.current,
 						)
 						if (ratio) {
 							send({
@@ -288,27 +281,35 @@ export const useTrackpadGesture = (
 								x: ratio.x,
 								y: ratio.y,
 							})
-							send({
-								type: "absoluteClick",
-								button,
-								press: false,
-								x: ratio.x,
-								y: ratio.y,
-							})
-						} else {
-							// Fallback if video rect unavailable
-							send({ type: "click", button, press: true })
-							send({ type: "click", button, press: false })
+							sentAbsolutePress = true
 						}
-					} else {
-						send({ type: "click", button, press: true })
+					}
 
-						// For left click, set up drag timeout
-						if (button === "left") {
-							draggingTimeout.current = setTimeout(
-								handleDraggingTimeout,
-								TOUCH_TIMEOUT,
+					if (!sentAbsolutePress) {
+						send({ type: "click", button, press: true })
+					}
+					if (button === "left") {
+						draggingTimeout.current = setTimeout(
+							handleDraggingTimeout,
+							TOUCH_TIMEOUT,
+						)
+					} else {
+						if (sentAbsolutePress) {
+							const ratio = toNormalisedRatio(
+								tapStartClientX.current,
+								tapStartClientY.current,
 							)
+							if (ratio) {
+								send({
+									type: "absoluteClick",
+									button,
+									press: false,
+									x: ratio.x,
+									y: ratio.y,
+								})
+							} else {
+								send({ type: "click", button, press: false })
+							}
 						} else {
 							send({ type: "click", button, press: false })
 						}

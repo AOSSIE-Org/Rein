@@ -323,6 +323,7 @@ export const useMouseInput = (send: (msg: unknown) => void, enabled = true) => {
 
 	const handleClick = useCallback(
 		(e: React.MouseEvent | React.PointerEvent) => {
+			if (!enabled) return
 			// Strictly exclude touch events — touch clicks are handled by useTrackpadGesture
 			if ("pointerType" in e && e.pointerType && e.pointerType !== "mouse") {
 				return
@@ -356,7 +357,7 @@ export const useMouseInput = (send: (msg: unknown) => void, enabled = true) => {
 				requestLock(e)
 			}
 		},
-		[isLocked, mouseMode, requestLock, send],
+		[enabled, isLocked, mouseMode, requestLock, send],
 	)
 
 	return {
