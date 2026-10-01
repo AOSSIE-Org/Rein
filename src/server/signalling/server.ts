@@ -13,6 +13,7 @@ import {
 	saveServerConfig,
 	type ServerConfig,
 } from "../../utils/configHelper.ts"
+import { getSystemClipboard, setSystemClipboard } from "../clipboard.ts"
 
 //routes
 import { handleSessions, handleLatency, handleLogs } from "./handlers/debug.ts"
@@ -252,6 +253,61 @@ export function attachSignalingRoutes(server: any): void {
 
 			if (pathname === "/api/rtc/session" && req.method === "DELETE") {
 				handleSessionDelete(req, res, rtcDeps)
+				return
+			}
+
+			// ------------------------------------------------------------------
+			// Clipboard  POST /api/clipboard/*
+			if (pathname === "/api/clipboard/copy" && req.method === "POST") {
+				if (!requireAuth(req, res)) return
+				parseJsonBody<{ sessionId?: string }>(req)
+					.catch(() => ({}) as { sessionId?: string })
+					.then(async (body) => {
+						try {
+							const handler = webrtcManager?.getInputHandler(body.sessionId)
+							if (handler) {
+								await handler.handleMessage({ type: "copy" })
+								// Wait 100ms for OS clipboard to populate after Ctrl+C
+								await new Promise((r) => setTimeout(r, 100))
+							}
+							const text = await getSystemClipboard()
+							json(res, 200, { ok: true, text })
+						} catch (err) {
+							logger.error(`Error in /api/clipboard/copy: ${String(err)}`)
+							json(res, 500, { ok: false, error: "Failed to copy clipboard" })
+						}
+					})
+				return
+			}
+
+			if (pathname === "/api/clipboard/paste" && req.method === "POST") {
+				if (!requireAuth(req, res)) return
+				parseJsonBody<{ sessionId?: string; text?: string }>(req)
+					.then(async (body) => {
+						try {
+							const handler = webrtcManager?.getInputHandler(body.sessionId)
+							if (!handler) {
+								json(res, 400, { ok: false, error: "Active session required" })
+								return
+							}
+
+							// If client sent non-empty text, write it to host clipboard first
+							if (typeof body.text === "string" && body.text.length > 0) {
+								await setSystemClipboard(body.text)
+								await new Promise((r) => setTimeout(r, 50))
+							}
+
+							// Trigger paste on host (either pasting the new text or existing host clipboard)
+							await handler.handleMessage({ type: "paste" })
+							json(res, 200, { ok: true })
+						} catch (err) {
+							logger.error(`Error in /api/clipboard/paste: ${String(err)}`)
+							json(res, 500, { ok: false, error: "Failed to paste clipboard" })
+						}
+					})
+					.catch((err) => {
+						json(res, 400, { ok: false, error: String(err) })
+					})
 				return
 			}
 
