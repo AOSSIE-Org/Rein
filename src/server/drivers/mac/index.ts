@@ -108,6 +108,29 @@ export class MacInputInjector {
 		postMouseEvent(eventType, this.cursorX, this.cursorY, button)
 	}
 
+	// Teleports the cursor to an absolute screen position (pixel coordinates).
+	injectMouseAbsolute(x: number, y: number): void {
+		this.cursorX = Math.max(0, Math.min(this.config.screenWidth, x))
+		this.cursorY = Math.max(0, Math.min(this.config.screenHeight, y))
+
+		let eventType = kCGEventMouseMoved
+		let button = kCGMouseButtonLeft
+		if (this.buttonsHeld.has("left")) {
+			eventType = kCGEventLeftMouseDragged
+			button = kCGMouseButtonLeft
+		}
+		if (this.buttonsHeld.has("right")) {
+			eventType = kCGEventRightMouseDragged
+			button = kCGMouseButtonRight
+		}
+		if (this.buttonsHeld.has("middle")) {
+			eventType = kCGEventOtherMouseDragged
+			button = kCGMouseButtonCenter
+		}
+
+		postMouseEvent(eventType, this.cursorX, this.cursorY, button)
+	}
+
 	injectMouseButton(
 		button: "left" | "right" | "middle",
 		isDown: boolean,

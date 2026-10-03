@@ -52,6 +52,14 @@ export type InputMessage = BaseMessage &
 		| { type: "paste" }
 		| { type: "copy" }
 		| { type: "click"; button: MouseButton; press: boolean }
+		// Touchscreen tap-to-click: x/y are normalised [0,1] ratios of the remote screen
+		| {
+				type: "absoluteClick"
+				button: MouseButton
+				press: boolean
+				x: number
+				y: number
+		  }
 		| { type: "scroll" }
 		| { type: "key" }
 		| { type: "text" }
@@ -67,6 +75,8 @@ export type InputMessage = BaseMessage &
 export type PlatformInjector = {
 	updateConfig(config: Partial<InputConfig>): void
 	injectMouseMove(dx: number, dy: number): void
+	// Move cursor to absolute position; x/y are pixel coordinates on the remote screen
+	injectMouseAbsolute(x: number, y: number): void
 	injectMouseButton(button: "left" | "right" | "middle", isDown: boolean): void
 	injectMouseWheel(dx: number, dy: number): void
 	injectKey(key: string, pos?: string): void

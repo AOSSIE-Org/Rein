@@ -112,7 +112,6 @@ export function loadServerConfig(): ServerConfig {
 	} catch {
 		cachedConfig = {}
 	}
-	console.log(`Cached·Log·is·${JSON.stringify(cachedConfig)}`)
 	return cachedConfig
 }
 
