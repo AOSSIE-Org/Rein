@@ -25,6 +25,7 @@ import {
 } from "./handlers/rtc.ts"
 import {
 	handleFileUpload,
+	handleFileBrowse,
 	handleFileList,
 	handleFileDownload,
 	handleFileDelete,
@@ -259,13 +260,15 @@ export function attachSignalingRoutes(server: any): void {
 			// Config  POST /api/config
 			if (pathname === "/api/config" && req.method === "GET") {
 				if (!requireAuth(req, res)) return
-				const { framerate, streamQuality, frontendPort } = loadServerConfig()
+				const { framerate, streamQuality, frontendPort, uploadDir } =
+					loadServerConfig()
 				json(res, 200, {
 					ok: true,
 					config: {
 						framerate: framerate ?? null,
 						streamQuality: streamQuality ?? "performance",
 						frontendPort: frontendPort ?? null,
+						uploadDir: uploadDir ?? null,
 					},
 				})
 				return
@@ -278,15 +281,24 @@ export function attachSignalingRoutes(server: any): void {
 						framerate?: number | null
 						streamQuality?: string
 						frontendPort?: number
+						uploadDir?: string
 					}
 				>(req)
 					.then(async (config) => {
-						const { framerate, streamQuality, frontendPort, ...inputConfig } =
-							config
+						const {
+							framerate,
+							streamQuality,
+							frontendPort,
+							uploadDir,
+							...inputConfig
+						} = config
 						webrtcManager?.updateConfig(inputConfig)
 						// GStreamer and server fields are persisted to writable config and take effect on restart
 						const gstFields: Partial<ServerConfig> = {}
 						if ("framerate" in config) gstFields.framerate = framerate ?? null
+						if ("uploadDir" in config && typeof uploadDir === "string") {
+							gstFields.uploadDir = uploadDir
+						}
 						if ("streamQuality" in config) {
 							const q = streamQuality
 							if (
@@ -297,12 +309,6 @@ export function attachSignalingRoutes(server: any): void {
 								gstFields.streamQuality = q
 							}
 						}
-						// frontendPort cannot be rebound at runtime — Vite/the HTTP listener
-						// was already bound at process startup. Persisting a new value here
-						// would create a mismatch between the saved config and the live port.
-						// A full process restart (or Vite restart) is required for the port
-						// to take effect, so frontendPort is intentionally excluded from the
-						// set of runtime-configurable fields.
 						const currentCfg = loadServerConfig()
 						const hasGstChange =
 							("framerate" in config &&
@@ -365,6 +371,13 @@ export function attachSignalingRoutes(server: any): void {
 
 			// ------------------------------------------------------------------
 			// File sharing  /api/files/*
+			if (pathname === "/api/files/browse" && req.method === "GET") {
+				handleFileBrowse(req, res).catch((err) => {
+					logger.error(`File browse handler error: ${err}`)
+				})
+				return
+			}
+
 			if (pathname === "/api/files/upload" && req.method === "POST") {
 				handleFileUpload(req, res, "host").catch((err) => {
 					logger.error(`File upload handler error: ${err}`)
