@@ -19,8 +19,19 @@ export interface ServerConfig {
 	streamQuality?: "performance" | "intermediate" | "quality"
 	audioSource?: string
 	version?: string
+	uploadDir?: string
 }
 let cachedConfig: ServerConfig | null = null
+
+export function getUploadDir(): string {
+	const cfg = loadServerConfig()
+	const dir =
+		cfg.uploadDir?.trim() || path.join(os.homedir(), "Downloads", "ReinShared")
+	try {
+		fs.mkdirSync(dir, { recursive: true })
+	} catch {}
+	return dir
+}
 
 export function getServerConfigPath(): string | null {
 	const candidates: string[] = []
