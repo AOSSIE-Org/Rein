@@ -6,7 +6,6 @@
 	"sensitivity": 2.1,
 	"invertScroll": false,
 	"verboseLogs": true,
-	"useSystemGstreamer": false,
 	"framerate": 60,
 	"version": "0.1.0",
 	"streamQuality": "performance"
