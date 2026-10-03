@@ -50,6 +50,14 @@ export class WebRTCManager {
 		return !this.udp.healthy()
 	}
 
+	public getInputHandler(sessionId?: string): InputHandler | null {
+		if (sessionId) {
+			return this.clients.get(sessionId)?.inputHandler ?? null
+		}
+		const firstClient = this.clients.values().next().value
+		return firstClient?.inputHandler ?? null
+	}
+
 	// -------------------------------------------------------------------------
 	// POST /api/rtc/offer
 	public async handleOffer(
