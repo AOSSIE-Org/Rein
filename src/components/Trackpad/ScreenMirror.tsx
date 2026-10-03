@@ -57,6 +57,7 @@ export const ScreenMirror = ({
 }: ScreenMirrorProps) => {
 	const videoElementRef = useRef<HTMLVideoElement | null>(null)
 	const [isFullscreen, setIsFullscreen] = useState(false)
+	const pointerTypeRef = useRef<string>("mouse")
 
 	useEffect(() => {
 		const video = videoElementRef.current
@@ -273,6 +274,14 @@ export const ScreenMirror = ({
 			<div
 				className="absolute inset-0 z-10"
 				{...handlers}
+				onPointerDown={(e) => {
+					pointerTypeRef.current = e.pointerType
+				}}
+				onClickCapture={(e) => {
+					if (pointerTypeRef.current !== "mouse") {
+						e.stopPropagation()
+					}
+				}}
 				style={{
 					cursor: scrollMode
 						? "ns-resize"
