@@ -265,11 +265,15 @@ export function attachSignalingRoutes(server: any): void {
 					.then(async (body) => {
 						try {
 							const handler = webrtcManager?.getInputHandler(body.sessionId)
-							if (handler) {
-								await handler.handleMessage({ type: "copy" })
-								// Wait 100ms for OS clipboard to populate after Ctrl+C
-								await new Promise((r) => setTimeout(r, 100))
+							if (!handler) {
+								json(res, 400, { ok: false, error: "Active session required" })
+								return
 							}
+
+							await handler.handleMessage({ type: "copy" })
+							// Wait 100ms for OS clipboard to populate after Ctrl+C
+							await new Promise((r) => setTimeout(r, 100))
+
 							const text = await getSystemClipboard()
 							json(res, 200, { ok: true, text })
 						} catch (err) {
@@ -291,8 +295,8 @@ export function attachSignalingRoutes(server: any): void {
 								return
 							}
 
-							// If client sent non-empty text, write it to host clipboard first
-							if (typeof body.text === "string" && body.text.length > 0) {
+							// If client sent text, write it to host clipboard first
+							if (typeof body.text === "string") {
 								await setSystemClipboard(body.text)
 								await new Promise((r) => setTimeout(r, 50))
 							}

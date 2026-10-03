@@ -51,7 +51,7 @@ export class WebRTCManager {
 	}
 
 	public getInputHandler(sessionId?: string): InputHandler | null {
-		if (sessionId && this.clients.has(sessionId)) {
+		if (sessionId) {
 			return this.clients.get(sessionId)?.inputHandler ?? null
 		}
 		const firstClient = this.clients.values().next().value

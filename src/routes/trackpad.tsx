@@ -202,7 +202,10 @@ function TrackpadPage() {
 			textArea.focus()
 			textArea.select()
 			try {
-				document.execCommand("copy")
+				const success = document.execCommand("copy")
+				if (!success) {
+					console.warn("[Clipboard] execCommand copy failed")
+				}
 			} catch (e) {
 				console.error("[Clipboard] execCommand copy failed:", e)
 			} finally {
@@ -237,9 +240,7 @@ function TrackpadPage() {
 				},
 				body: JSON.stringify({
 					sessionId: activeSessionId,
-					...(typeof clientText === "string" && clientText.length > 0
-						? { text: clientText }
-						: {}),
+					...(clientText !== undefined ? { text: clientText } : {}),
 				}),
 			})
 			if (!res.ok) throw new Error(`Paste failed: ${res.status}`)

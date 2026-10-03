@@ -33,7 +33,7 @@ function spawnWithStdin(
  * Helper to run a command and capture its stdout.
  */
 function spawnCaptureOutput(cmd: string, args: string[]): Promise<string> {
-	return new Promise((resolve) => {
+	return new Promise((resolve, reject) => {
 		const child = spawn(cmd, args, { stdio: ["ignore", "pipe", "ignore"] })
 		let output = ""
 
@@ -41,53 +41,46 @@ function spawnCaptureOutput(cmd: string, args: string[]): Promise<string> {
 			output += chunk.toString("utf-8")
 		})
 
-		child.on("error", () => resolve(""))
+		child.on("error", reject)
 
 		child.on("close", (code) => {
 			if (code === 0) resolve(output)
-			else resolve("")
+			else reject(new Error(`${cmd} exited with code ${code}`))
 		})
 	})
 }
 
 /**
  * Read the host system clipboard as plain text.
- * Returns "" if the clipboard is empty or unsupported.
  */
 export async function getSystemClipboard(): Promise<string> {
 	const platform = os.platform()
 
-	try {
-		if (platform === "darwin") {
-			return await spawnCaptureOutput("pbpaste", [])
-		}
-
-		if (platform === "win32") {
-			const text = await spawnCaptureOutput("powershell.exe", [
-				"-NoProfile",
-				"-Command",
-				"Get-Clipboard -Raw",
-			])
-			return text.replace(/\r?\n$/, "")
-		}
-
-		// Linux: Check Wayland first, then fall back to xclip / xsel
-		if (process.env.XDG_SESSION_TYPE === "wayland") {
-			const waylandText = await spawnCaptureOutput("wl-paste", ["--no-newline"])
-			if (waylandText) return waylandText
-		}
-
-		const xclipText = await spawnCaptureOutput("xclip", [
-			"-selection",
-			"clipboard",
-			"-o",
-		])
-		if (xclipText) return xclipText
-
-		return await spawnCaptureOutput("xsel", ["--clipboard", "--output"])
-	} catch {
-		return ""
+	if (platform === "darwin") {
+		return await spawnCaptureOutput("pbpaste", [])
 	}
+
+	if (platform === "win32") {
+		const text = await spawnCaptureOutput("powershell.exe", [
+			"-NoProfile",
+			"-Command",
+			"Get-Clipboard -Raw",
+		])
+		return text.replace(/\r?\n$/, "")
+	}
+
+	// Linux: Check Wayland first, then fall back to xclip / xsel
+	if (process.env.XDG_SESSION_TYPE === "wayland") {
+		try {
+			return await spawnCaptureOutput("wl-paste", ["--no-newline"])
+		} catch {}
+	}
+
+	try {
+		return await spawnCaptureOutput("xclip", ["-selection", "clipboard", "-o"])
+	} catch {}
+
+	return await spawnCaptureOutput("xsel", ["--clipboard", "--output"])
 }
 
 /**
@@ -97,7 +90,7 @@ export async function setSystemClipboard(text: string): Promise<void> {
 	const platform = os.platform()
 
 	if (platform === "darwin") {
-		await spawnWithStdin("pbcopy", [], text).catch(() => {})
+		await spawnWithStdin("pbcopy", [], text)
 		return
 	}
 
@@ -111,7 +104,7 @@ export async function setSystemClipboard(text: string): Promise<void> {
 				"[Console]::InputEncoding = [System.Text.Encoding]::UTF8; Set-Clipboard -Value ([Console]::In.ReadToEnd())",
 			],
 			text,
-		).catch(() => {})
+		)
 		return
 	}
 
@@ -128,5 +121,5 @@ export async function setSystemClipboard(text: string): Promise<void> {
 		return
 	} catch {}
 
-	await spawnWithStdin("xsel", ["--clipboard", "--input"], text).catch(() => {})
+	await spawnWithStdin("xsel", ["--clipboard", "--input"], text)
 }
