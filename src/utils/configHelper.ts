@@ -11,9 +11,6 @@ export interface ServerConfig {
 	sensitivity?: number
 	invertScroll?: boolean
 	verboseLogs?: boolean
-	useSystemGstreamer?: boolean
-	useGlobalGstreamer?: boolean
-	disableBundledGstreamer?: boolean
 	/** framerate: null = dynamic frame rate. */
 	framerate?: number | null
 	streamQuality?: "performance" | "intermediate" | "quality"
