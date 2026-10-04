@@ -3,7 +3,7 @@ Instructions for AI coding agents working on Rein. Read this before making chang
 This file is the project's rules and architecture guide. Read this before modifying code or submitting pull requests.
 
 Project overview
-Rein is an open-source, cross-platform remote desktop input system and screen mirror built on WebRTC (GSoC 2026 under AOSSIE). It turns any phone, tablet, or browser into a trackpad, keyboard, and desktop screen mirror over local networks with sub-8ms latency and zero cloud dependency.
+Rein is an open-source, cross-platform remote desktop input system and screen mirror built on WebRTC. It was a GSoC 2026 project under AOSSIE. It turns any phone, tablet, or browser into a trackpad, keyboard, and desktop screen mirror over local networks with sub-8ms latency and zero cloud dependency.
 
 Four moving parts:
 
