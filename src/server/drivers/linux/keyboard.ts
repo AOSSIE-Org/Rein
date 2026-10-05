@@ -67,7 +67,14 @@ export class LinuxKeyboard {
 
 	injectText(text: string): void {
 		if (!text) return
-
+		if (text.length === 1) {
+			const lowerKey = text.toLowerCase()
+			const code = LINUX_KEY_MAP[lowerKey]
+			if (code !== undefined) {
+				this.injectKey(text, "")
+				return
+			}
+		}
 		for (const ch of text) {
 			const { code, shifted } = resolveChar(ch, LINUX_KEY_MAP)
 			if (code === undefined) {

@@ -17,12 +17,14 @@ import { MdSpaceBar } from "react-icons/md"
 
 interface ExtraKeysProps {
 	sendKey: (key: string) => void
+	sendKeyHold?: (key: string, state: "down" | "up") => void
 	onInputFocus: () => void
 	orientation?: "horizontal" | "vertical"
 }
 
 export const ExtraKeys: React.FC<ExtraKeysProps> = ({
 	sendKey,
+	sendKeyHold,
 	orientation = "horizontal",
 }) => {
 	const [isPlaying, setIsPlaying] = useState(false)
@@ -33,6 +35,12 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({
 	}
 
 	const keyGroups = [
+		[
+			{ label: "W", key: "w", type: "arrow" },
+			{ label: "A", key: "a", type: "arrow" },
+			{ label: "S", key: "s", type: "arrow" },
+			{ label: "D", key: "d", type: "arrow" },
+		],
 		[
 			{
 				icon: <FaVolumeMute />,
@@ -125,7 +133,7 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({
 	]
 
 	const keyGroupsVertical = [
-		keyGroups[0], // Media
+		keyGroups[0], // WASD
 		[
 			...keyGroups[1],
 			...[
@@ -137,6 +145,7 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({
 				{ label: "Menu", key: "menu", type: "mod" },
 			],
 		],
+		keyGroups[2],
 		[
 			{ label: "Del", key: "delete", type: "action" },
 			{ icon: <FaArrowUp />, key: "arrowup", type: "arrow", label: "Up" },
@@ -189,7 +198,28 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({
 			onPointerDown={(e) => {
 				e.preventDefault()
 				if (k.action) k.action()
-				else if (k.key) sendKey(k.key)
+				else if (k.key) {
+					if (k.type === "media") {
+						sendKey(k.key)
+					} else if (sendKeyHold) {
+						sendKeyHold(k.key, "down")
+					} else {
+						sendKey(k.key)
+					}
+				}
+			}}
+			onPointerUp={(e) => {
+				e.preventDefault()
+				if (k.action || k.type === "media") return
+				if (k.key && sendKeyHold) {
+					sendKeyHold(k.key, "up")
+				}
+			}}
+			onPointerLeave={(e) => {
+				if (k.action || k.type === "media") return
+				if (k.key && sendKeyHold) {
+					sendKeyHold(k.key, "up")
+				}
 			}}
 			aria-label={k.label || k.key}
 		>
