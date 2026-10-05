@@ -15,10 +15,11 @@ export interface ServerTabProps {
 export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 	const [frontendPort, setFrontendPort] = useState("")
 
-	// Server GStreamer config
+	// Server GStreamer & file directory config
 	const [streamQuality, setStreamQuality] =
 		useState<StreamQuality>("performance")
 	const [framerate, setFramerate] = useState<number | null>(null)
+	const [uploadDir, setUploadDir] = useState("")
 	const [serverConfigSaved, setServerConfigSaved] = useState(false)
 	const [serverConfigSaving, setServerConfigSaving] = useState(false)
 
@@ -27,6 +28,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 		useState<StreamQuality>("performance")
 	const [loadedFramerate, setLoadedFramerate] = useState<number | null>(null)
 	const [loadedPort, setLoadedPort] = useState("")
+	const [loadedUploadDir, setLoadedUploadDir] = useState("")
 
 	const qualityOptions: {
 		value: StreamQuality
@@ -53,6 +55,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 	const serverConfigChanged =
 		streamQuality !== loadedStreamQuality ||
 		framerate !== loadedFramerate ||
+		uploadDir !== loadedUploadDir ||
 		(frontendPort !== "" && frontendPort !== loadedPort)
 
 	useEffect(() => {
@@ -62,7 +65,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 		}
 	}, [])
 
-	// Load server config (framerate, streamQuality, frontendPort) from API
+	// Load server config (framerate, streamQuality, frontendPort, uploadDir) from API
 	useEffect(() => {
 		if (typeof window === "undefined") return
 		fetch("/api/config", {
@@ -91,6 +94,11 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 						setFrontendPort(portStr)
 						setLoadedPort(portStr)
 					}
+
+					if (data.config.uploadDir) {
+						setUploadDir(data.config.uploadDir)
+						setLoadedUploadDir(data.config.uploadDir)
+					}
 				}
 			})
 			.catch((e) => console.error("Config fetch error:", e))
@@ -98,7 +106,6 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 
 	const handleSaveServerConfig = () => {
 		const trimmedPort = frontendPort.trim()
-		// Treat empty port as unchanged — omit frontendPort from the request
 		let portPayload: { frontendPort?: number } = {}
 		if (trimmedPort !== "") {
 			if (!/^\d+$/.test(trimmedPort)) {
@@ -124,6 +131,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 				...portPayload,
 				streamQuality,
 				framerate,
+				uploadDir,
 			}),
 		})
 			.then((r) => r.json())
@@ -133,6 +141,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 					setServerConfigSaved(true)
 					setLoadedStreamQuality(streamQuality)
 					setLoadedFramerate(framerate)
+					setLoadedUploadDir(uploadDir)
 					setFrontendPort(trimmedPort)
 					if (trimmedPort !== "") setLoadedPort(trimmedPort)
 				} else {
@@ -282,6 +291,28 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 			<div className="alert alert-warning text-xs shadow-lg">
 				<MdWarning />
 				<span>{t("serverTab", "restartWarningAlert")}</span>
+			</div>
+			{/* Shared Upload Directory */}
+			<div className="form-control w-full">
+				<label className="label mb-3" htmlFor="upload-dir-input">
+					<span className="label-text font-medium">
+						Shared Download & Upload Directory
+					</span>
+				</label>
+				<input
+					id="upload-dir-input"
+					type="text"
+					placeholder="Default: Downloads/ReinShared"
+					className="input input-bordered w-full rounded-md"
+					value={uploadDir}
+					onChange={(e) => setUploadDir(e.target.value)}
+				/>
+				<label className="label mt-1" htmlFor="upload-dir-input">
+					<span className="label-text-alt opacity-50">
+						Directory on the host server where files uploaded by connected
+						devices will be stored.
+					</span>
+				</label>
 			</div>
 			{/* Save Config — only visible in Server tab */}
 			<button

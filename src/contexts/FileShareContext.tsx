@@ -20,6 +20,15 @@ export interface SharedFileInfo {
 	uploadedBy: string
 }
 
+export interface DirectoryItem {
+	name: string
+	path: string
+	isDir: boolean
+	size: number
+	mimeType: string
+	modifiedAt: number
+}
+
 interface IncomingNotification extends SharedFileInfo {
 	decision: "pending" | "accepted" | "rejected"
 }
@@ -42,6 +51,15 @@ interface FileShareContextType {
 	setOverlayOpen: (open: boolean) => void
 	/** Upload progress per fileId (0–100) */
 	uploadProgress: Record<string, number>
+	/** Remote directory explorer state & handlers */
+	currentPath: string
+	parentPath: string | null
+	directoryItems: DirectoryItem[]
+	selectedItem: DirectoryItem | null
+	setSelectedItem: (item: DirectoryItem | null) => void
+	isLoadingDir: boolean
+	fetchDirectory: (dirPath?: string) => Promise<void>
+	downloadFileByPath: (filePath: string, name: string) => void
 }
 
 const FileShareContext = createContext<FileShareContextType | null>(null)
@@ -72,8 +90,47 @@ export function FileShareProvider({ children }: { children: React.ReactNode }) {
 	const [uploadProgress, setUploadProgress] = useState<Record<string, number>>(
 		{},
 	)
+	const [currentPath, setCurrentPath] = useState<string>("")
+	const [parentPath, setParentPath] = useState<string | null>(null)
+	const [directoryItems, setDirectoryItems] = useState<DirectoryItem[]>([])
+	const [selectedItem, setSelectedItem] = useState<DirectoryItem | null>(null)
+	const [isLoadingDir, setIsLoadingDir] = useState<boolean>(false)
+
 	const esRef = useRef<EventSource | null>(null)
 	const ownUploadIds = useRef<Set<string>>(new Set())
+
+	const fetchDirectory = useCallback(async (dirPath?: string) => {
+		setIsLoadingDir(true)
+		setSelectedItem(null)
+		try {
+			const token = getToken()
+			const url = `/api/files/browse${dirPath ? `?path=${encodeURIComponent(dirPath)}` : ""}${token ? `${dirPath ? "&" : "?"}token=${encodeURIComponent(token)}` : ""}`
+			const res = await fetch(url, {
+				headers: token ? { Authorization: `Bearer ${token}` } : {},
+			})
+			const data = (await res.json()) as {
+				currentPath: string
+				parentPath: string | null
+				items: DirectoryItem[]
+			}
+			if (data.currentPath) {
+				setCurrentPath(data.currentPath)
+				setParentPath(data.parentPath)
+				setDirectoryItems(data.items ?? [])
+			}
+		} catch (e) {
+			console.error("Failed to browse directory:", e)
+		} finally {
+			setIsLoadingDir(false)
+		}
+	}, [])
+
+	useEffect(() => {
+		if (overlayOpen) {
+			fetchDirectory(currentPath || undefined)
+		}
+	}, [overlayOpen, currentPath, fetchDirectory])
+
 	useEffect(() => {
 		const token = getToken()
 		const sseUrl = `/api/files/events${token ? `?token=${encodeURIComponent(token)}` : ""}`
@@ -111,6 +168,8 @@ export function FileShareProvider({ children }: { children: React.ReactNode }) {
 							return [{ ...info, decision: "pending" }, ...prev]
 						})
 					}
+					// Refresh directory list if overlay open
+					fetchDirectory(currentPath || undefined)
 				} else if (msg.type === "file-deleted" && msg.fileId) {
 					setSharedFiles((prev) => prev.filter((f) => f.fileId !== msg.fileId))
 					setNotifications((prev) =>
@@ -125,56 +184,71 @@ export function FileShareProvider({ children }: { children: React.ReactNode }) {
 		return () => {
 			es.close()
 		}
-	}, [])
+	}, [currentPath, fetchDirectory])
 
-	const uploadFile = useCallback(async (file: File): Promise<string> => {
-		const tempId = `upload-${Date.now()}`
-		setUploadProgress((p) => ({ ...p, [tempId]: 0 }))
+	const uploadFile = useCallback(
+		async (file: File): Promise<string> => {
+			const tempId = `upload-${Date.now()}`
+			setUploadProgress((p) => ({ ...p, [tempId]: 0 }))
 
-		const formData = new FormData()
-		formData.append("file", file)
+			const formData = new FormData()
+			formData.append("file", file)
 
+			const token = getToken()
+
+			return new Promise<string>((resolve, reject) => {
+				const xhr = new XMLHttpRequest()
+				xhr.open("POST", `/api/files/upload${authQuery()}`)
+				if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`)
+
+				xhr.upload.onprogress = (e) => {
+					if (e.lengthComputable) {
+						const pct = Math.round((e.loaded / e.total) * 100)
+						setUploadProgress((p) => ({ ...p, [tempId]: pct }))
+					}
+				}
+
+				xhr.onload = () => {
+					setUploadProgress((p) => {
+						const next = { ...p }
+						delete next[tempId]
+						return next
+					})
+					if (xhr.status === 200) {
+						const resp = JSON.parse(xhr.responseText) as { fileId?: string }
+						const realId = resp.fileId ?? tempId
+						ownUploadIds.current.add(realId)
+						fetchDirectory(currentPath || undefined)
+						resolve(realId)
+					} else {
+						reject(new Error(`Upload failed: ${xhr.status}`))
+					}
+				}
+
+				xhr.onerror = () => {
+					setUploadProgress((p) => {
+						const next = { ...p }
+						delete next[tempId]
+						return next
+					})
+					reject(new Error("Network error during upload"))
+				}
+
+				xhr.send(formData)
+			})
+		},
+		[currentPath, fetchDirectory],
+	)
+
+	const downloadFileByPath = useCallback((filePath: string, name: string) => {
 		const token = getToken()
-
-		return new Promise<string>((resolve, reject) => {
-			const xhr = new XMLHttpRequest()
-			xhr.open("POST", `/api/files/upload${authQuery()}`)
-			if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`)
-
-			xhr.upload.onprogress = (e) => {
-				if (e.lengthComputable) {
-					const pct = Math.round((e.loaded / e.total) * 100)
-					setUploadProgress((p) => ({ ...p, [tempId]: pct }))
-				}
-			}
-
-			xhr.onload = () => {
-				setUploadProgress((p) => {
-					const next = { ...p }
-					delete next[tempId]
-					return next
-				})
-				if (xhr.status === 200) {
-					const resp = JSON.parse(xhr.responseText) as { fileId?: string }
-					const realId = resp.fileId ?? tempId
-					ownUploadIds.current.add(realId)
-					resolve(realId)
-				} else {
-					reject(new Error(`Upload failed: ${xhr.status}`))
-				}
-			}
-
-			xhr.onerror = () => {
-				setUploadProgress((p) => {
-					const next = { ...p }
-					delete next[tempId]
-					return next
-				})
-				reject(new Error("Network error during upload"))
-			}
-
-			xhr.send(formData)
-		})
+		const url = `/api/files/download?path=${encodeURIComponent(filePath)}${token ? `&token=${encodeURIComponent(token)}` : ""}`
+		const a = document.createElement("a")
+		a.href = url
+		a.download = name
+		document.body.appendChild(a)
+		a.click()
+		document.body.removeChild(a)
 	}, [])
 
 	const acceptFile = useCallback((fileId: string) => {
@@ -183,7 +257,6 @@ export function FileShareProvider({ children }: { children: React.ReactNode }) {
 				n.fileId === fileId ? { ...n, decision: "accepted" } : n,
 			),
 		)
-		// Trigger browser download
 		const token = getToken()
 		const url = `/api/files/download?fileId=${encodeURIComponent(fileId)}${token ? `&token=${encodeURIComponent(token)}` : ""}`
 		const a = document.createElement("a")
@@ -231,6 +304,14 @@ export function FileShareProvider({ children }: { children: React.ReactNode }) {
 				overlayOpen,
 				setOverlayOpen,
 				uploadProgress,
+				currentPath,
+				parentPath,
+				directoryItems,
+				selectedItem,
+				setSelectedItem,
+				isLoadingDir,
+				fetchDirectory,
+				downloadFileByPath,
 			}}
 		>
 			{children}
