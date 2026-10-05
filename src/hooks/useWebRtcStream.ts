@@ -62,6 +62,7 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 	const [errorHandle, setErrorHandle] = useState<string | null>(null)
 	const [connecting, setConnecting] = useState(false)
 	const [reconnectAttempt, setReconnectAttempt] = useState(0)
+	const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
 
 	const { registerDataChannel, send: sendInputEvent } = useConnection()
 
@@ -88,6 +89,7 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 	// -------------------------------------------------------------------------
 
 	const cleanup = useCallback(() => {
+		setActiveSessionId(null)
 		if (iceSseRef.current) {
 			iceSseRef.current.close()
 			iceSseRef.current = null
@@ -119,6 +121,7 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 		}
 
 		cleanup()
+		setActiveSessionId(null)
 		setTrackActive(false)
 		setVideoStream(null)
 
@@ -338,6 +341,7 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 
 				sessionId = sid
 				sessionIdRef.current = sid
+				setActiveSessionId(sid)
 
 				// Step 2: open the session SSE channel (ICE + errors)
 				openSessionSse(sid)
@@ -442,5 +446,6 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 		connecting,
 		reconnect,
 		sendInputEvent,
+		activeSessionId,
 	}
 }

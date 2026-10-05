@@ -95,6 +95,7 @@ function TrackpadPage() {
 		errorHandle,
 		connecting,
 		reconnect,
+		activeSessionId,
 	} = useWebRtcStream({
 		token,
 	})
@@ -169,8 +170,84 @@ function TrackpadPage() {
 		)
 	}
 
-	const handleCopy = () => broadcastMessage({ type: "copy" })
-	const handlePaste = async () => broadcastMessage({ type: "paste" })
+	const handleCopy = async () => {
+		try {
+			const res = await fetch("/api/clipboard/copy", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					...(token ? { Authorization: `Bearer ${token}` } : {}),
+				},
+				body: JSON.stringify({ sessionId: activeSessionId }),
+			})
+			if (!res.ok) throw new Error(`Copy failed: ${res.status}`)
+			const data = (await res.json()) as { ok?: boolean; text?: string }
+			if (typeof data.text !== "string") return
+
+			// Modern Clipboard API (works on secure context / localhost)
+			if (navigator.clipboard?.writeText) {
+				try {
+					await navigator.clipboard.writeText(data.text)
+					return
+				} catch {}
+			}
+
+			// Non-HTTPS fallback for mobile browsers
+			const textArea = document.createElement("textarea")
+			textArea.value = data.text
+			textArea.style.position = "fixed"
+			textArea.style.top = "-9999px"
+			textArea.style.left = "-9999px"
+			document.body.appendChild(textArea)
+			textArea.focus()
+			textArea.select()
+			try {
+				const success = document.execCommand("copy")
+				if (!success) {
+					console.warn("[Clipboard] execCommand copy failed")
+				}
+			} catch (e) {
+				console.error("[Clipboard] execCommand copy failed:", e)
+			} finally {
+				document.body.removeChild(textArea)
+			}
+		} catch (err) {
+			console.error("[Clipboard] Copy error:", err)
+		}
+	}
+
+	const handlePaste = async () => {
+		try {
+			let clientText: string | undefined
+
+			// Try reading client clipboard if browser supports it (HTTPS / secure context)
+			if (navigator.clipboard?.readText) {
+				try {
+					clientText = await navigator.clipboard.readText()
+				} catch {
+					// Reading rejected or blocked on plain HTTP
+					clientText = undefined
+				}
+			}
+
+			// Send to server: if clientText is provided, server writes it to host clipboard first;
+			// otherwise falls back to pasting the existing host clipboard.
+			const res = await fetch("/api/clipboard/paste", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					...(token ? { Authorization: `Bearer ${token}` } : {}),
+				},
+				body: JSON.stringify({
+					sessionId: activeSessionId,
+					...(clientText !== undefined ? { text: clientText } : {}),
+				}),
+			})
+			if (!res.ok) throw new Error(`Paste failed: ${res.status}`)
+		} catch (err) {
+			console.error("[Clipboard] Paste error:", err)
+		}
+	}
 
 	const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const nativeEvent = e.nativeEvent as InputEvent
