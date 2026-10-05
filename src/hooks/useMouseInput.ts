@@ -101,8 +101,6 @@ export const useMouseInput = (send: (msg: unknown) => void, enabled = true) => {
 	const requestLock = useCallback(
 		(e?: React.PointerEvent | PointerEvent | React.MouseEvent | MouseEvent) => {
 			if (!enabled) return
-
-			// Strictly restrict pointer lock to physical mouse events
 			if (
 				e &&
 				"pointerType" in e &&
