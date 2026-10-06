@@ -1,11 +1,12 @@
-// ---- Event types ----
-export const EV_SYN = 0x00
-export const EV_KEY = 0x01
-export const EV_REL = 0x02
-export const EV_ABS = 0x03
+// ---- Event types and sync events from @imxade/inject/linux ----
+export {
+	EV_SYN,
+	EV_KEY,
+	EV_REL,
+	EV_ABS,
+	SYN_REPORT,
+} from "@imxade/inject/linux"
 
-// ---- Sync events ----
-export const SYN_REPORT = 0x00
 export const SYN_MT_REPORT = 0x02
 
 // ---- Relative axes (mouse movement / scroll) ----
@@ -75,23 +76,6 @@ export const KEY_PRESS = 1
 export const KEY_RELEASE = 0
 export const KEY_REPEAT = 2
 
-// ---- uinput ioctl codes (from linux/uinput.h) ----
-// Computed as: _IOW('U', n, int) = 0x40045500 | n   (sizeof int = 4)
-export const UI_SET_EVBIT = 0x40045564 // _IOW('U', 100, int)
-export const UI_SET_KEYBIT = 0x40045565 // _IOW('U', 101, int)
-export const UI_SET_RELBIT = 0x40045566 // _IOW('U', 102, int)
-export const UI_SET_ABSBIT = 0x40045567 // _IOW('U', 103, int)
-export const UI_SET_PROPBIT = 0x4004556e // _IOW('U', 110, int)
-// _IOW('U', 3, uinput_setup)  — sizeof(uinput_setup) = 92 (0x5c)
-export const UI_DEV_SETUP = 0x405c5503
-// _IOW('U', 4, uinput_abs_setup) — sizeof(uinput_abs_setup) = 28 (0x1c)
-export const UI_ABS_SETUP = 0x401c5504
-// _IO('U', 1) / _IO('U', 2)
-export const UI_DEV_CREATE = 0x5501
-export const UI_DEV_DESTROY = 0x5502
-
 // ---- Misc ----
 export const MAX_CONTACTS = 10
 export const MT_TRACKING_ID_RELEASED = -1
-export const UINPUT_PATH = "/dev/uinput"
-export const UINPUT_MAX_NAME_SIZE = 80
