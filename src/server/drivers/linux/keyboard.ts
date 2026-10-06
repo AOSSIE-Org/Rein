@@ -5,21 +5,16 @@
  * keyboard device. Converts application-level key names and characters
  * into Linux key codes and emits the corresponding press/release events.
  */
-import { writeEvent } from "./structs.ts"
-import {
-	EV_SYN,
-	EV_KEY,
-	SYN_REPORT,
-	KEY_PRESS,
-	KEY_RELEASE,
-} from "./constants.ts"
+import type { UinputDevice } from "@imxade/inject/linux"
+import { EV_KEY, KEY_PRESS, KEY_RELEASE } from "./constants.ts"
 import { LINUX_KEY_MAP } from "../keyMap.ts"
 import { resolveChar } from "../utils.ts"
-export class LinuxKeyboard {
-	private fd: number
 
-	constructor(fd: number) {
-		this.fd = fd
+export class LinuxKeyboard {
+	private device: UinputDevice
+
+	constructor(device: UinputDevice) {
+		this.device = device
 	}
 
 	injectKey(key: string, pos: string): void {
@@ -92,10 +87,10 @@ export class LinuxKeyboard {
 	}
 
 	private sendKeyEvent(code: number, value: number): void {
-		writeEvent(this.fd, EV_KEY, code, value)
+		this.device.emit(EV_KEY, code, value)
 	}
 
 	private sync(): void {
-		writeEvent(this.fd, EV_SYN, SYN_REPORT, 0)
+		this.device.sync()
 	}
 }

@@ -5,12 +5,10 @@
  * movements through a uinput gamepad device. Translates incoming button IDs and
  * normalized stick coordinates (-1..+1) into Linux input subsystem EV_KEY and EV_ABS events.
  */
-import { writeEvent } from "./structs.ts"
+import type { UinputDevice } from "@imxade/inject/linux"
 import {
-	EV_SYN,
 	EV_KEY,
 	EV_ABS,
-	SYN_REPORT,
 	KEY_PRESS,
 	KEY_RELEASE,
 	BTN_A,
@@ -63,14 +61,14 @@ export const GAMEPAD_BUTTON_MAP: Record<string, number> = {
 const AXIS_MAX = 32767
 
 export class LinuxGamepad {
-	private fd: number
+	private device: UinputDevice
 	private dpadUp = false
 	private dpadDown = false
 	private dpadLeft = false
 	private dpadRight = false
 
-	constructor(fd: number) {
-		this.fd = fd
+	constructor(device: UinputDevice) {
+		this.device = device
 	}
 
 	injectGamepadButton(button: string, isDown: boolean): void {
@@ -78,7 +76,7 @@ export class LinuxGamepad {
 		const code = GAMEPAD_BUTTON_MAP[lowerBtn]
 
 		if (code !== undefined) {
-			writeEvent(this.fd, EV_KEY, code, isDown ? KEY_PRESS : KEY_RELEASE)
+			this.device.emit(EV_KEY, code, isDown ? KEY_PRESS : KEY_RELEASE)
 		} else {
 			console.warn("[LinuxGamepad] Unknown gamepad button:", button)
 		}
@@ -86,40 +84,36 @@ export class LinuxGamepad {
 		// Update dual ABS values for D-Pad and triggers for max compatibility
 		if (lowerBtn === "dpad-up") {
 			this.dpadUp = isDown
-			writeEvent(
-				this.fd,
+			this.device.emit(
 				EV_ABS,
 				ABS_HAT0Y,
 				this.dpadUp ? -1 : this.dpadDown ? 1 : 0,
 			)
 		} else if (lowerBtn === "dpad-down") {
 			this.dpadDown = isDown
-			writeEvent(
-				this.fd,
+			this.device.emit(
 				EV_ABS,
 				ABS_HAT0Y,
 				this.dpadDown ? 1 : this.dpadUp ? -1 : 0,
 			)
 		} else if (lowerBtn === "dpad-left") {
 			this.dpadLeft = isDown
-			writeEvent(
-				this.fd,
+			this.device.emit(
 				EV_ABS,
 				ABS_HAT0X,
 				this.dpadLeft ? -1 : this.dpadRight ? 1 : 0,
 			)
 		} else if (lowerBtn === "dpad-right") {
 			this.dpadRight = isDown
-			writeEvent(
-				this.fd,
+			this.device.emit(
 				EV_ABS,
 				ABS_HAT0X,
 				this.dpadRight ? 1 : this.dpadLeft ? -1 : 0,
 			)
 		} else if (lowerBtn === "lt") {
-			writeEvent(this.fd, EV_ABS, ABS_Z, isDown ? 255 : 0)
+			this.device.emit(EV_ABS, ABS_Z, isDown ? 255 : 0)
 		} else if (lowerBtn === "rt") {
-			writeEvent(this.fd, EV_ABS, ABS_RZ, isDown ? 255 : 0)
+			this.device.emit(EV_ABS, ABS_RZ, isDown ? 255 : 0)
 		}
 
 		this.sync()
@@ -134,17 +128,17 @@ export class LinuxGamepad {
 		const intY = Math.round(normAy * AXIS_MAX)
 
 		if (axis === "ls") {
-			writeEvent(this.fd, EV_ABS, ABS_X, intX)
-			writeEvent(this.fd, EV_ABS, ABS_Y, intY)
+			this.device.emit(EV_ABS, ABS_X, intX)
+			this.device.emit(EV_ABS, ABS_Y, intY)
 		} else if (axis === "rs") {
-			writeEvent(this.fd, EV_ABS, ABS_RX, intX)
-			writeEvent(this.fd, EV_ABS, ABS_RY, intY)
+			this.device.emit(EV_ABS, ABS_RX, intX)
+			this.device.emit(EV_ABS, ABS_RY, intY)
 		}
 
 		this.sync()
 	}
 
 	private sync(): void {
-		writeEvent(this.fd, EV_SYN, SYN_REPORT, 0)
+		this.device.sync()
 	}
 }
