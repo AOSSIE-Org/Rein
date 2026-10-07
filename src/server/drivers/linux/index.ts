@@ -61,6 +61,23 @@ const DEVICE_IDENTITY = {
 	version: 1,
 }
 
+function createDevice(dev: UinputDevice): UinputDevice {
+	try {
+		dev.create()
+		return dev
+	} catch (createErr) {
+		try {
+			dev.destroy()
+		} catch (cleanupErr) {
+			console.error(
+				"[LinuxInputInjector] Error cleaning up device after creation failure:",
+				cleanupErr,
+			)
+		}
+		throw createErr
+	}
+}
+
 const activeInjectors = new Set<LinuxInputInjector>()
 
 function cleanupAllInjectors(): void {
@@ -224,12 +241,27 @@ export class LinuxInputInjector {
 
 	destroy(): void {
 		activeInjectors.delete(this)
-		this.touch?.releaseAll()
-		this.mouseDev?.destroy()
-		this.absMouseDev?.destroy()
-		this.kbDev?.destroy()
-		this.touchDev?.destroy()
-		this.gamepadDev?.destroy()
+
+		const cleanupTasks: Array<() => void> = [
+			() => this.touch?.releaseAll(),
+			() => this.mouseDev?.destroy(),
+			() => this.absMouseDev?.destroy(),
+			() => this.kbDev?.destroy(),
+			() => this.touchDev?.destroy(),
+			() => this.gamepadDev?.destroy(),
+		]
+
+		const errors: unknown[] = []
+
+		for (const task of cleanupTasks) {
+			try {
+				task()
+			} catch (err) {
+				errors.push(err)
+				console.error("[LinuxInputInjector] Error during device cleanup:", err)
+			}
+		}
+
 		this.mouseDev = null
 		this.absMouseDev = null
 		this.kbDev = null
@@ -239,6 +271,16 @@ export class LinuxInputInjector {
 		this.touch = null
 		this.gamepad = null
 		this.initialized = false
+
+		if (errors.length > 0) {
+			if (typeof AggregateError !== "undefined" && errors.length > 1) {
+				throw new AggregateError(
+					errors,
+					"[LinuxInputInjector] Failed to cleanly destroy all devices",
+				)
+			}
+			throw errors[0]
+		}
 	}
 
 	// helpers
@@ -260,18 +302,27 @@ export class LinuxInputInjector {
 			for (const dev of createdDevices) {
 				try {
 					dev.destroy()
-				} catch {}
+				} catch (cleanupErr) {
+					console.error(
+						"[LinuxInputInjector] Error destroying device during initialization rollback:",
+						cleanupErr,
+					)
+				}
 			}
+			activeInjectors.delete(this)
 			this.mouseDev = null
 			this.absMouseDev = null
 			this.kbDev = null
 			this.touchDev = null
+			this.gamepadDev = null
+			this.keyboard = null
+			this.touch = null
+			this.gamepad = null
+			this.initialized = false
 			const msg =
 				"One or more virtual uinput devices failed to initialize (check /dev/uinput permissions)"
 			console.error(`[LinuxInputInjector] ${msg}`, err)
-			this.destroy()
-			this.initialized = false
-			throw new Error(msg)
+			throw new Error(msg, { cause: err })
 		}
 
 		this.keyboard = new LinuxKeyboard(this.kbDev)
@@ -314,8 +365,7 @@ export class LinuxInputInjector {
 		dev.setRelativeBit(REL_WHEEL)
 		dev.setRelativeBit(REL_HWHEEL)
 
-		dev.create()
-		return dev
+		return createDevice(dev)
 	}
 
 	private setupAbsMouseDevice(): UinputDevice {
@@ -337,8 +387,7 @@ export class LinuxInputInjector {
 		dev.configureAbsoluteAxis(ABS_X, { minimum: 0, maximum: ABS_MAX_COORD })
 		dev.configureAbsoluteAxis(ABS_Y, { minimum: 0, maximum: ABS_MAX_COORD })
 
-		dev.create()
-		return dev
+		return createDevice(dev)
 	}
 
 	private setupKeyboardDevice(): UinputDevice {
@@ -355,8 +404,7 @@ export class LinuxInputInjector {
 			dev.setKeyBit(code)
 		}
 
-		dev.create()
-		return dev
+		return createDevice(dev)
 	}
 
 	private setupTouchDevice(): UinputDevice {
@@ -414,8 +462,7 @@ export class LinuxInputInjector {
 			maximum: this.config.screenHeight,
 		})
 
-		dev.create()
-		return dev
+		return createDevice(dev)
 	}
 
 	private setupGamepadDevice(): UinputDevice {
@@ -473,7 +520,6 @@ export class LinuxInputInjector {
 		dev.configureAbsoluteAxis(ABS_HAT0X, { minimum: -1, maximum: 1 })
 		dev.configureAbsoluteAxis(ABS_HAT0Y, { minimum: -1, maximum: 1 })
 
-		dev.create()
-		return dev
+		return createDevice(dev)
 	}
 }

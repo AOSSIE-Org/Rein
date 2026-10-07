@@ -42,9 +42,21 @@ const { MockUinputDevice } = vi.hoisted(() => {
 	}
 
 	class MockUinputDevice {
+		static instances: MockUinputDevice[] = []
+		static onConstruct?: (dev: MockUinputDevice) => void
+
+		options?: { name?: string; identity?: unknown }
 		events: RecordedEvent[] = []
 		syncCount = 0
 		destroyed = false
+		createError: Error | null = null
+		destroyError: Error | null = null
+
+		constructor(options?: { name?: string; identity?: unknown }) {
+			this.options = options
+			MockUinputDevice.instances.push(this)
+			MockUinputDevice.onConstruct?.(this)
+		}
 
 		setEventBit(): this {
 			return this
@@ -65,6 +77,9 @@ const { MockUinputDevice } = vi.hoisted(() => {
 			return this
 		}
 		create(): this {
+			if (this.createError) {
+				throw this.createError
+			}
 			return this
 		}
 
@@ -80,6 +95,9 @@ const { MockUinputDevice } = vi.hoisted(() => {
 
 		destroy(): void {
 			this.destroyed = true
+			if (this.destroyError) {
+				throw this.destroyError
+			}
 		}
 
 		clear(): void {
@@ -379,6 +397,8 @@ describe("LinuxInputInjector Lifecycle & Pointer Unit Tests", () => {
 			value: "linux",
 			configurable: true,
 		})
+		MockUinputDevice.instances = []
+		MockUinputDevice.onConstruct = undefined
 	})
 
 	afterEach(() => {
@@ -386,6 +406,8 @@ describe("LinuxInputInjector Lifecycle & Pointer Unit Tests", () => {
 			value: originalPlatform,
 			configurable: true,
 		})
+		MockUinputDevice.instances = []
+		MockUinputDevice.onConstruct = undefined
 	})
 
 	it("initializes successfully and manages virtual devices", () => {
@@ -451,5 +473,128 @@ describe("LinuxInputInjector Lifecycle & Pointer Unit Tests", () => {
 		expect(() => new LinuxInputInjector()).toThrow(
 			"LinuxInputInjector can only be used on Linux",
 		)
+	})
+
+	it("rolls back initialization and destroys local and previous devices if create() fails", () => {
+		const consoleErrorSpy = vi
+			.spyOn(console, "error")
+			.mockImplementation(() => {})
+		const creationError = new Error("Virtual keyboard create failure")
+		MockUinputDevice.onConstruct = (dev) => {
+			if (dev.options?.name === "Virtual Keyboard") {
+				dev.createError = creationError
+			}
+		}
+
+		expect(() => new LinuxInputInjector()).toThrow(
+			"One or more virtual uinput devices failed to initialize (check /dev/uinput permissions)",
+		)
+
+		expect(MockUinputDevice.instances).toHaveLength(3)
+		const [mouse, absMouse, keyboard] = MockUinputDevice.instances
+		expect(keyboard.destroyed).toBe(true)
+		expect(mouse.destroyed).toBe(true)
+		expect(absMouse.destroyed).toBe(true)
+
+		consoleErrorSpy.mockRestore()
+	})
+
+	it("preserves original creation error when local device cleanup also throws", () => {
+		const consoleErrorSpy = vi
+			.spyOn(console, "error")
+			.mockImplementation(() => {})
+		const creationError = new Error("Device creation failed")
+		const cleanupError = new Error("Cleanup destroy failed")
+
+		MockUinputDevice.onConstruct = (dev) => {
+			if (dev.options?.name === "Virtual Keyboard") {
+				dev.createError = creationError
+				dev.destroyError = cleanupError
+			}
+		}
+
+		let caughtError: unknown
+		try {
+			new LinuxInputInjector()
+		} catch (err) {
+			caughtError = err
+		}
+
+		expect(caughtError).toBeInstanceOf(Error)
+		expect((caughtError as Error).cause).toBe(creationError)
+		expect(consoleErrorSpy).toHaveBeenCalled()
+
+		consoleErrorSpy.mockRestore()
+	})
+
+	it("attempts cleanup for all remaining devices when one device destroy() throws", () => {
+		const consoleErrorSpy = vi
+			.spyOn(console, "error")
+			.mockImplementation(() => {})
+		const injector = new LinuxInputInjector()
+		const [mouse, absMouse, keyboard, touchpad, gamepad] =
+			MockUinputDevice.instances
+
+		const destroyErr = new Error("Mouse destroy failure")
+		mouse.destroyError = destroyErr
+
+		expect(() => injector.destroy()).toThrow(destroyErr)
+
+		expect(absMouse.destroyed).toBe(true)
+		expect(keyboard.destroyed).toBe(true)
+		expect(touchpad.destroyed).toBe(true)
+		expect(gamepad.destroyed).toBe(true)
+
+		const state = injector as unknown as Record<string, unknown>
+		expect(state.mouseDev).toBeNull()
+		expect(state.absMouseDev).toBeNull()
+		expect(state.kbDev).toBeNull()
+		expect(state.touchDev).toBeNull()
+		expect(state.gamepadDev).toBeNull()
+		expect(state.initialized).toBe(false)
+
+		consoleErrorSpy.mockRestore()
+	})
+
+	it("throws AggregateError when multiple devices fail during destroy()", () => {
+		const consoleErrorSpy = vi
+			.spyOn(console, "error")
+			.mockImplementation(() => {})
+		const injector = new LinuxInputInjector()
+		const [mouse, , keyboard] = MockUinputDevice.instances
+
+		mouse.destroyError = new Error("Mouse destroy failure")
+		keyboard.destroyError = new Error("Keyboard destroy failure")
+
+		expect(() => injector.destroy()).toThrow(AggregateError)
+
+		consoleErrorSpy.mockRestore()
+	})
+
+	it("cleans up failed gamepad device locally without breaking injector initialization", () => {
+		const consoleWarnSpy = vi
+			.spyOn(console, "warn")
+			.mockImplementation(() => {})
+		MockUinputDevice.onConstruct = (dev) => {
+			if (dev.options?.name === "Virtual Gamepad") {
+				dev.createError = new Error("Gamepad node creation failure")
+			}
+		}
+
+		const injector = new LinuxInputInjector()
+		const gamepad = MockUinputDevice.instances[4]
+
+		expect(gamepad.destroyed).toBe(true)
+		const state = injector as unknown as {
+			initialized: boolean
+			gamepad: unknown
+			gamepadDev: unknown
+		}
+		expect(state.initialized).toBe(true)
+		expect(state.gamepad).toBeNull()
+		expect(state.gamepadDev).toBeNull()
+
+		injector.destroy()
+		consoleWarnSpy.mockRestore()
 	})
 })
