@@ -1,6 +1,13 @@
+import type { UinputDevice } from "@imxade/inject/linux"
 import { describe, expect, it, vi } from "vitest"
 import { GAMEPAD_BUTTON_MAP, LinuxGamepad } from "./drivers/linux/gamepad.ts"
-import * as structs from "./drivers/linux/structs.ts"
+
+function createMockDevice() {
+	return {
+		emit: vi.fn().mockReturnThis(),
+		sync: vi.fn().mockReturnThis(),
+	} as unknown as UinputDevice
+}
 
 describe("LinuxGamepad", () => {
 	it("should contain standard gamepad button mappings", () => {
@@ -22,47 +29,38 @@ describe("LinuxGamepad", () => {
 		expect(GAMEPAD_BUTTON_MAP["dpad-right"]).toBe(0x223)
 	})
 
-	it("should write EV_KEY and EV_SYN events on button press/release", () => {
-		const writeSpy = vi.spyOn(structs, "writeEvent").mockReturnValue(true)
-		const mockFd = 42
-		const gamepad = new LinuxGamepad(mockFd)
+	it("should emit EV_KEY and sync events on button press/release", () => {
+		const mockDevice = createMockDevice()
+		const gamepad = new LinuxGamepad(mockDevice)
 
 		gamepad.injectGamepadButton("a", true)
 
-		// Expect EV_KEY press (type 1, code 0x130, value 1) and EV_SYN (type 0, code 0, value 0)
-		expect(writeSpy).toHaveBeenCalledWith(mockFd, 0x01, 0x130, 1)
-		expect(writeSpy).toHaveBeenCalledWith(mockFd, 0x00, 0x00, 0)
-
-		writeSpy.mockRestore()
+		// Expect EV_KEY press (type 1, code 0x130, value 1) and sync
+		expect(mockDevice.emit).toHaveBeenCalledWith(0x01, 0x130, 1)
+		expect(mockDevice.sync).toHaveBeenCalled()
 	})
 
-	it("should write EV_ABS events for analog sticks and clamp values", () => {
-		const writeSpy = vi.spyOn(structs, "writeEvent").mockReturnValue(true)
-		const mockFd = 42
-		const gamepad = new LinuxGamepad(mockFd)
+	it("should emit EV_ABS events for analog sticks and clamp values", () => {
+		const mockDevice = createMockDevice()
+		const gamepad = new LinuxGamepad(mockDevice)
 
 		gamepad.injectGamepadAxis("ls", -1.0, 1.0)
 
 		// ABS_X (0x00) = -32767, ABS_Y (0x01) = 32767
-		expect(writeSpy).toHaveBeenCalledWith(mockFd, 0x03, 0x00, -32767)
-		expect(writeSpy).toHaveBeenCalledWith(mockFd, 0x03, 0x01, 32767)
-		expect(writeSpy).toHaveBeenCalledWith(mockFd, 0x00, 0x00, 0)
-
-		writeSpy.mockRestore()
+		expect(mockDevice.emit).toHaveBeenCalledWith(0x03, 0x00, -32767)
+		expect(mockDevice.emit).toHaveBeenCalledWith(0x03, 0x01, 32767)
+		expect(mockDevice.sync).toHaveBeenCalled()
 	})
 
 	it("should clamp out-of-range axis values before writing", () => {
-		const writeSpy = vi.spyOn(structs, "writeEvent").mockReturnValue(true)
-		const mockFd = 42
-		const gamepad = new LinuxGamepad(mockFd)
+		const mockDevice = createMockDevice()
+		const gamepad = new LinuxGamepad(mockDevice)
 
 		// Values outside [-1.0, 1.0] must clamp to -32767 and 32767
 		gamepad.injectGamepadAxis("ls", -2.5, 3.5)
 
-		expect(writeSpy).toHaveBeenCalledWith(mockFd, 0x03, 0x00, -32767)
-		expect(writeSpy).toHaveBeenCalledWith(mockFd, 0x03, 0x01, 32767)
-		expect(writeSpy).toHaveBeenCalledWith(mockFd, 0x00, 0x00, 0)
-
-		writeSpy.mockRestore()
+		expect(mockDevice.emit).toHaveBeenCalledWith(0x03, 0x00, -32767)
+		expect(mockDevice.emit).toHaveBeenCalledWith(0x03, 0x01, 32767)
+		expect(mockDevice.sync).toHaveBeenCalled()
 	})
 })

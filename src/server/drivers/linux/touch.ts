@@ -5,12 +5,10 @@
  * handling contact allocation, movement, release, and synchronization
  * while emitting the appropriate touch and tool events to a uinput device.
  */
-import { writeEvent } from "./structs.ts"
+import type { UinputDevice } from "@imxade/inject/linux"
 import {
-	EV_SYN,
 	EV_ABS,
 	EV_KEY,
-	SYN_REPORT,
 	ABS_MT_SLOT,
 	ABS_MT_TRACKING_ID,
 	ABS_MT_POSITION_X,
@@ -30,7 +28,7 @@ import {
 import type { TouchContact } from "../../types.ts"
 
 export class LinuxTouch {
-	private fd: number
+	private device: UinputDevice
 	// slot :tracking id
 	private slotTrackingIds: Int32Array
 	// sourceId :slot index
@@ -39,8 +37,8 @@ export class LinuxTouch {
 	private nextTrackingId = 1
 	private activeContactCount = 0
 
-	constructor(fd: number) {
-		this.fd = fd
+	constructor(device: UinputDevice) {
+		this.device = device
 		this.slotTrackingIds = new Int32Array(MAX_CONTACTS).fill(
 			MT_TRACKING_ID_RELEASED,
 		)
@@ -80,16 +78,16 @@ export class LinuxTouch {
 				// Assign slot + tracking id
 				this.selectSlot(slot, slotChanged)
 				slotChanged = slot
-				writeEvent(this.fd, EV_ABS, ABS_MT_TRACKING_ID, this.nextTrackingId)
+				this.device.emit(EV_ABS, ABS_MT_TRACKING_ID, this.nextTrackingId)
 			} else if (slot !== slotChanged) {
 				this.selectSlot(slot, slotChanged)
 				slotChanged = slot
 			}
 
-			writeEvent(this.fd, EV_ABS, ABS_MT_POSITION_X, Math.round(contact.x))
-			writeEvent(this.fd, EV_ABS, ABS_MT_POSITION_Y, Math.round(contact.y))
-			writeEvent(this.fd, EV_ABS, ABS_MT_PRESSURE, 128)
-			writeEvent(this.fd, EV_ABS, ABS_MT_TOUCH_MAJOR, 4)
+			this.device.emit(EV_ABS, ABS_MT_POSITION_X, Math.round(contact.x))
+			this.device.emit(EV_ABS, ABS_MT_POSITION_Y, Math.round(contact.y))
+			this.device.emit(EV_ABS, ABS_MT_PRESSURE, 128)
+			this.device.emit(EV_ABS, ABS_MT_TOUCH_MAJOR, 4)
 		}
 
 		// Update BTN_TOUCH / BTN_TOOL_* based on live contact count
@@ -110,12 +108,12 @@ export class LinuxTouch {
 		if (this.contactSlotMap.size === 0) return
 
 		for (const [, slot] of this.contactSlotMap) {
-			writeEvent(this.fd, EV_ABS, ABS_MT_SLOT, slot)
-			writeEvent(this.fd, EV_ABS, ABS_MT_TRACKING_ID, MT_TRACKING_ID_RELEASED)
+			this.device.emit(EV_ABS, ABS_MT_SLOT, slot)
+			this.device.emit(EV_ABS, ABS_MT_TRACKING_ID, MT_TRACKING_ID_RELEASED)
 		}
 
-		writeEvent(this.fd, EV_KEY, BTN_TOUCH, KEY_RELEASE)
-		writeEvent(this.fd, EV_KEY, BTN_TOOL_FINGER, KEY_RELEASE)
+		this.device.emit(EV_KEY, BTN_TOUCH, KEY_RELEASE)
+		this.device.emit(EV_KEY, BTN_TOOL_FINGER, KEY_RELEASE)
 		this.sync()
 
 		this.contactSlotMap.clear()
@@ -131,48 +129,36 @@ export class LinuxTouch {
 		const slot = this.contactSlotMap.get(sourceId)
 		if (slot === undefined) return
 
-		writeEvent(this.fd, EV_ABS, ABS_MT_SLOT, slot)
-		writeEvent(this.fd, EV_ABS, ABS_MT_TRACKING_ID, MT_TRACKING_ID_RELEASED)
+		this.device.emit(EV_ABS, ABS_MT_SLOT, slot)
+		this.device.emit(EV_ABS, ABS_MT_TRACKING_ID, MT_TRACKING_ID_RELEASED)
 		this.slotTrackingIds[slot] = MT_TRACKING_ID_RELEASED
 		this.activeContactCount = Math.max(0, this.activeContactCount - 1)
 	}
 
 	private selectSlot(slot: number, currentSlot: number): void {
 		if (slot !== currentSlot) {
-			writeEvent(this.fd, EV_ABS, ABS_MT_SLOT, slot)
+			this.device.emit(EV_ABS, ABS_MT_SLOT, slot)
 		}
 	}
 
 	private emitToolButtons(): void {
 		const n = this.activeContactCount
-		writeEvent(this.fd, EV_KEY, BTN_TOUCH, n > 0 ? KEY_PRESS : KEY_RELEASE)
-		writeEvent(
-			this.fd,
-			EV_KEY,
-			BTN_TOOL_FINGER,
-			n === 1 ? KEY_PRESS : KEY_RELEASE,
-		)
-		writeEvent(
-			this.fd,
+		this.device.emit(EV_KEY, BTN_TOUCH, n > 0 ? KEY_PRESS : KEY_RELEASE)
+		this.device.emit(EV_KEY, BTN_TOOL_FINGER, n === 1 ? KEY_PRESS : KEY_RELEASE)
+		this.device.emit(
 			EV_KEY,
 			BTN_TOOL_DOUBLETAP,
 			n === 2 ? KEY_PRESS : KEY_RELEASE,
 		)
-		writeEvent(
-			this.fd,
+		this.device.emit(
 			EV_KEY,
 			BTN_TOOL_TRIPLETAP,
 			n === 3 ? KEY_PRESS : KEY_RELEASE,
 		)
-		writeEvent(
-			this.fd,
-			EV_KEY,
-			BTN_TOOL_QUADTAP,
-			n >= 4 ? KEY_PRESS : KEY_RELEASE,
-		)
+		this.device.emit(EV_KEY, BTN_TOOL_QUADTAP, n >= 4 ? KEY_PRESS : KEY_RELEASE)
 	}
 
 	private sync(): void {
-		writeEvent(this.fd, EV_SYN, SYN_REPORT, 0)
+		this.device.sync()
 	}
 }
