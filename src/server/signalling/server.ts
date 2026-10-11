@@ -297,7 +297,10 @@ export function attachSignalingRoutes(server: any): void {
 						const gstFields: Partial<ServerConfig> = {}
 						if ("framerate" in config) gstFields.framerate = framerate ?? null
 						if ("uploadDir" in config && typeof uploadDir === "string") {
-							gstFields.uploadDir = uploadDir
+							const trimmedDir = uploadDir.trim()
+							if (trimmedDir && !trimmedDir.includes("\0")) {
+								gstFields.uploadDir = path.resolve(trimmedDir)
+							}
 						}
 						if ("streamQuality" in config) {
 							const q = streamQuality

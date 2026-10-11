@@ -5,6 +5,7 @@ import {
 	useFileShare,
 	type DirectoryItem,
 } from "../../contexts/FileShareContext"
+import { t } from "../../utils/i18n"
 import {
 	Upload,
 	X,
@@ -123,7 +124,10 @@ export function FileShareOverlay() {
 
 	if (!overlayOpen) return null
 
-	const pathSegments = currentPath ? currentPath.split("/").filter(Boolean) : []
+	const isWindows = /^[a-zA-Z]:/.test(currentPath)
+	const pathSegments = currentPath
+		? currentPath.split(/[/\\]+/).filter(Boolean)
+		: []
 
 	return (
 		<div
@@ -160,7 +164,9 @@ export function FileShareOverlay() {
 				{/* Top Header Bar */}
 				<div className="flex bg-base-100 items-center justify-between px-5 py-3 border-b border-base-300">
 					<div className="flex items-center gap-2">
-						<span className="font-semibold text-base">File Explorer</span>
+						<span className="font-semibold text-base">
+							{t("sendFile", "fileExplorer")}
+						</span>
 					</div>
 
 					<div className="flex items-center gap-2">
@@ -169,21 +175,21 @@ export function FileShareOverlay() {
 							className="btn btn-sm btn-primary gap-1.5 rounded-lg"
 							disabled={uploading}
 							onClick={() => fileInputRef.current?.click()}
-							title="Upload file to host"
+							title={t("sendFile", "uploadTitle")}
 						>
 							{uploading ? (
-								<Loader2 size={16} className="animate-spin" />
+								<Loader2 size={16} className="motion-safe:animate-spin" />
 							) : (
 								<Upload size={16} />
 							)}
-							<span>Upload</span>
+							<span>{t("sendFile", "upload")}</span>
 						</button>
 						{parentPath && (
 							<button
 								type="button"
 								className="btn btn-ghost btn-xs btn-circle shrink-0"
 								onClick={() => fetchDirectory(parentPath)}
-								title="Up one folder"
+								title={t("sendFile", "upOneFolder")}
 							>
 								<Undo2 size={15} />
 							</button>
@@ -192,11 +198,11 @@ export function FileShareOverlay() {
 							type="button"
 							className="btn btn-ghost btn-sm btn-circle"
 							onClick={() => fetchDirectory(currentPath)}
-							title="Refresh directory"
+							title={t("sendFile", "refreshDirectory")}
 						>
 							<RefreshCw
 								size={16}
-								className={isLoadingDir ? "animate-spin" : ""}
+								className={isLoadingDir ? "motion-safe:animate-spin" : ""}
 							/>
 						</button>
 
@@ -205,7 +211,7 @@ export function FileShareOverlay() {
 							id="file-share-overlay-close"
 							className="btn btn-ghost btn-sm btn-circle"
 							onClick={() => setOverlayOpen(false)}
-							title="Close"
+							title={t("sendFile", "close")}
 						>
 							<X size={18} />
 						</button>
@@ -219,11 +225,20 @@ export function FileShareOverlay() {
 						onClick={() => fetchDirectory("")}
 					>
 						<Home size={14} />
-						<span>Root</span>
+						<span>{t("sendFile", "sharedRoot")}</span>
 					</button>
 
 					{pathSegments.map((segment, idx) => {
-						const subPath = `/${pathSegments.slice(0, idx + 1).join("/")}`
+						let subPath: string
+						if (isWindows) {
+							const drive = pathSegments[0]
+							subPath =
+								idx === 0
+									? `${drive}\\`
+									: pathSegments.slice(0, idx + 1).join("\\")
+						} else {
+							subPath = `/${pathSegments.slice(0, idx + 1).join("/")}`
+						}
 						const isLast = idx === pathSegments.length - 1
 						return (
 							<div key={subPath} className="flex items-center gap-1 shrink-0">
@@ -246,13 +261,18 @@ export function FileShareOverlay() {
 				<div className="flex-1 bg-base-300/40 overflow-y-auto p-3">
 					{isLoadingDir ? (
 						<div className="flex flex-col items-center justify-center h-full gap-2 opacity-50">
-							<Loader2 size={24} className="animate-spin text-primary" />
-							<span className="text-xs font-medium">Loading folder...</span>
+							<Loader2
+								size={24}
+								className="motion-safe:animate-spin text-primary"
+							/>
+							<span className="text-xs font-medium">
+								{t("sendFile", "loadingFolder")}
+							</span>
 						</div>
 					) : directoryItems.length === 0 ? (
 						<div className="flex flex-col items-center justify-center h-full opacity-40 gap-2">
 							<Folder size={36} />
-							<p className="text-xs">Directory is empty</p>
+							<p className="text-xs">{t("sendFile", "directoryEmpty")}</p>
 						</div>
 					) : (
 						<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -281,7 +301,9 @@ export function FileShareOverlay() {
 												{item.name}
 											</p>
 											<p className="text-[11px] opacity-50">
-												{item.isDir ? "Folder" : formatBytes(item.size)}
+												{item.isDir
+													? t("sendFile", "folder")
+													: formatBytes(item.size)}
 											</p>
 										</div>
 									</button>
@@ -315,14 +337,14 @@ export function FileShareOverlay() {
 								}
 							>
 								<Download size={16} />
-								<span>Download</span>
+								<span>{t("sendFile", "download")}</span>
 							</button>
 
 							<button
 								type="button"
 								className="btn btn-ghost btn-xs btn-circle"
 								onClick={() => setSelectedItem(null)}
-								title="Clear selection"
+								title={t("sendFile", "clearSelection")}
 							>
 								<X size={16} />
 							</button>

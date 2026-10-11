@@ -40,36 +40,39 @@ const MAX_FILE_BYTES = 512 * 1024 * 1024 // 512 MB hard ceiling
 
 function getMimeType(fileName: string): string {
 	const ext = path.extname(fileName).toLowerCase()
-	if ([".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"].includes(ext)) {
-		return `image/${ext.slice(1)}`
-	} else if ([".mp4", ".webm", ".mkv", ".avi"].includes(ext)) {
-		return `video/${ext.slice(1)}`
-	} else if ([".mp3", ".wav", ".ogg", ".flac"].includes(ext)) {
-		return `audio/${ext.slice(1)}`
+	const map: Record<string, string> = {
+		".png": "image/png",
+		".jpg": "image/jpeg",
+		".jpeg": "image/jpeg",
+		".gif": "image/gif",
+		".svg": "image/svg+xml",
+		".webp": "image/webp",
+		".mp4": "video/mp4",
+		".webm": "video/webm",
+		".mkv": "video/x-matroska",
+		".avi": "video/x-msvideo",
+		".mp3": "audio/mpeg",
+		".wav": "audio/wav",
+		".ogg": "audio/ogg",
+		".flac": "audio/flac",
+		".pdf": "application/pdf",
+		".json": "application/json",
+		".txt": "text/plain",
+		".md": "text/markdown",
+		".ts": "text/plain",
+		".js": "text/plain",
+		".tsx": "text/plain",
+		".css": "text/css",
+		".html": "text/html",
+		".py": "text/plain",
+		".c": "text/plain",
+		".cpp": "text/plain",
+		".zip": "application/zip",
+		".tar": "application/x-tar",
+		".gz": "application/gzip",
+		".7z": "application/x-7z-compressed",
 	}
-	if (ext === ".pdf") {
-		return "application/pdf"
-	}
-	if (ext === ".json") {
-		return "application/json"
-	} else if (
-		[
-			".txt",
-			".md",
-			".ts",
-			".js",
-			".tsx",
-			".css",
-			".html",
-			".py",
-			".c",
-			".cpp",
-		].includes(ext)
-	) {
-		return "text/plain"
-	} else if ([".zip", ".tar", ".gz", ".7z"].includes(ext)) {
-		return "application/zip"
-	} else return "application/octet-stream"
+	return map[ext] ?? "application/octet-stream"
 }
 
 function broadcastFileEvent(event: unknown): void {
@@ -166,11 +169,18 @@ export async function handleFileUpload(
 		const { name, mimeType, data } = await parseMultipart(req)
 
 		const uploadDir = getUploadDir()
-		const safeName = path.basename(name)
+		// Normalize Windows slashes and extract safe basename
+		const normalizedName = name.replace(/\\/g, "/")
+		const safeName = path.basename(normalizedName)
+		if (!safeName || safeName === "." || safeName === "..") {
+			json(res, 400, { ok: false, error: "Invalid file name" })
+			return
+		}
+
 		const filePath = path.join(uploadDir, safeName)
 
-		// Save uploaded file to host disk
-		fs.writeFileSync(filePath, data)
+		// Save uploaded file to host disk asynchronously
+		await fs.promises.writeFile(filePath, data)
 
 		const id = randomUUID()
 		const file: SharedFile = {
@@ -237,6 +247,7 @@ export async function handleFileBrowse(
 			if (entry.name.startsWith(".")) continue
 
 			const fullPath = path.join(targetPath, entry.name)
+
 			try {
 				const entryStat = fs.statSync(fullPath)
 				const isDir = entry.isDirectory()
@@ -301,6 +312,7 @@ export function handleFileDownload(
 
 	if (filePathParam) {
 		const targetPath = path.resolve(filePathParam)
+
 		if (!fs.existsSync(targetPath) || !fs.statSync(targetPath).isFile()) {
 			json(res, 404, { error: "File not found" })
 			return
@@ -312,9 +324,18 @@ export function handleFileDownload(
 		res.writeHead(200, {
 			"Content-Type": mimeType,
 			"Content-Length": stat.size,
-			"Content-Disposition": `attachment; filename="${encodeURIComponent(fileName)}"`,
+			"Content-Disposition": `attachment; filename="${encodeURIComponent(fileName)}"; filename*=UTF-8''${encodeURIComponent(fileName)}`,
 		})
-		fs.createReadStream(targetPath).pipe(res)
+		const readStream = fs.createReadStream(targetPath)
+		readStream.on("error", (err) => {
+			logger.error(`Download stream error for ${targetPath}: ${err}`)
+			if (!res.headersSent) {
+				json(res, 500, { error: "Failed to stream file" })
+			} else {
+				res.destroy()
+			}
+		})
+		readStream.pipe(res)
 		logger.info(`File downloaded from path: ${targetPath}`)
 		return
 	}

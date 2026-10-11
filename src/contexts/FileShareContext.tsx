@@ -98,8 +98,13 @@ export function FileShareProvider({ children }: { children: React.ReactNode }) {
 
 	const esRef = useRef<EventSource | null>(null)
 	const ownUploadIds = useRef<Set<string>>(new Set())
+	const reqSeqRef = useRef(0)
+	const currentPathRef = useRef("")
+	const overlayOpenRef = useRef(overlayOpen)
+	overlayOpenRef.current = overlayOpen
 
 	const fetchDirectory = useCallback(async (dirPath?: string) => {
+		const seq = ++reqSeqRef.current
 		setIsLoadingDir(true)
 		setSelectedItem(null)
 		try {
@@ -108,28 +113,34 @@ export function FileShareProvider({ children }: { children: React.ReactNode }) {
 			const res = await fetch(url, {
 				headers: token ? { Authorization: `Bearer ${token}` } : {},
 			})
+			if (!res.ok) {
+				throw new Error(`Directory browse failed with status ${res.status}`)
+			}
 			const data = (await res.json()) as {
 				currentPath: string
 				parentPath: string | null
 				items: DirectoryItem[]
 			}
-			if (data.currentPath) {
+			if (seq === reqSeqRef.current && data.currentPath) {
 				setCurrentPath(data.currentPath)
+				currentPathRef.current = data.currentPath
 				setParentPath(data.parentPath)
 				setDirectoryItems(data.items ?? [])
 			}
 		} catch (e) {
 			console.error("Failed to browse directory:", e)
 		} finally {
-			setIsLoadingDir(false)
+			if (seq === reqSeqRef.current) {
+				setIsLoadingDir(false)
+			}
 		}
 	}, [])
 
 	useEffect(() => {
 		if (overlayOpen) {
-			fetchDirectory(currentPath || undefined)
+			fetchDirectory(currentPathRef.current || undefined)
 		}
-	}, [overlayOpen, currentPath, fetchDirectory])
+	}, [overlayOpen, fetchDirectory])
 
 	useEffect(() => {
 		const token = getToken()
@@ -168,8 +179,10 @@ export function FileShareProvider({ children }: { children: React.ReactNode }) {
 							return [{ ...info, decision: "pending" }, ...prev]
 						})
 					}
-					// Refresh directory list if overlay open
-					fetchDirectory(currentPath || undefined)
+					// Refresh directory ONLY when overlay is currently open
+					if (overlayOpenRef.current) {
+						fetchDirectory(currentPathRef.current || undefined)
+					}
 				} else if (msg.type === "file-deleted" && msg.fileId) {
 					setSharedFiles((prev) => prev.filter((f) => f.fileId !== msg.fileId))
 					setNotifications((prev) =>
@@ -184,7 +197,7 @@ export function FileShareProvider({ children }: { children: React.ReactNode }) {
 		return () => {
 			es.close()
 		}
-	}, [currentPath, fetchDirectory])
+	}, [fetchDirectory])
 
 	const uploadFile = useCallback(
 		async (file: File): Promise<string> => {
@@ -215,11 +228,17 @@ export function FileShareProvider({ children }: { children: React.ReactNode }) {
 						return next
 					})
 					if (xhr.status === 200) {
-						const resp = JSON.parse(xhr.responseText) as { fileId?: string }
-						const realId = resp.fileId ?? tempId
-						ownUploadIds.current.add(realId)
-						fetchDirectory(currentPath || undefined)
-						resolve(realId)
+						try {
+							const resp = JSON.parse(xhr.responseText) as { fileId?: string }
+							const realId = resp.fileId ?? tempId
+							ownUploadIds.current.add(realId)
+							fetchDirectory(currentPathRef.current || undefined)
+							resolve(realId)
+						} catch (err) {
+							reject(
+								new Error(`Failed to parse upload response: ${String(err)}`),
+							)
+						}
 					} else {
 						reject(new Error(`Upload failed: ${xhr.status}`))
 					}
@@ -237,7 +256,7 @@ export function FileShareProvider({ children }: { children: React.ReactNode }) {
 				xhr.send(formData)
 			})
 		},
-		[currentPath, fetchDirectory],
+		[fetchDirectory],
 	)
 
 	const downloadFileByPath = useCallback((filePath: string, name: string) => {

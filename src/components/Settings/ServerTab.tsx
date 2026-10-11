@@ -296,21 +296,20 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 			<div className="form-control w-full">
 				<label className="label mb-3" htmlFor="upload-dir-input">
 					<span className="label-text font-medium">
-						Shared Download & Upload Directory
+						{t("serverTab", "sharedDirectory")}
 					</span>
 				</label>
 				<input
 					id="upload-dir-input"
 					type="text"
-					placeholder="Default: Downloads/ReinShared"
+					placeholder={t("serverTab", "sharedDirectoryPlaceholder")}
 					className="input input-bordered w-full rounded-md"
 					value={uploadDir}
 					onChange={(e) => setUploadDir(e.target.value)}
 				/>
 				<label className="label mt-1" htmlFor="upload-dir-input">
 					<span className="label-text-alt opacity-50">
-						Directory on the host server where files uploaded by connected
-						devices will be stored.
+						{t("serverTab", "sharedDirectoryHelp")}
 					</span>
 				</label>
 			</div>
