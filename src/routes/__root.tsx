@@ -16,7 +16,6 @@ import {
 import { DebugProvider } from "../contexts/DebugContext"
 import { FileShareProvider, useFileShare } from "../contexts/FileShareContext"
 import { FileShareOverlay } from "../components/FileTransfer/SendFileComponent"
-import { IncomingFileNotifications } from "../components/FileTransfer/IncomingFileNotification"
 import { NotFound } from "../components/NotFound/NotFound"
 import {
 	FolderOpen,
@@ -88,7 +87,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 					<Navbar />
 					<main className="flex-1 overflow-hidden relative">{children}</main>
 				</div>
-				<IncomingFileNotifications />
 				<FileShareOverlay />
 				<Scripts />
 			</body>

@@ -29,21 +29,11 @@ export interface DirectoryItem {
 	modifiedAt: number
 }
 
-interface IncomingNotification extends SharedFileInfo {
-	decision: "pending" | "accepted" | "rejected"
-}
-
 interface FileShareContextType {
 	/** Files known to this client (host or remote) */
 	sharedFiles: SharedFileInfo[]
-	/** Incoming file notifications awaiting accept/reject */
-	notifications: IncomingNotification[]
 	/** Upload a file; returns the fileId or throws */
 	uploadFile: (file: File) => Promise<string>
-	/** Accept (download) an incoming file */
-	acceptFile: (fileId: string) => void
-	/** Reject (dismiss) an incoming file notification */
-	rejectFile: (fileId: string) => void
 	/** Delete a file from the shared store */
 	deleteFile: (fileId: string) => Promise<void>
 	/** Whether the send-file overlay is open */
@@ -85,7 +75,6 @@ function authQuery(): string {
 
 export function FileShareProvider({ children }: { children: React.ReactNode }) {
 	const [sharedFiles, setSharedFiles] = useState<SharedFileInfo[]>([])
-	const [notifications, setNotifications] = useState<IncomingNotification[]>([])
 	const [overlayOpen, setOverlayOpen] = useState(false)
 	const [uploadProgress, setUploadProgress] = useState<Record<string, number>>(
 		{},
@@ -97,7 +86,6 @@ export function FileShareProvider({ children }: { children: React.ReactNode }) {
 	const [isLoadingDir, setIsLoadingDir] = useState<boolean>(false)
 
 	const esRef = useRef<EventSource | null>(null)
-	const ownUploadIds = useRef<Set<string>>(new Set())
 	const reqSeqRef = useRef(0)
 	const currentPathRef = useRef("")
 	const overlayOpenRef = useRef(overlayOpen)
@@ -173,21 +161,12 @@ export function FileShareProvider({ children }: { children: React.ReactNode }) {
 						if (prev.some((f) => f.fileId === info.fileId)) return prev
 						return [info, ...prev]
 					})
-					if (!ownUploadIds.current.has(info.fileId)) {
-						setNotifications((prev) => {
-							if (prev.some((n) => n.fileId === info.fileId)) return prev
-							return [{ ...info, decision: "pending" }, ...prev]
-						})
-					}
-					// Refresh directory ONLY when overlay is currently open
+					// Refresh directory when overlay is open
 					if (overlayOpenRef.current) {
 						fetchDirectory(currentPathRef.current || undefined)
 					}
 				} else if (msg.type === "file-deleted" && msg.fileId) {
 					setSharedFiles((prev) => prev.filter((f) => f.fileId !== msg.fileId))
-					setNotifications((prev) =>
-						prev.filter((n) => n.fileId !== msg.fileId),
-					)
 				}
 			} catch {}
 		}
@@ -231,7 +210,6 @@ export function FileShareProvider({ children }: { children: React.ReactNode }) {
 						try {
 							const resp = JSON.parse(xhr.responseText) as { fileId?: string }
 							const realId = resp.fileId ?? tempId
-							ownUploadIds.current.add(realId)
 							fetchDirectory(currentPathRef.current || undefined)
 							resolve(realId)
 						} catch (err) {
@@ -270,36 +248,6 @@ export function FileShareProvider({ children }: { children: React.ReactNode }) {
 		document.body.removeChild(a)
 	}, [])
 
-	const acceptFile = useCallback((fileId: string) => {
-		setNotifications((prev) =>
-			prev.map((n) =>
-				n.fileId === fileId ? { ...n, decision: "accepted" } : n,
-			),
-		)
-		const token = getToken()
-		const url = `/api/files/download?fileId=${encodeURIComponent(fileId)}${token ? `&token=${encodeURIComponent(token)}` : ""}`
-		const a = document.createElement("a")
-		a.href = url
-		a.download = ""
-		document.body.appendChild(a)
-		a.click()
-		document.body.removeChild(a)
-		setTimeout(() => {
-			setNotifications((prev) => prev.filter((n) => n.fileId !== fileId))
-		}, 2000)
-	}, [])
-
-	const rejectFile = useCallback((fileId: string) => {
-		setNotifications((prev) =>
-			prev.map((n) =>
-				n.fileId === fileId ? { ...n, decision: "rejected" } : n,
-			),
-		)
-		setTimeout(() => {
-			setNotifications((prev) => prev.filter((n) => n.fileId !== fileId))
-		}, 400)
-	}, [])
-
 	const deleteFile = useCallback(async (fileId: string) => {
 		const token = getToken()
 		await fetch(
@@ -315,10 +263,7 @@ export function FileShareProvider({ children }: { children: React.ReactNode }) {
 		<FileShareContext.Provider
 			value={{
 				sharedFiles,
-				notifications,
 				uploadFile,
-				acceptFile,
-				rejectFile,
 				deleteFile,
 				overlayOpen,
 				setOverlayOpen,
