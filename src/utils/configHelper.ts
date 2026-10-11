@@ -16,8 +16,33 @@ export interface ServerConfig {
 	streamQuality?: "performance" | "intermediate" | "quality"
 	audioSource?: string
 	version?: string
+	uploadDir?: string
 }
 let cachedConfig: ServerConfig | null = null
+
+export function getUploadDir(): string {
+	const cfg = loadServerConfig()
+	const defaultDir = path.join(os.homedir(), "Downloads", "ReinShared")
+	const rawDir = cfg.uploadDir?.trim() || defaultDir
+	const resolved = path.resolve(rawDir)
+
+	try {
+		fs.mkdirSync(resolved, { recursive: true })
+		return resolved
+	} catch (err) {
+		console.warn(
+			`Failed to create configured upload directory ${resolved}:`,
+			err,
+		)
+		try {
+			const fallbackResolved = path.resolve(defaultDir)
+			fs.mkdirSync(fallbackResolved, { recursive: true })
+			return fallbackResolved
+		} catch {
+			return resolved
+		}
+	}
+}
 
 export function getServerConfigPath(): string | null {
 	const candidates: string[] = []

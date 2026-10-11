@@ -94,6 +94,10 @@ export const i18n = {
 			saveConfig: "Save Config",
 			saving: "Saving\u2026",
 			invalidPortAlert: "Please enter a valid port number (1\u201365535).",
+			sharedDirectory: "Shared Download & Upload Directory",
+			sharedDirectoryHelp:
+				"Directory on the host server where files uploaded by connected devices will be stored.",
+			sharedDirectoryPlaceholder: "Default: Downloads/ReinShared",
 		},
 		controlBar: {
 			scrollMode: "Toggle scroll",
@@ -205,6 +209,16 @@ export const i18n = {
 			removeFile: "Remove file",
 			download: "Download file",
 			delete: "Delete file",
+			fileExplorer: "File Explorer",
+			upload: "Upload",
+			uploadTitle: "Upload file to host",
+			refreshDirectory: "Refresh directory",
+			upOneFolder: "Up one folder",
+			sharedRoot: "Shared Root",
+			loadingFolder: "Loading folder...",
+			directoryEmpty: "Directory is empty",
+			folder: "Folder",
+			clearSelection: "Clear selection",
 		},
 	},
 } as const

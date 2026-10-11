@@ -1,10 +1,13 @@
 import type { IncomingMessage, ServerResponse } from "node:http"
 import { randomUUID } from "node:crypto"
+import fs from "node:fs"
+import path from "node:path"
 import { json, requireAuth } from "../utils.ts"
 import logger from "../../../utils/logger.ts"
+import { getUploadDir } from "../../../utils/configHelper.ts"
 
 // ---------------------------------------------------------------------------
-// In-memory file store (files held in RAM; suitable for local-network use)
+// In-memory file store & directory browser types
 // ---------------------------------------------------------------------------
 
 export interface SharedFile {
@@ -17,6 +20,15 @@ export interface SharedFile {
 	data: Buffer
 }
 
+export interface DirectoryItem {
+	name: string
+	path: string
+	isDir: boolean
+	size: number
+	mimeType: string
+	modifiedAt: number
+}
+
 const fileStore = new Map<string, SharedFile>()
 const notifyClients = new Set<ServerResponse>()
 
@@ -25,6 +37,43 @@ const MAX_FILE_BYTES = 512 * 1024 * 1024 // 512 MB hard ceiling
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
+
+function getMimeType(fileName: string): string {
+	const ext = path.extname(fileName).toLowerCase()
+	const map: Record<string, string> = {
+		".png": "image/png",
+		".jpg": "image/jpeg",
+		".jpeg": "image/jpeg",
+		".gif": "image/gif",
+		".svg": "image/svg+xml",
+		".webp": "image/webp",
+		".mp4": "video/mp4",
+		".webm": "video/webm",
+		".mkv": "video/x-matroska",
+		".avi": "video/x-msvideo",
+		".mp3": "audio/mpeg",
+		".wav": "audio/wav",
+		".ogg": "audio/ogg",
+		".flac": "audio/flac",
+		".pdf": "application/pdf",
+		".json": "application/json",
+		".txt": "text/plain",
+		".md": "text/markdown",
+		".ts": "text/plain",
+		".js": "text/plain",
+		".tsx": "text/plain",
+		".css": "text/css",
+		".html": "text/html",
+		".py": "text/plain",
+		".c": "text/plain",
+		".cpp": "text/plain",
+		".zip": "application/zip",
+		".tar": "application/x-tar",
+		".gz": "application/gzip",
+		".7z": "application/x-7z-compressed",
+	}
+	return map[ext] ?? "application/octet-stream"
+}
 
 function broadcastFileEvent(event: unknown): void {
 	const payload = `data: ${JSON.stringify(event)}\n\n`
@@ -108,7 +157,7 @@ function parseMultipart(
 // Public route handlers
 // ---------------------------------------------------------------------------
 
-/** POST /api/files/upload  — upload a file and broadcast notification */
+/** POST /api/files/upload  — upload a file to host upload folder & broadcast notification */
 export async function handleFileUpload(
 	req: IncomingMessage,
 	res: ServerResponse,
@@ -119,10 +168,24 @@ export async function handleFileUpload(
 	try {
 		const { name, mimeType, data } = await parseMultipart(req)
 
+		const uploadDir = getUploadDir()
+		// Normalize Windows slashes and extract safe basename
+		const normalizedName = name.replace(/\\/g, "/")
+		const safeName = path.basename(normalizedName)
+		if (!safeName || safeName === "." || safeName === "..") {
+			json(res, 400, { ok: false, error: "Invalid file name" })
+			return
+		}
+
+		const filePath = path.join(uploadDir, safeName)
+
+		// Save uploaded file to host disk asynchronously
+		await fs.promises.writeFile(filePath, data)
+
 		const id = randomUUID()
 		const file: SharedFile = {
 			id,
-			name,
+			name: safeName,
 			mimeType,
 			size: data.length,
 			uploadedAt: Date.now(),
@@ -131,24 +194,92 @@ export async function handleFileUpload(
 		}
 		fileStore.set(id, file)
 		logger.info(
-			`File uploaded: ${name} (${data.length} bytes) by ${uploadedBy}`,
+			`File uploaded to ${filePath} (${data.length} bytes) by ${uploadedBy}`,
 		)
 
 		// Notify all SSE subscribers
 		broadcastFileEvent({
 			type: "incoming-file",
 			fileId: id,
-			name,
+			name: safeName,
 			size: data.length,
 			mimeType,
 			uploadedAt: file.uploadedAt,
 			uploadedBy,
 		})
 
-		json(res, 200, { ok: true, fileId: id })
+		json(res, 200, { ok: true, fileId: id, path: filePath })
 	} catch (err) {
 		logger.error(`File upload error: ${String(err)}`)
 		json(res, 400, { ok: false, error: String(err) })
+	}
+}
+
+/** GET /api/files/browse?path=<dirPath>  — list host files and directories */
+export async function handleFileBrowse(
+	req: IncomingMessage,
+	res: ServerResponse,
+): Promise<void> {
+	if (!requireAuth(req, res)) return
+
+	const url = new URL(req.url ?? "", `http://${req.headers.host}`)
+	const reqPath = url.searchParams.get("path")
+	const defaultDir = getUploadDir()
+
+	let targetPath = reqPath ? path.resolve(reqPath) : defaultDir
+
+	if (!fs.existsSync(targetPath)) {
+		targetPath = defaultDir
+	}
+
+	try {
+		const stat = fs.statSync(targetPath)
+		if (!stat.isDirectory()) {
+			targetPath = path.dirname(targetPath)
+		}
+
+		const entries = await fs.promises.readdir(targetPath, {
+			withFileTypes: true,
+		})
+		const items: DirectoryItem[] = []
+
+		for (const entry of entries) {
+			if (entry.name.startsWith(".")) continue
+
+			const fullPath = path.join(targetPath, entry.name)
+
+			try {
+				const entryStat = fs.statSync(fullPath)
+				const isDir = entry.isDirectory()
+				items.push({
+					name: entry.name,
+					path: fullPath,
+					isDir,
+					size: isDir ? 0 : entryStat.size,
+					mimeType: isDir ? "directory" : getMimeType(entry.name),
+					modifiedAt: entryStat.mtimeMs,
+				})
+			} catch {
+				// Skip unreadable files/symlinks
+			}
+		}
+
+		items.sort((a, b) => {
+			if (a.isDir && !b.isDir) return -1
+			if (!a.isDir && b.isDir) return 1
+			return a.name.localeCompare(b.name)
+		})
+
+		const parentPath = path.dirname(targetPath)
+
+		json(res, 200, {
+			currentPath: targetPath,
+			parentPath: parentPath !== targetPath ? parentPath : null,
+			items,
+		})
+	} catch (err) {
+		logger.error(`File browse error: ${String(err)}`)
+		json(res, 500, { error: `Failed to read directory: ${String(err)}` })
 	}
 }
 
@@ -169,16 +300,48 @@ export function handleFileList(
 	json(res, 200, { files: list })
 }
 
-/** GET /api/files/download?fileId=<id>  — stream file bytes */
+/** GET /api/files/download?path=<filePath> OR ?fileId=<id>  — stream file bytes */
 export function handleFileDownload(
 	req: IncomingMessage,
 	res: ServerResponse,
 ): void {
 	if (!requireAuth(req, res)) return
 	const url = new URL(req.url ?? "", `http://${req.headers.host}`)
+	const filePathParam = url.searchParams.get("path")
 	const fileId = url.searchParams.get("fileId")
+
+	if (filePathParam) {
+		const targetPath = path.resolve(filePathParam)
+
+		if (!fs.existsSync(targetPath) || !fs.statSync(targetPath).isFile()) {
+			json(res, 404, { error: "File not found" })
+			return
+		}
+		const stat = fs.statSync(targetPath)
+		const fileName = path.basename(targetPath)
+		const mimeType = getMimeType(fileName)
+
+		res.writeHead(200, {
+			"Content-Type": mimeType,
+			"Content-Length": stat.size,
+			"Content-Disposition": `attachment; filename="${encodeURIComponent(fileName)}"; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+		})
+		const readStream = fs.createReadStream(targetPath)
+		readStream.on("error", (err) => {
+			logger.error(`Download stream error for ${targetPath}: ${err}`)
+			if (!res.headersSent) {
+				json(res, 500, { error: "Failed to stream file" })
+			} else {
+				res.destroy()
+			}
+		})
+		readStream.pipe(res)
+		logger.info(`File downloaded from path: ${targetPath}`)
+		return
+	}
+
 	if (!fileId) {
-		json(res, 400, { error: "Missing fileId" })
+		json(res, 400, { error: "Missing path or fileId" })
 		return
 	}
 	const file = fileStore.get(fileId)
@@ -231,7 +394,6 @@ export function handleFileEvents(
 	})
 	res.write(": connected\n\n")
 
-	// Send existing files so newly-connected clients are in sync
 	const existing = [...fileStore.values()].map((f) => ({
 		type: "incoming-file" as const,
 		fileId: f.id,
