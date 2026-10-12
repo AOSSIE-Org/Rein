@@ -60,7 +60,7 @@
 		"babel-plugin-react-compiler": "^1.0.0",
 		"concurrently": "^9.2.1",
 		"daisyui": "^5.5.14",
-		"electron": "^40.6.1",
+		"electron": "^41.10.6",
 		"electron-builder": "^26.8.1",
 		"jsdom": "^27.0.0",
 		"postcss": "^8.5.6",
@@ -116,14 +116,17 @@
 	"allowScripts": {
 		"electron-winstaller@5.4.0": true,
 		"esbuild@0.28.2": true,
-		"electron@40.10.6": true,
 		"koffi@2.16.3": true,
-		"usocket@1.1.0": true
+		"usocket@1.1.0": true,
+		"electron@41.10.6": true
 	},
 	"overrides": {
 		"dbus-next": {
 			"xml2js": "0.5.0",
 			"usocket": "1.1.0"
+		},
+		"@tailwindcss/typography": {
+			"postcss-selector-parser": "7.1.6"
 		}
 	}
 }
