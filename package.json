@@ -21,6 +21,7 @@
 		"check:fix": "biome check . --write"
 	},
 	"dependencies": {
+		"@imxade/inject": "^0.1.1",
 		"@tanstack/react-router": "^1.169.2",
 		"@tanstack/react-router-ssr-query": "^1.166.12",
 		"@tanstack/react-start": "^1.167.61",
