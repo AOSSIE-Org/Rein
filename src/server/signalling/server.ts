@@ -34,6 +34,7 @@ import {
 } from "./handlers/fileShare.ts"
 import type { DebugHandlerDeps } from "./handlers/debug.ts"
 import type { RtcHandlerDeps } from "./handlers/rtc.ts"
+import path from "node:path"
 
 let gstManager: GstManager | null = null
 let webrtcManager: WebRTCManager | null = null
