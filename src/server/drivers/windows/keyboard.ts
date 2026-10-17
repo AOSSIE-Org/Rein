@@ -6,9 +6,14 @@
  * character injection for reliable text entry across applications.
  */
 import { SendInput, INPUT_STRUCT_SIZE } from "./structs.ts"
-import { KEYEVENTF_KEYUP, KEYEVENTF_UNICODE } from "./constants.ts"
+import {
+	KEYEVENTF_KEYUP,
+	KEYEVENTF_UNICODE,
+	KEYEVENTF_SCANCODE,
+	KEYEVENTF_EXTENDEDKEY,
+} from "./constants.ts"
 import { INPUT_KEYBOARD } from "../../constants.ts"
-import { VK_MAP } from "../keyMap.ts"
+import { EXTENDED_KEY_VKS, VK_MAP, VK_TO_SCANCODE } from "../keyMap.ts"
 
 export class WindowsKeyboard {
 	injectKey(key: string, pos: string = ""): void {
@@ -16,12 +21,26 @@ export class WindowsKeyboard {
 		const vk = VK_MAP[lowerKey]
 
 		if (vk !== undefined) {
+			const scancode = VK_TO_SCANCODE[vk]
+			const extendedFlag = EXTENDED_KEY_VKS.has(vk) ? KEYEVENTF_EXTENDEDKEY : 0
+			const scanFlag = scancode !== undefined ? KEYEVENTF_SCANCODE : 0
+			const wVk = scancode !== undefined ? 0 : vk
+			const wScan = scancode ?? 0
+
 			const events: Array<Record<string, unknown>> = []
 			if (pos !== "RELEASE") {
 				events.push({
 					type: INPUT_KEYBOARD,
 					__pad: 0,
-					u: { ki: { wVk: vk, wScan: 0, dwFlags: 0, time: 0, dwExtraInfo: 0 } },
+					u: {
+						ki: {
+							wVk,
+							wScan,
+							dwFlags: scanFlag | extendedFlag,
+							time: 0,
+							dwExtraInfo: 0,
+						},
+					},
 				})
 			}
 			if (pos !== "HOLD") {
@@ -30,9 +49,9 @@ export class WindowsKeyboard {
 					__pad: 0,
 					u: {
 						ki: {
-							wVk: vk,
-							wScan: 0,
-							dwFlags: KEYEVENTF_KEYUP,
+							wVk,
+							wScan,
+							dwFlags: scanFlag | extendedFlag | KEYEVENTF_KEYUP,
 							time: 0,
 							dwExtraInfo: 0,
 						},
@@ -40,10 +59,10 @@ export class WindowsKeyboard {
 				})
 			}
 			this.sendInput(events.length, events)
-		} else if (key.length === 1) {
+		} else if (key.length === 1 && pos === "") {
 			this.injectText(key)
 		} else {
-			console.warn("[Keyboard] Unknown key and not a single character:", key)
+			console.warn("[Keyboard] Unknown or unmapped key:", key)
 		}
 	}
 
@@ -63,25 +82,38 @@ export class WindowsKeyboard {
 
 		const events: Array<Record<string, unknown>> = []
 
-		// Press all keys
 		for (const vk of vks) {
-			events.push({
-				type: INPUT_KEYBOARD,
-				__pad: 0,
-				u: { ki: { wVk: vk, wScan: 0, dwFlags: 0, time: 0, dwExtraInfo: 0 } },
-			})
-		}
-
-		// Release in reverse order
-		for (let i = vks.length - 1; i >= 0; i--) {
+			const scancode = VK_TO_SCANCODE[vk]
+			const extendedFlag = EXTENDED_KEY_VKS.has(vk) ? KEYEVENTF_EXTENDEDKEY : 0
+			const scanFlag = scancode !== undefined ? KEYEVENTF_SCANCODE : 0
 			events.push({
 				type: INPUT_KEYBOARD,
 				__pad: 0,
 				u: {
 					ki: {
-						wVk: vks[i],
-						wScan: 0,
-						dwFlags: KEYEVENTF_KEYUP,
+						wVk: scancode !== undefined ? 0 : vk,
+						wScan: scancode ?? 0,
+						dwFlags: scanFlag | extendedFlag,
+						time: 0,
+						dwExtraInfo: 0,
+					},
+				},
+			})
+		}
+
+		for (let i = vks.length - 1; i >= 0; i--) {
+			const vk = vks[i]
+			const scancode = VK_TO_SCANCODE[vk]
+			const extendedFlag = EXTENDED_KEY_VKS.has(vk) ? KEYEVENTF_EXTENDEDKEY : 0
+			const scanFlag = scancode !== undefined ? KEYEVENTF_SCANCODE : 0
+			events.push({
+				type: INPUT_KEYBOARD,
+				__pad: 0,
+				u: {
+					ki: {
+						wVk: scancode !== undefined ? 0 : vk,
+						wScan: scancode ?? 0,
+						dwFlags: scanFlag | extendedFlag | KEYEVENTF_KEYUP,
 						time: 0,
 						dwExtraInfo: 0,
 					},
