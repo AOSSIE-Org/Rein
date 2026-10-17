@@ -31,6 +31,87 @@ const DOM_KEY_MAP: Record<string, string> = {
 const normalizeDOMKey = (k: string): string => DOM_KEY_MAP[k] ?? k.toLowerCase()
 
 /**
+ * DOM event code mapped to Rein physical key names for stable game input.
+ */
+const DOM_CODE_MAP: Record<string, string> = {
+	ShiftLeft: "leftshift",
+	ShiftRight: "rightshift",
+	ControlLeft: "leftcontrol",
+	ControlRight: "rightcontrol",
+	AltLeft: "leftalt",
+	AltRight: "rightalt",
+	MetaLeft: "leftmeta",
+	MetaRight: "rightmeta",
+
+	ArrowUp: "arrowup",
+	ArrowDown: "arrowdown",
+	ArrowLeft: "arrowleft",
+	ArrowRight: "arrowright",
+	Space: "space",
+	Enter: "enter",
+	Tab: "tab",
+	Backspace: "backspace",
+	Escape: "escape",
+	Delete: "delete",
+	Insert: "insert",
+	Home: "home",
+	End: "end",
+	PageUp: "pageup",
+	PageDown: "pagedown",
+	CapsLock: "capslock",
+	ScrollLock: "scrolllock",
+	Pause: "pause",
+	PrintScreen: "printscreen",
+	NumLock: "numlock",
+
+	Period: ".",
+	Comma: ",",
+	Slash: "/",
+	Semicolon: ";",
+	Quote: "'",
+	BracketLeft: "[",
+	BracketRight: "]",
+	Backslash: "\\",
+	Backquote: "`",
+	Minus: "-",
+	Equal: "=",
+
+	Numpad0: "numpad0",
+	Numpad1: "numpad1",
+	Numpad2: "numpad2",
+	Numpad3: "numpad3",
+	Numpad4: "numpad4",
+	Numpad5: "numpad5",
+	Numpad6: "numpad6",
+	Numpad7: "numpad7",
+	Numpad8: "numpad8",
+	Numpad9: "numpad9",
+	NumpadAdd: "numpadadd",
+	NumpadSubtract: "numpadsubtract",
+	NumpadMultiply: "numpadmultiply",
+	NumpadDivide: "numpaddivide",
+	NumpadDecimal: "numpaddecimal",
+	NumpadEnter: "enter",
+}
+
+function domEventToKey(e: KeyboardEvent): string {
+	if (e.code) {
+		const mapped = DOM_CODE_MAP[e.code]
+		if (mapped) return mapped
+		if (e.code.startsWith("Key") && e.code.length === 4) {
+			return e.code.slice(3).toLowerCase()
+		}
+		if (e.code.startsWith("Digit") && e.code.length === 6) {
+			return e.code.slice(5)
+		}
+		if (e.code.startsWith("F") && /^F\d+$/.test(e.code)) {
+			return e.code.toLowerCase()
+		}
+	}
+	return normalizeDOMKey(e.key)
+}
+
+/**
  * Converts a client-relative click point to normalised [0, 1] screen ratios
  * using the #screenMirror video element's rendered rect and intrinsic resolution.
  * Correctly accounts for object-fit: contain letterboxing/pillarboxing.
@@ -261,6 +342,15 @@ export const useMouseInput = (send: (msg: unknown) => void, enabled = true) => {
 	useEffect(() => {
 		if (!isLocked) return
 
+		const heldKeys = new Set<string>()
+
+		const releaseAllHeldKeys = () => {
+			for (const key of heldKeys) {
+				send({ type: "key", key, pos: "RELEASE" })
+			}
+			heldKeys.clear()
+		}
+
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.key === "Escape") {
 				return
@@ -270,7 +360,8 @@ export const useMouseInput = (send: (msg: unknown) => void, enabled = true) => {
 				return
 			}
 
-			const key = normalizeDOMKey(e.key)
+			const key = domEventToKey(e)
+			heldKeys.add(key)
 			send({ type: "key", key, pos: "HOLD" })
 			e.preventDefault()
 		}
@@ -280,16 +371,24 @@ export const useMouseInput = (send: (msg: unknown) => void, enabled = true) => {
 				return
 			}
 
-			const key = normalizeDOMKey(e.key)
+			const key = domEventToKey(e)
+			heldKeys.delete(key)
 			send({ type: "key", key, pos: "RELEASE" })
 			e.preventDefault()
 		}
 
+		const handleBlur = () => {
+			releaseAllHeldKeys()
+		}
+
 		window.addEventListener("keydown", handleKeyDown)
 		window.addEventListener("keyup", handleKeyUp)
+		window.addEventListener("blur", handleBlur)
 		return () => {
 			window.removeEventListener("keydown", handleKeyDown)
 			window.removeEventListener("keyup", handleKeyUp)
+			window.removeEventListener("blur", handleBlur)
+			releaseAllHeldKeys()
 		}
 	}, [isLocked, send])
 

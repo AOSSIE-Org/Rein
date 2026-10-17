@@ -6,10 +6,27 @@ import {
 	KEYEVENTF_UNICODE,
 } from "./constants.ts"
 
-const mockSendInput = vi.fn((count: number) => count)
+type SendInputEvent = {
+	type: number
+	__pad?: number
+	u: {
+		ki: {
+			wVk: number
+			wScan: number
+			dwFlags: number
+			time: number
+			dwExtraInfo: number
+		}
+	}
+}
+
+const mockSendInput = vi.fn(
+	(count: number, _events: SendInputEvent[], _size: number) => count,
+)
 
 vi.mock("./structs.ts", () => ({
-	SendInput: (...args: unknown[]) => mockSendInput(...args),
+	SendInput: (count: number, events: SendInputEvent[], size: number) =>
+		mockSendInput(count, events, size),
 	INPUT_STRUCT_SIZE: 40,
 }))
 
@@ -91,6 +108,44 @@ describe("WindowsKeyboard Driver Unit Tests", () => {
 			KEYEVENTF_SCANCODE | KEYEVENTF_EXTENDEDKEY,
 		)
 		expect(events[0].u.ki.wScan).toBe(0x48)
+	})
+
+	it("injects physical scancode for punctuation keys like period", () => {
+		keyboard.injectKey(".", "HOLD")
+
+		expect(mockSendInput).toHaveBeenCalledTimes(1)
+		const [count, events] = mockSendInput.mock.calls[0]
+		expect(count).toBe(1)
+		expect(events[0].u.ki.wScan).toBe(0x34) // scancode for '.'
+		expect(events[0].u.ki.dwFlags).toBe(KEYEVENTF_SCANCODE)
+	})
+
+	it("injects key combos in order and releases in reverse order with scancodes and extended flags", () => {
+		keyboard.injectCombo(["control", "arrowup"])
+
+		expect(mockSendInput).toHaveBeenCalledTimes(1)
+		const [count, events] = mockSendInput.mock.calls[0]
+		expect(count).toBe(4)
+
+		// Press control (scancode 0x1d)
+		expect(events[0].u.ki.wScan).toBe(0x1d)
+		expect(events[0].u.ki.dwFlags).toBe(KEYEVENTF_SCANCODE)
+
+		// Press arrowup (scancode 0x48, extended)
+		expect(events[1].u.ki.wScan).toBe(0x48)
+		expect(events[1].u.ki.dwFlags).toBe(
+			KEYEVENTF_SCANCODE | KEYEVENTF_EXTENDEDKEY,
+		)
+
+		// Release arrowup in reverse order
+		expect(events[2].u.ki.wScan).toBe(0x48)
+		expect(events[2].u.ki.dwFlags).toBe(
+			KEYEVENTF_SCANCODE | KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP,
+		)
+
+		// Release control
+		expect(events[3].u.ki.wScan).toBe(0x1d)
+		expect(events[3].u.ki.dwFlags).toBe(KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP)
 	})
 
 	it("preserves KEYEVENTF_UNICODE strictly for injectText", () => {

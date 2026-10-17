@@ -59,10 +59,10 @@ export class WindowsKeyboard {
 				})
 			}
 			this.sendInput(events.length, events)
-		} else if (key.length === 1) {
+		} else if (key.length === 1 && pos === "") {
 			this.injectText(key)
 		} else {
-			console.warn("[Keyboard] Unknown key and not a single character:", key)
+			console.warn("[Keyboard] Unknown or unmapped key:", key)
 		}
 	}
 
