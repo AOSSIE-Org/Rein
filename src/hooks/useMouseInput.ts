@@ -265,57 +265,31 @@ export const useMouseInput = (send: (msg: unknown) => void, enabled = true) => {
 			if (e.key === "Escape") {
 				return
 			}
+			if (e.repeat) {
+				e.preventDefault()
+				return
+			}
 
 			const key = normalizeDOMKey(e.key)
-			const hasModifierCombo = e.ctrlKey || e.altKey || e.metaKey
+			send({ type: "key", key, pos: "HOLD" })
+			e.preventDefault()
+		}
 
-			if (hasModifierCombo) {
-				const mods: string[] = []
-				if (e.ctrlKey) mods.push("ctrl")
-				if (e.altKey) mods.push("alt")
-				if (e.metaKey) mods.push("meta")
-				if (e.shiftKey) mods.push("shift")
-
-				const isModKey = ["ctrl", "alt", "meta", "shift"].includes(key)
-				const comboKeys = isModKey
-					? mods
-					: [...mods.filter((m) => m !== key), key]
-
-				if (comboKeys.length > 0) {
-					send({ type: "combo", keys: comboKeys })
-				}
-				e.preventDefault()
+		const handleKeyUp = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
 				return
 			}
 
-			if (
-				key === "tab" ||
-				key === "backspace" ||
-				key === "enter" ||
-				key.startsWith("arrow") ||
-				key.startsWith("f") ||
-				key === "space" ||
-				key === "delete" ||
-				key === "home" ||
-				key === "end" ||
-				key === "pageup" ||
-				key === "pagedown" ||
-				key === "insert"
-			) {
-				send({ type: "key", key })
-				e.preventDefault()
-				return
-			}
-
-			if (e.key.length === 1) {
-				send({ type: "key", key })
-				e.preventDefault()
-			}
+			const key = normalizeDOMKey(e.key)
+			send({ type: "key", key, pos: "RELEASE" })
+			e.preventDefault()
 		}
 
 		window.addEventListener("keydown", handleKeyDown)
+		window.addEventListener("keyup", handleKeyUp)
 		return () => {
 			window.removeEventListener("keydown", handleKeyDown)
+			window.removeEventListener("keyup", handleKeyUp)
 		}
 	}, [isLocked, send])
 

@@ -38,6 +38,7 @@ type BaseMessage = {
 	config?: Partial<InputConfig>
 	key?: string
 	keys?: string[]
+	pos?: "HOLD" | "RELEASE" | ""
 	text?: string
 	delta?: number
 	contacts?: TouchContact[]
