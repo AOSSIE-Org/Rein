@@ -12,49 +12,37 @@ on:
       - "public/**"
       - "electron/**"
       - "package.json"
+      - "package-lock.json"
+      - ".npmrc"
       - "vite.config.ts"
       - ".github/workflows/**"
       - ".electronbuilderignore"
 
+permissions:
+  contents: read
+
 jobs:
   build-electron:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
 
-    runs-on: ${{ matrix.os }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: "npm"
+          cache: npm
 
-      - name: Clean node_modules and npm cache (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
-          npm cache clean --force
-        shell: pwsh
-
-      - name: Clean node_modules and npm cache (macOS/Linux)
-        if: runner.os != 'Windows'
-        run: |
-          rm -rf node_modules package-lock.json || true
-          npm cache clean --force
-
-      - name: Install dependencies (Windows)
-        if: runner.os == 'Windows'
+      - name: Install dependencies
         run: npm ci --include=optional
-
-      - name: Install dependencies (macOS/Linux)
-        if: runner.os != 'Windows'
-        run: npm install --include=optional --force
 
       - name: Rebuild native dependencies
         run: npx electron-builder install-app-deps
@@ -65,9 +53,10 @@ jobs:
       - name: Package Electron app
         run: npm run dist -- --publish=never
 
-      - name: Upload Electron Artifacts
+      - name: Upload Electron artifacts
         uses: actions/upload-artifact@v4
         with:
           name: electron-${{ matrix.os }}
           path: dist/**
+          if-no-files-found: error
           retention-days: 7
