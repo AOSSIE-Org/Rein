@@ -1,33 +1,29 @@
-// ── CGEventType ────────────────────────────────────────────────────────────
-export const kCGEventNull = 0
-export const kCGEventLeftMouseDown = 1
-export const kCGEventLeftMouseUp = 2
-export const kCGEventRightMouseDown = 3
-export const kCGEventRightMouseUp = 4
-export const kCGEventMouseMoved = 5
-export const kCGEventLeftMouseDragged = 6
-export const kCGEventRightMouseDragged = 7
-export const kCGEventKeyDown = 10
-export const kCGEventKeyUp = 11
-export const kCGEventFlagsChanged = 12
-export const kCGEventScrollWheel = 22
-export const kCGEventOtherMouseDown = 25
-export const kCGEventOtherMouseUp = 26
-export const kCGEventOtherMouseDragged = 27
-
-// ── CGMouseButton ──────────────────────────────────────────────────────────
-export const kCGMouseButtonLeft = 0
-export const kCGMouseButtonRight = 1
-export const kCGMouseButtonCenter = 2
-
-// ── CGEventTapLocation ─────────────────────────────────────────────────────
-export const kCGHIDEventTap = 0 // injected before window server
-export const kCGSessionEventTap = 1 // session level
-export const kCGAnnotatedSessionEventTap = 2 // post-window-server
-
-// ── CGScrollEventUnit ──────────────────────────────────────────────────────
-export const kCGScrollEventUnitPixel = 0
-export const kCGScrollEventUnitLine = 1
+// ── CoreGraphics Constants from @imxade/inject/mac ─────────────────────────
+export {
+	kCGEventNull,
+	kCGEventLeftMouseDown,
+	kCGEventLeftMouseUp,
+	kCGEventRightMouseDown,
+	kCGEventRightMouseUp,
+	kCGEventMouseMoved,
+	kCGEventLeftMouseDragged,
+	kCGEventRightMouseDragged,
+	kCGEventKeyDown,
+	kCGEventKeyUp,
+	kCGEventFlagsChanged,
+	kCGEventScrollWheel,
+	kCGEventOtherMouseDown,
+	kCGEventOtherMouseUp,
+	kCGEventOtherMouseDragged,
+	kCGMouseButtonLeft,
+	kCGMouseButtonRight,
+	kCGMouseButtonCenter,
+	kCGHIDEventTap,
+	kCGSessionEventTap,
+	kCGAnnotatedSessionEventTap,
+	kCGScrollEventUnitPixel,
+	kCGScrollEventUnitLine,
+} from "@imxade/inject/mac"
 
 // ── CGEventField (used with CGEventSetIntegerValueField) ───────────────────
 export const kCGKeyboardEventKeycode = 9

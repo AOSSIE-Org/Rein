@@ -1,67 +1,13 @@
 import koffi from "koffi"
+import {
+	postMouseEvent as injectPostMouseEvent,
+	postKeyEvent as injectPostKeyEvent,
+	postScrollEvent as injectPostScrollEvent,
+	kCGHIDEventTap,
+	kCGScrollEventUnitLine,
+} from "@imxade/inject/mac"
 
-// ── Load CoreGraphics ──────────────────────────────────────────────────────
-const CG_PATH = "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics"
-
-let _cg: ReturnType<typeof koffi.load> | null = null
-
-function cg() {
-	if (!_cg) {
-		_cg = koffi.load(CG_PATH)
-	}
-	return _cg
-}
-
-// ── CGPoint ────────────────────────────────────────────────────────────────
-export const CGPoint = koffi.struct("CGPoint", {
-	x: "double",
-	y: "double",
-})
-
-let _CGEventCreateMouseEvent: koffi.KoffiFunction | null = null
-let _CGEventCreateKeyboardEvent: koffi.KoffiFunction | null = null
-let _CGEventCreateScrollWheelEvent: koffi.KoffiFunction | null = null
-let _CGEventPost: koffi.KoffiFunction | null = null
-let _CFRelease: koffi.KoffiFunction | null = null
-let _CGEventSetIntegerValueField: koffi.KoffiFunction | null = null
-export let _CGEventSetDoubleValueField: koffi.KoffiFunction | null = null
-export let _CGEventGetLocation: koffi.KoffiFunction | null = null
-
-function ensureFunctions() {
-	const lib = cg()
-	if (!_CGEventCreateMouseEvent) {
-		_CGEventCreateMouseEvent = lib.func(
-			"void * CGEventCreateMouseEvent(void *, uint32, CGPoint, uint32)",
-		)
-		_CGEventCreateKeyboardEvent = lib.func(
-			"void * CGEventCreateKeyboardEvent(void *, uint16, uint8)",
-		)
-		// koffi variadic: declare only fixed args; pass extras manually.
-		_CGEventCreateScrollWheelEvent = lib.func(
-			"void * CGEventCreateScrollWheelEvent(void *, uint32, uint32, int32, int32)",
-		)
-
-		// void CGEventPost(CGEventTapLocation tap, CGEventRef event)
-		// tap: 0 = kCGHIDEventTap (injected at HID level, before window server)
-		_CGEventPost = lib.func("void CGEventPost(uint32, void *)")
-
-		// void CFRelease(CFTypeRef cf)
-		_CFRelease = lib.func("void CFRelease(void *)")
-
-		// void CGEventSetIntegerValueField(CGEventRef, CGEventField, int64)
-		_CGEventSetIntegerValueField = lib.func(
-			"void CGEventSetIntegerValueField(void *, uint32, int64)",
-		)
-
-		// void CGEventSetDoubleValueField(CGEventRef, CGEventField, double)
-		_CGEventSetDoubleValueField = lib.func(
-			"void CGEventSetDoubleValueField(void *, uint32, double)",
-		)
-
-		// CGPoint CGEventGetLocation(CGEventRef)
-		_CGEventGetLocation = lib.func("CGPoint CGEventGetLocation(void *)")
-	}
-}
+export { CGPoint } from "@imxade/inject/mac"
 
 export function postMouseEvent(
 	mouseType: number,
@@ -69,41 +15,22 @@ export function postMouseEvent(
 	y: number,
 	button: number,
 ): void {
-	ensureFunctions()
-	const pt = { x, y }
-	const ref = _CGEventCreateMouseEvent?.(null, mouseType, pt, button) as
-		| bigint
-		| number
-		| null
-	if (!ref) return
-	_CGEventPost?.(0, ref) // 0 = kCGHIDEventTap
-	_CFRelease?.(ref)
+	injectPostMouseEvent(kCGHIDEventTap, mouseType, x, y, button)
 }
 
 export function postKeyEvent(keyCode: number, keyDown: boolean): void {
-	ensureFunctions()
-	const ref = _CGEventCreateKeyboardEvent?.(null, keyCode, keyDown ? 1 : 0) as
-		| bigint
-		| number
-		| null
-	if (!ref) return
-	_CGEventPost?.(0, ref)
-	_CFRelease?.(ref)
+	injectPostKeyEvent(kCGHIDEventTap, keyCode, keyDown)
 }
 
 export function postScrollEvent(deltaX: number, deltaY: number): void {
-	ensureFunctions()
-	const ref = _CGEventCreateScrollWheelEvent?.(
-		null,
-		1,
-		2,
+	injectPostScrollEvent(
+		kCGHIDEventTap,
+		kCGScrollEventUnitLine,
 		Math.round(deltaY),
 		Math.round(deltaX),
-	) as bigint | number | null
-	if (!ref) return
-	_CGEventPost?.(0, ref)
-	_CFRelease?.(ref)
+	)
 }
+
 export const NX_KEYTYPE_PLAY = 16
 export const NX_KEYTYPE_NEXT = 17
 export const NX_KEYTYPE_PREVIOUS = 18
@@ -113,15 +40,32 @@ export const NX_KEYTYPE_REWIND = 20
 const NX_SYSDEFINED = 14 // NSEventTypeSystemDefined
 const NX_SUBTYPE_AUX = 8 // NX_SUBTYPE_AUX_CONTROL_BUTTONS
 
+const CG_PATH = "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics"
+let _cg: ReturnType<typeof koffi.load> | null = null
+
+function cg() {
+	if (!_cg) {
+		_cg = koffi.load(CG_PATH)
+	}
+	return _cg
+}
+
 let _CGEventCreate: koffi.KoffiFunction | null = null
 let _CGEventSetType: koffi.KoffiFunction | null = null
+let _CGEventSetIntegerValueField: koffi.KoffiFunction | null = null
+let _CGEventPost: koffi.KoffiFunction | null = null
+let _CFRelease: koffi.KoffiFunction | null = null
 
 function ensureMediaFunctions() {
-	ensureFunctions()
 	if (!_CGEventCreate) {
 		const lib = cg()
 		_CGEventCreate = lib.func("void * CGEventCreate(void *)")
 		_CGEventSetType = lib.func("void CGEventSetType(void *, uint32)")
+		_CGEventSetIntegerValueField = lib.func(
+			"void CGEventSetIntegerValueField(void *, uint32, int64)",
+		)
+		_CGEventPost = lib.func("void CGEventPost(uint32, void *)")
+		_CFRelease = lib.func("void CFRelease(void *)")
 	}
 }
 

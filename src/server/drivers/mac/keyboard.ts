@@ -5,6 +5,7 @@
  * keyboard events. Supports both key-code based input and Unicode
  * character injection for characters not present in the standard key map.
  */
+import koffi from "koffi"
 import {
 	postKeyEvent,
 	postMediaKeyEvent,
@@ -108,7 +109,6 @@ function ensureUnicode() {
 	if (_unicodeInjectorLoaded) return
 	_unicodeInjectorLoaded = true
 	try {
-		const koffi = require("koffi")
 		const lib = koffi.load(
 			"/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
 		)

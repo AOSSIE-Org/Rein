@@ -6,11 +6,11 @@
  * contact lifecycle management, primary contact tracking, and touch
  * frame generation for native touch input emulation.
  */
-import koffi from "koffi"
-import { CreateSyntheticPointerDevice, InjectPointerInput } from "./structs.ts"
 import {
+	createSyntheticPointerDevice,
+	injectPointerInput,
+	destroySyntheticPointerDevice,
 	PT_TOUCHPAD,
-	POINTER_FEEDBACK_DEFAULT,
 	POINTER_FLAG_NEW,
 	POINTER_FLAG_INRANGE,
 	POINTER_FLAG_INCONTACT,
@@ -19,12 +19,12 @@ import {
 	POINTER_FLAG_UPDATE,
 	POINTER_FLAG_UP,
 	TOUCH_MASK_CONTACTAREA,
-	MAX_CONTACTS,
-} from "./constants.ts"
+} from "@imxade/inject/windows"
+import { POINTER_FEEDBACK_DEFAULT, MAX_CONTACTS } from "./constants.ts"
 import type { TouchContact } from "../../types.ts"
 
 export class WindowsTouch {
-	private hDevice: bigint | null = null
+	private device: unknown = null
 	private contactIdMap = new Map<number, number>()
 	private freePointerIds: number[] = []
 	private primarySourceId: number | null = null
@@ -38,24 +38,17 @@ export class WindowsTouch {
 	}
 
 	private initialize(): void {
-		if (this.hDevice) return
+		if (this.device) return
 
-		const handle = CreateSyntheticPointerDevice(
-			PT_TOUCHPAD,
-			MAX_CONTACTS,
-			POINTER_FEEDBACK_DEFAULT,
-		)
-
-		if (handle) {
-			try {
-				this.hDevice = koffi.address(handle)
-				console.log("[WindowsTouch] Touch device initialized")
-			} catch (e) {
-				console.error("[WindowsTouch] Failed to initialize touch device:", e)
-				return
-			}
-		} else {
-			console.error("[WindowsTouch] Failed to create touch device")
+		try {
+			this.device = createSyntheticPointerDevice(
+				PT_TOUCHPAD,
+				MAX_CONTACTS,
+				POINTER_FEEDBACK_DEFAULT,
+			)
+			console.log("[WindowsTouch] Touch device initialized")
+		} catch (e) {
+			console.error("[WindowsTouch] Failed to initialize touch device:", e)
 		}
 	}
 
@@ -73,7 +66,7 @@ export class WindowsTouch {
 	}
 
 	injectTouch(contacts: TouchContact[]): void {
-		if (!this.hDevice || contacts.length === 0) return
+		if (!this.device || contacts.length === 0) return
 
 		if (this.primarySourceId === null) {
 			const firstDown = contacts.find((c) => c.state === "down")
@@ -159,7 +152,7 @@ export class WindowsTouch {
 		)
 
 		try {
-			if (InjectPointerInput(this.hDevice, frame, frame.length)) {
+			if (injectPointerInput(this.device, frame, frame.length)) {
 				this.currentFrameId = (this.currentFrameId % 0xffffffff) + 1
 			}
 		} catch (e) {
@@ -182,7 +175,7 @@ export class WindowsTouch {
 	}
 
 	destroy(): void {
-		if (this.hDevice) {
+		if (this.device) {
 			const releases: TouchContact[] = []
 			for (const sourceId of this.contactIdMap.keys()) {
 				releases.push({ id: sourceId, x: 0, y: 0, state: "up" })
@@ -191,7 +184,13 @@ export class WindowsTouch {
 				this.injectTouch(releases)
 			}
 
-			this.hDevice = null
+			try {
+				destroySyntheticPointerDevice(this.device)
+			} catch (e) {
+				console.error("[WindowsTouch] Error destroying pointer device:", e)
+			}
+
+			this.device = null
 			this.contactIdMap.clear()
 			this.freePointerIds = []
 			for (let i = MAX_CONTACTS - 1; i >= 0; i--) {
