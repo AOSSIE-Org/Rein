@@ -26,11 +26,10 @@ Implements input injection using `@imxade/inject/linux` (**uinput** subsystem).
 Implements input injection using `@imxade/inject/mac` (**CoreGraphics**) and IOHIDUserDevice.
 
 * **index.ts** – Main macOS input injector.
-* **keyboard.ts** – Keyboard and Unicode text injection.
+* **keyboard.ts** – Keyboard, Unicode text, and media key injection.
 * **touch.ts** – Touch gesture translation (drag, scroll, pinch zoom).
 * **gamepad.ts** – Virtual HID gamepad device injection.
 * **constants.ts** – CoreGraphics constants and event definitions.
-* **structs.ts** – Media key event injection.
 
 ### Windows (`windows/`)
 
