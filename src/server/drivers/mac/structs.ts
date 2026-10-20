@@ -7,7 +7,57 @@ import {
 	kCGScrollEventUnitLine,
 } from "@imxade/inject/mac"
 
-export { CGPoint } from "@imxade/inject/mac"
+let _CGEventCreateKeyboardEvent: koffi.KoffiFunction | null = null
+let _CGEventKeyboardSetUnicodeString: koffi.KoffiFunction | null = null
+
+function ensureUnicodeFunctions() {
+	if (!_CGEventCreateKeyboardEvent) {
+		const lib = cg()
+		_CGEventCreateKeyboardEvent = lib.func(
+			"void * CGEventCreateKeyboardEvent(void *, uint16, uint8)",
+		)
+		_CGEventKeyboardSetUnicodeString = lib.func(
+			"void CGEventKeyboardSetUnicodeString(void *, size_t, void *)",
+		)
+		if (!_CGEventPost) {
+			_CGEventPost = lib.func("void CGEventPost(uint32, void *)")
+		}
+		if (!_CFRelease) {
+			_CFRelease = lib.func("void CFRelease(void *)")
+		}
+	}
+}
+
+export function injectUnicode(ch: string): void {
+	ensureUnicodeFunctions()
+	if (
+		!_CGEventCreateKeyboardEvent ||
+		!_CGEventKeyboardSetUnicodeString ||
+		!_CGEventPost ||
+		!_CFRelease
+	)
+		return
+	const buf = Buffer.from(ch, "utf16le")
+	const charCount = buf.length / 2
+
+	const downRef = _CGEventCreateKeyboardEvent(null, 0, 1) as
+		| bigint
+		| number
+		| null
+	if (!downRef) return
+	_CGEventKeyboardSetUnicodeString(downRef, charCount, buf)
+	_CGEventPost(0, downRef)
+	_CFRelease(downRef)
+
+	const upRef = _CGEventCreateKeyboardEvent(null, 0, 0) as
+		| bigint
+		| number
+		| null
+	if (!upRef) return
+	_CGEventKeyboardSetUnicodeString(upRef, charCount, buf)
+	_CGEventPost(0, upRef)
+	_CFRelease(upRef)
+}
 
 export function postMouseEvent(
 	mouseType: number,

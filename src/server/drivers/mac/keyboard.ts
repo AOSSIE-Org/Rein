@@ -5,10 +5,10 @@
  * keyboard events. Supports both key-code based input and Unicode
  * character injection for characters not present in the standard key map.
  */
-import koffi from "koffi"
 import {
 	postKeyEvent,
 	postMediaKeyEvent,
+	injectUnicode,
 	NX_KEYTYPE_PLAY,
 	NX_KEYTYPE_NEXT,
 	NX_KEYTYPE_PREVIOUS,
@@ -92,63 +92,4 @@ export class MacKeyboard {
 	private injectUnicodeChar(ch: string): void {
 		injectUnicode(ch)
 	}
-}
-
-// Unicode injection
-let _unicodeInjectorLoaded = false
-let _CGEventCreateKeyboardEvent:
-	| ((s: null, k: number, d: number) => unknown)
-	| null = null
-let _CGEventKeyboardSetUnicodeString:
-	| ((e: unknown, l: number, s: Buffer) => void)
-	| null = null
-let _CGEventPost: ((tap: number, e: unknown) => void) | null = null
-let _CFRelease: ((r: unknown) => void) | null = null
-
-function ensureUnicode() {
-	if (_unicodeInjectorLoaded) return
-	_unicodeInjectorLoaded = true
-	try {
-		const lib = koffi.load(
-			"/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
-		)
-		_CGEventCreateKeyboardEvent = lib.func(
-			"void * CGEventCreateKeyboardEvent(void *, uint16, uint8)",
-		)
-		_CGEventKeyboardSetUnicodeString = lib.func(
-			"void CGEventKeyboardSetUnicodeString(void *, size_t, void *)",
-		)
-		_CGEventPost = lib.func("void CGEventPost(uint32, void *)")
-		_CFRelease = lib.func("void CFRelease(void *)")
-	} catch (e) {
-		console.warn(
-			"[MacKeyboard] Failed to load CoreGraphics for Unicode injection:",
-			e,
-		)
-	}
-}
-
-function injectUnicode(ch: string): void {
-	ensureUnicode()
-	if (
-		!_CGEventCreateKeyboardEvent ||
-		!_CGEventKeyboardSetUnicodeString ||
-		!_CGEventPost ||
-		!_CFRelease
-	)
-		return
-	const buf = Buffer.from(ch, "utf16le")
-	const charCount = buf.length / 2
-
-	const downRef = _CGEventCreateKeyboardEvent(null, 0, 1)
-	if (!downRef) return
-	_CGEventKeyboardSetUnicodeString(downRef, charCount, buf)
-	_CGEventPost(0, downRef)
-	_CFRelease(downRef)
-
-	const upRef = _CGEventCreateKeyboardEvent(null, 0, 0)
-	if (!upRef) return
-	_CGEventKeyboardSetUnicodeString(upRef, charCount, buf)
-	_CGEventPost(0, upRef)
-	_CFRelease(upRef)
 }
