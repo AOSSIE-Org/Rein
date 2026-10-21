@@ -69,16 +69,23 @@ function waitForServer(url, timeoutMs = 30000, requestTimeoutMs = 3000) {
 
 function startServer() {
   return new Promise((resolve, reject) => {
-    const serverPath = path.join(
-      process.resourcesPath,
-      'app.asar.unpacked',
-      '.output',
-      'server',
-      'index.mjs'
-    );
+    const candidateServerPaths = [
+      process.env.REIN_SERVER_PATH,
+      process.resourcesPath && path.join(
+        process.resourcesPath,
+        'app.asar.unpacked',
+        '.output',
+        'server',
+        'index.mjs'
+      ),
+      path.join(__dirname, '..', '.output', 'server', 'index.mjs'),
+      path.join(process.cwd(), '.output', 'server', 'index.mjs'),
+    ].filter(Boolean);
 
-    if (!fs.existsSync(serverPath)) {
-      const msg = `Server not found: ${serverPath}`;
+    const serverPath = candidateServerPaths.find((p) => fs.existsSync(p));
+
+    if (!serverPath) {
+      const msg = `Server not found in candidate paths: ${candidateServerPaths.join(', ')}`;
       log(`[ERROR] ${msg}`);
       return reject(new Error(msg));
     }
@@ -133,20 +140,27 @@ function startServer() {
 function createWindow() {
   if (mainWindow) return;
 
-  const iconPath = path.join(
-    process.resourcesPath,
-    'app.asar.unpacked',
-    '.output',
-    'public',
-    'app_icon',
-    'Icon512.png'
-  );
+  const candidateIconPaths = [
+    process.env.REIN_ICON_PATH,
+    process.resourcesPath && path.join(
+      process.resourcesPath,
+      'app.asar.unpacked',
+      '.output',
+      'public',
+      'app_icon',
+      'Icon512.png'
+    ),
+    path.join(__dirname, '..', 'brand', 'Media-Assets', 'Icons', 'Icon512.png'),
+    path.join(__dirname, '..', '.output', 'public', 'app_icon', 'Icon512.png'),
+  ].filter(Boolean);
+
+  const iconPath = candidateIconPaths.find((p) => fs.existsSync(p));
 
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     show: true,
-    icon: fs.existsSync(iconPath) ? iconPath : undefined,
+    icon: iconPath,
   });
 
   mainWindow.loadURL(`http://localhost:${serverPort}`);

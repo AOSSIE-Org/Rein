@@ -152,17 +152,16 @@ sudo dnf install -y \
   gstreamer1-libav
 ```
 
-**Linux (NixOS)**
+**Linux (NixOS / Nix Flake)**
 
-Add the following to your `shell.nix` or `devShell`:
+Using Nix Flakes:
 
-```nix
-gst_all_1.gstreamer
-gst_all_1.gst-plugins-base
-gst_all_1.gst-plugins-good
-gst_all_1.gst-plugins-bad
-gst_all_1.gst-plugins-ugly
-gst_all_1.gst-libav
+```bash
+# Run Rein directly
+nix run github:AOSSIE-Org/Rein
+
+# Or enter the development shell
+nix develop
 ```
 
 Or use the provided `shell.nix` directly:
