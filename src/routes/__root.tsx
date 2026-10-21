@@ -160,18 +160,18 @@ function Navbar() {
 	return (
 		<div className="navbar bg-base-100 border-b border-base-300 min-h-12 h-12 z-50 px-4">
 			<div className="flex-1">
-			<Link
-				to="/trackpad"
-				className="group inline-flex items-center gap-2.5 rounded-lg text-xl font-semibold tracking-tight text-base-content transition-colors duration-200 hover:text-primary"
-			>
-				<img
-					src="/app_icon/Icon512.png"
-					width={32}
-					height={32}
-					alt="Rein logo"
-					className="size-8 shrink-0 object-contain transition-transform duration-200 group-hover:scale-105"
-				/>
-			</Link>
+				<Link
+					to="/trackpad"
+					className="group inline-flex items-center gap-2.5 rounded-lg text-xl font-semibold tracking-tight text-base-content transition-colors duration-200 hover:text-primary"
+				>
+					<img
+						src="/app_icon/Icon512.png"
+						width={32}
+						height={32}
+						alt="Rein logo"
+						className="size-8 shrink-0 object-contain transition-transform duration-200 group-hover:scale-105"
+					/>
+				</Link>
 			</div>
 			<nav className="flex items-center gap-1 bg-base-200/60 p-1 rounded-xl border border-base-300/50">
 				<LatencyBadge />

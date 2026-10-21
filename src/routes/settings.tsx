@@ -190,9 +190,11 @@ function SettingsPage() {
 						</div>
 					</div>
 
-					{/* Right Column: QR Code & Connection Info */}
-					<div className="w-full md:w-96 flex-shrink-0">
-						<div className="card bg-base-200 shadow-xl sticky top-6">
+				{/* Right Column: QR Code & Connection Info */}
+				<div className="w-full md:w-96 flex-shrink-0 self-stretch">
+					{/* This sticky wrapper spans the full height of the left settings form */}
+					<div className="sticky top-6 flex flex-col items-center">
+						<div className="card bg-base-200 shadow-xl w-full">
 							<div className="card-body items-center text-center">
 								<h2 className="card-title">{t("settings", "connectMobile")}</h2>
 								<p className="text-sm opacity-70">{t("settings", "scanQr")}</p>
@@ -210,7 +212,6 @@ function SettingsPage() {
 								<div className="flex flex-col gap-2 mt-2 w-full px-2 items-center">
 									{/* URL row: truncated preview + copy button */}
 									<div className="flex items-center gap-2 w-full bg-base-100 rounded-2xl px-3 py-2">
-										{/* Link icon */}
 										<Link2 size={16} className="shrink-0 opacity-50" />
 										{/* Truncated URL preview — strips the token query param */}
 										<span
@@ -269,10 +270,12 @@ function SettingsPage() {
 							</div>
 						</div>
 
-						<div className="text-xs text-center opacity-50 pt-8 pb-8">
+						{/* Version text stays neatly below the card and moves with it */}
+						<div className="text-xs text-center opacity-50 pt-4 pb-2">
 							{t("settings", "appVersion", { version: APP_CONFIG.VERSION })}
 						</div>
 					</div>
+				</div>
 				</div>
 			</div>
 		</div>
