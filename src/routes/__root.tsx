@@ -24,6 +24,7 @@ import {
 	SlidersHorizontal,
 } from "lucide-react"
 import { t } from "../utils/i18n"
+import { THEME_LIST } from "../components/ThemePicker/ThemePicker"
 
 export const Route = createRootRoute({
 	shellComponent: AppProviders,
@@ -31,7 +32,12 @@ export const Route = createRootRoute({
 	errorComponent: (props) => {
 		return (
 			<RootDocument>
-				<div>Error: {props.error.message}</div>
+				<div>
+					Error:{" "}
+					{props.error instanceof Error
+						? props.error.message
+						: String(props.error)}
+				</div>
 			</RootDocument>
 		)
 	},
@@ -59,11 +65,25 @@ function RootComponent() {
 
 function ThemeInit() {
 	useEffect(() => {
-		const saved = getLocalStorageItem(APP_CONFIG.THEME_STORAGE_KEY)
-		const theme =
-			saved === THEMES.LIGHT || saved === THEMES.DARK ? saved : THEMES.DEFAULT
-		document.documentElement.setAttribute("data-theme", theme)
+		const applyTheme = () => {
+			const saved = getLocalStorageItem(APP_CONFIG.THEME_STORAGE_KEY)
+			const isValidTheme = THEME_LIST.some((t) => t.value === saved)
+			const theme = isValidTheme ? saved! : THEMES.DEFAULT
+			document.documentElement.setAttribute("data-theme", theme)
+		}
+
+		applyTheme()
+
+		const onStorage = (e: StorageEvent) => {
+			if (e.key === APP_CONFIG.THEME_STORAGE_KEY) {
+				applyTheme()
+			}
+		}
+
+		window.addEventListener("storage", onStorage)
+		return () => window.removeEventListener("storage", onStorage)
 	}, [])
+
 	return null
 }
 
@@ -140,15 +160,18 @@ function Navbar() {
 	return (
 		<div className="navbar bg-base-100 border-b border-base-300 min-h-12 h-12 z-50 px-4">
 			<div className="flex-1">
-				<Link to="/trackpad" className="btn btn-ghost text-xl normal-case">
-					<img
-						src="/app_icon/IconLine.png"
-						height={32}
-						width={32}
-						alt="Rein logo"
-					/>
-					Rein
-				</Link>
+			<Link
+				to="/trackpad"
+				className="group inline-flex items-center gap-2.5 rounded-lg text-xl font-semibold tracking-tight text-base-content transition-colors duration-200 hover:text-primary"
+			>
+				<img
+					src="/app_icon/Icon512.png"
+					width={32}
+					height={32}
+					alt="Rein logo"
+					className="size-8 shrink-0 object-contain transition-transform duration-200 group-hover:scale-105"
+				/>
+			</Link>
 			</div>
 			<nav className="flex items-center gap-1 bg-base-200/60 p-1 rounded-xl border border-base-300/50">
 				<LatencyBadge />
