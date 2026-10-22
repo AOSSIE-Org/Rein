@@ -7,7 +7,8 @@
   };
 
   outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
+    # Rein is Linux-only (uinput, PipeWire, ALSA); restrict outputs accordingly.
+    flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" ] (system:
       let
         pkgs = import nixpkgs { inherit system; };
 
@@ -41,7 +42,6 @@
 
           nativeBuildInputs = [ pkgs.nodejs_24 pkgs.makeWrapper ];
 
-          # Server build only; skip Electron's network binary download.
           ELECTRON_SKIP_BINARY_DOWNLOAD = "1";
           npmFlags = [ "--ignore-scripts" ];
 
@@ -53,9 +53,14 @@
             cp -r node_modules $out/lib/rein/
             cp package.json $out/lib/rein/
 
+            # Default server config, resolved at runtime via ../../src/server-config.json
+            mkdir -p $out/lib/rein/src
+            cp src/server-config.json $out/lib/rein/src/
+
             mkdir -p $out/bin
             makeWrapper ${pkgs.nodejs_24}/bin/node $out/bin/rein \
               --add-flags "$out/lib/rein/.output/server/index.mjs" \
+              --prefix PATH : "${pkgs.gst_all_1.gstreamer}/bin" \
               --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath sharedLibs}" \
               --set GST_PLUGIN_SYSTEM_PATH_1_0 "${pkgs.lib.makeSearchPathOutput "lib" "lib/gstreamer-1.0" sharedLibs}"
 
