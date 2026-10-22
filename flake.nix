@@ -11,7 +11,6 @@
       let
         pkgs = import nixpkgs { inherit system; };
 
-        # Native libraries Rein needs at runtime (ported from shell.nix)
         sharedLibs = with pkgs; [
           gtk3
           nss
@@ -32,8 +31,52 @@
           pipewire
           libnice
         ];
+
+        rein = pkgs.buildNpmPackage {
+          pname = "rein";
+          version = "0.5.0";
+          src = ./.;
+
+          npmDepsHash = "sha256-kQq/gCIPiL18y0kJz3ip84nCY39vYYvlFvNUIyTjpW4=";
+
+          nativeBuildInputs = [ pkgs.nodejs_24 pkgs.makeWrapper ];
+
+          # Server build only; skip Electron's network binary download.
+          ELECTRON_SKIP_BINARY_DOWNLOAD = "1";
+          npmFlags = [ "--ignore-scripts" ];
+
+          installPhase = ''
+            runHook preInstall
+
+            mkdir -p $out/lib/rein
+            cp -r .output $out/lib/rein/
+            cp -r node_modules $out/lib/rein/
+            cp package.json $out/lib/rein/
+
+            mkdir -p $out/bin
+            makeWrapper ${pkgs.nodejs_24}/bin/node $out/bin/rein \
+              --add-flags "$out/lib/rein/.output/server/index.mjs" \
+              --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath sharedLibs}" \
+              --set GST_PLUGIN_SYSTEM_PATH_1_0 "${pkgs.lib.makeSearchPathOutput "lib" "lib/gstreamer-1.0" sharedLibs}"
+
+            runHook postInstall
+          '';
+
+          meta = {
+            description = "Rein — remote desktop / couch keyboard streaming server";
+            homepage = "https://github.com/AOSSIE-Org/Rein";
+            mainProgram = "rein";
+          };
+        };
       in
       {
+        packages.default = rein;
+
+        apps.default = {
+          type = "app";
+          program = "${rein}/bin/rein";
+        };
+
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
             nodejs_24
@@ -43,7 +86,6 @@
             appimage-run
           ] ++ sharedLibs;
 
-          # Set as env vars (reliable across Nix implementations, unlike shellHook)
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath sharedLibs;
           GST_PLUGIN_SYSTEM_PATH_1_0 =
             pkgs.lib.makeSearchPathOutput "lib" "lib/gstreamer-1.0" sharedLibs;
