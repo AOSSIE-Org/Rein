@@ -5,8 +5,10 @@
  * macOS APIs. Manages cursor state, button tracking, scrolling, and
  * delegates keyboard and touch functionality to platform-specific modules.
  */
-import { postMouseEvent, postScrollEvent } from "./structs.ts"
+import { postMouseEvent, postScrollEvent } from "@imxade/inject/mac"
 import {
+	kCGHIDEventTap,
+	kCGScrollEventUnitLine,
 	kCGEventMouseMoved,
 	kCGEventLeftMouseDown,
 	kCGEventLeftMouseUp,
@@ -105,7 +107,13 @@ export class MacInputInjector {
 			button = kCGMouseButtonCenter
 		}
 
-		postMouseEvent(eventType, this.cursorX, this.cursorY, button)
+		postMouseEvent(
+			kCGHIDEventTap,
+			eventType,
+			this.cursorX,
+			this.cursorY,
+			button,
+		)
 	}
 
 	// Teleports the cursor to an absolute screen position (pixel coordinates).
@@ -128,7 +136,13 @@ export class MacInputInjector {
 			button = kCGMouseButtonCenter
 		}
 
-		postMouseEvent(eventType, this.cursorX, this.cursorY, button)
+		postMouseEvent(
+			kCGHIDEventTap,
+			eventType,
+			this.cursorX,
+			this.cursorY,
+			button,
+		)
 	}
 
 	injectMouseButton(
@@ -144,7 +158,13 @@ export class MacInputInjector {
 			this.buttonsHeld.delete(button)
 		}
 
-		postMouseEvent(eventType, this.cursorX, this.cursorY, map.btn)
+		postMouseEvent(
+			kCGHIDEventTap,
+			eventType,
+			this.cursorX,
+			this.cursorY,
+			map.btn,
+		)
 	}
 
 	injectMouseWheel(dx: number, dy: number): void {
@@ -154,7 +174,7 @@ export class MacInputInjector {
 		const cgDy = dy !== 0 ? Math.round(dy * invert * WHEEL_SCALE) : 0
 		const cgDx = dx !== 0 ? Math.round(dx * invert * WHEEL_SCALE) : 0
 
-		postScrollEvent(cgDx, cgDy)
+		postScrollEvent(kCGHIDEventTap, kCGScrollEventUnitLine, cgDy, cgDx)
 	}
 
 	// Keyboard

@@ -5,9 +5,13 @@
  * SendInput API. Supports both virtual-key based input and Unicode
  * character injection for reliable text entry across applications.
  */
-import { SendInput, INPUT_STRUCT_SIZE } from "./structs.ts"
-import { KEYEVENTF_KEYUP, KEYEVENTF_UNICODE } from "./constants.ts"
-import { INPUT_KEYBOARD } from "../../constants.ts"
+import {
+	sendInput,
+	INPUT_KEYBOARD,
+	KEYEVENTF_KEYUP,
+	KEYEVENTF_UNICODE,
+	type WindowsInput,
+} from "@imxade/inject/windows"
 import { VK_MAP } from "../keyMap.ts"
 
 export class WindowsKeyboard {
@@ -16,30 +20,26 @@ export class WindowsKeyboard {
 		const vk = VK_MAP[lowerKey]
 
 		if (vk !== undefined) {
-			const events: Array<Record<string, unknown>> = []
+			const events: WindowsInput[] = []
 			if (pos !== "RELEASE") {
 				events.push({
 					type: INPUT_KEYBOARD,
-					__pad: 0,
-					u: { ki: { wVk: vk, wScan: 0, dwFlags: 0, time: 0, dwExtraInfo: 0 } },
+					u: { ki: { wVk: vk, wScan: 0, dwFlags: 0 } },
 				})
 			}
 			if (pos !== "HOLD") {
 				events.push({
 					type: INPUT_KEYBOARD,
-					__pad: 0,
 					u: {
 						ki: {
 							wVk: vk,
 							wScan: 0,
 							dwFlags: KEYEVENTF_KEYUP,
-							time: 0,
-							dwExtraInfo: 0,
 						},
 					},
 				})
 			}
-			this.sendInput(events.length, events)
+			this.sendInput(events)
 		} else if (key.length === 1) {
 			this.injectText(key)
 		} else {
@@ -49,11 +49,7 @@ export class WindowsKeyboard {
 
 	injectCombo(keys: string[]): void {
 		const vks = keys
-			.map((k) => {
-				const vk = VK_MAP[k.toLowerCase()]
-
-				return vk
-			})
+			.map((k) => VK_MAP[k.toLowerCase()])
 			.filter((vk): vk is number => vk !== undefined)
 
 		if (vks.length === 0) {
@@ -61,14 +57,13 @@ export class WindowsKeyboard {
 			return
 		}
 
-		const events: Array<Record<string, unknown>> = []
+		const events: WindowsInput[] = []
 
 		// Press all keys
 		for (const vk of vks) {
 			events.push({
 				type: INPUT_KEYBOARD,
-				__pad: 0,
-				u: { ki: { wVk: vk, wScan: 0, dwFlags: 0, time: 0, dwExtraInfo: 0 } },
+				u: { ki: { wVk: vk, wScan: 0, dwFlags: 0 } },
 			})
 		}
 
@@ -76,20 +71,17 @@ export class WindowsKeyboard {
 		for (let i = vks.length - 1; i >= 0; i--) {
 			events.push({
 				type: INPUT_KEYBOARD,
-				__pad: 0,
 				u: {
 					ki: {
 						wVk: vks[i],
 						wScan: 0,
 						dwFlags: KEYEVENTF_KEYUP,
-						time: 0,
-						dwExtraInfo: 0,
 					},
 				},
 			})
 		}
 
-		this.sendInput(events.length, events)
+		this.sendInput(events)
 	}
 
 	injectText(text: string): void {
@@ -100,30 +92,24 @@ export class WindowsKeyboard {
 		for (const ch of text) {
 			const c = ch.charCodeAt(0)
 
-			this.sendInput(2, [
+			this.sendInput([
 				{
 					type: INPUT_KEYBOARD,
-					__pad: 0,
 					u: {
 						ki: {
 							wVk: 0,
 							wScan: c,
 							dwFlags: KEYEVENTF_UNICODE,
-							time: 0,
-							dwExtraInfo: 0,
 						},
 					},
 				},
 				{
 					type: INPUT_KEYBOARD,
-					__pad: 0,
 					u: {
 						ki: {
 							wVk: 0,
 							wScan: c,
 							dwFlags: KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
-							time: 0,
-							dwExtraInfo: 0,
 						},
 					},
 				},
@@ -131,19 +117,21 @@ export class WindowsKeyboard {
 		}
 	}
 
-	private sendInput(
-		count: number,
-		events: Array<Record<string, unknown>>,
-	): void {
+	private sendInput(events: WindowsInput[]): void {
 		if (events.length === 0) {
 			console.warn("[SendInput] No events to send")
 			return
 		}
 
-		const result = SendInput(count, events, INPUT_STRUCT_SIZE)
+		const result = sendInput(events)
 
-		if (result !== count) {
-			console.error("[SendInput] SendInput failed! Sent:", result, "of", count)
+		if (result !== events.length) {
+			console.error(
+				"[SendInput] SendInput failed! Sent:",
+				result,
+				"of",
+				events.length,
+			)
 		}
 	}
 }

@@ -51,6 +51,7 @@ function createMockProcess(options: {
 
 describe("Clipboard helper", () => {
 	beforeEach(() => {
+		vi.clearAllMocks()
 		vi.restoreAllMocks()
 	})
 

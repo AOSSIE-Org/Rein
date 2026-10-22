@@ -5,8 +5,9 @@
  * handling native mouse events directly while delegating keyboard
  * and touch functionality to platform-specific modules.
  */
-import { SendInput, INPUT_STRUCT_SIZE } from "./structs.ts"
 import {
+	sendInput,
+	INPUT_MOUSE,
 	MOUSEEVENTF_MOVE,
 	MOUSEEVENTF_ABSOLUTE,
 	MOUSEEVENTF_LEFTDOWN,
@@ -17,9 +18,10 @@ import {
 	MOUSEEVENTF_MIDDLEUP,
 	MOUSEEVENTF_WHEEL,
 	MOUSEEVENTF_HWHEEL,
-	WHEEL_DELTA,
-} from "./constants.ts"
-import { INPUT_MOUSE, DEFAULT_CONFIG } from "../../constants.ts"
+	type WindowsInput,
+} from "@imxade/inject/windows"
+import { WHEEL_DELTA } from "./constants.ts"
+import { DEFAULT_CONFIG } from "../../constants.ts"
 import type { InputConfig, TouchContact } from "../../types.ts"
 import { WindowsKeyboard } from "./keyboard.ts"
 import { WindowsTouch } from "./touch.ts"
@@ -49,26 +51,19 @@ export class WindowsInputInjector {
 	// ---- Mouse ----
 	injectMouseMove(dx: number, dy: number): void {
 		if (dx === 0 && dy === 0) return
-		SendInput(
-			1,
-			[
-				{
-					type: INPUT_MOUSE,
-					__pad: 0,
-					u: {
-						mi: {
-							dx: Math.round(dx),
-							dy: Math.round(dy),
-							mouseData: 0,
-							dwFlags: MOUSEEVENTF_MOVE,
-							time: 0,
-							dwExtraInfo: 0,
-						},
+		sendInput([
+			{
+				type: INPUT_MOUSE,
+				u: {
+					mi: {
+						dx: Math.round(dx),
+						dy: Math.round(dy),
+						mouseData: 0,
+						dwFlags: MOUSEEVENTF_MOVE,
 					},
 				},
-			],
-			INPUT_STRUCT_SIZE,
-		)
+			},
+		])
 	}
 
 	// Teleports the cursor to an absolute screen position.
@@ -76,26 +71,19 @@ export class WindowsInputInjector {
 	injectMouseAbsolute(x: number, y: number): void {
 		const absX = Math.round((x / this.config.screenWidth) * 65535)
 		const absY = Math.round((y / this.config.screenHeight) * 65535)
-		SendInput(
-			1,
-			[
-				{
-					type: INPUT_MOUSE,
-					__pad: 0,
-					u: {
-						mi: {
-							dx: absX,
-							dy: absY,
-							mouseData: 0,
-							dwFlags: MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
-							time: 0,
-							dwExtraInfo: 0,
-						},
+		sendInput([
+			{
+				type: INPUT_MOUSE,
+				u: {
+					mi: {
+						dx: absX,
+						dy: absY,
+						mouseData: 0,
+						dwFlags: MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
 					},
 				},
-			],
-			INPUT_STRUCT_SIZE,
-		)
+			},
+		])
 	}
 
 	injectMouseButton(
@@ -108,44 +96,34 @@ export class WindowsInputInjector {
 			middle: [MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP],
 		} as const
 
-		SendInput(
-			1,
-			[
-				{
-					type: INPUT_MOUSE,
-					__pad: 0,
-					u: {
-						mi: {
-							dx: 0,
-							dy: 0,
-							mouseData: 0,
-							dwFlags: flagMap[button][isDown ? 0 : 1],
-							time: 0,
-							dwExtraInfo: 0,
-						},
+		sendInput([
+			{
+				type: INPUT_MOUSE,
+				u: {
+					mi: {
+						dx: 0,
+						dy: 0,
+						mouseData: 0,
+						dwFlags: flagMap[button][isDown ? 0 : 1],
 					},
 				},
-			],
-			INPUT_STRUCT_SIZE,
-		)
+			},
+		])
 	}
 
 	injectMouseWheel(dx: number, dy: number): void {
-		const inputs: Array<Record<string, unknown>> = []
+		const inputs: WindowsInput[] = []
 
 		if (dy !== 0) {
 			const scrollAmount = this.config.invertScroll ? -dy : dy
 			inputs.push({
 				type: INPUT_MOUSE,
-				__pad: 0,
 				u: {
 					mi: {
 						dx: 0,
 						dy: 0,
 						mouseData: Math.round(scrollAmount * WHEEL_DELTA),
 						dwFlags: MOUSEEVENTF_WHEEL,
-						time: 0,
-						dwExtraInfo: 0,
 					},
 				},
 			})
@@ -154,7 +132,6 @@ export class WindowsInputInjector {
 		if (dx !== 0) {
 			inputs.push({
 				type: INPUT_MOUSE,
-				__pad: 0,
 				u: {
 					mi: {
 						dx: 0,
@@ -163,15 +140,13 @@ export class WindowsInputInjector {
 							(this.config.invertScroll ? dx : -dx) * WHEEL_DELTA,
 						),
 						dwFlags: MOUSEEVENTF_HWHEEL,
-						time: 0,
-						dwExtraInfo: 0,
 					},
 				},
 			})
 		}
 
 		if (inputs.length > 0) {
-			SendInput(inputs.length, inputs, INPUT_STRUCT_SIZE)
+			sendInput(inputs)
 		}
 	}
 

@@ -6,13 +6,41 @@
  * dragging, two-finger scrolling, and pinch gesture emulation while
  * tracking active touch contacts and gesture state.
  */
-import { postMouseEvent, postScrollEvent, postKeyEvent } from "./structs.ts"
 import {
+	postMouseEvent,
+	postScrollEvent,
+	postKeyEvent,
+} from "@imxade/inject/mac"
+import {
+	kCGHIDEventTap,
+	kCGScrollEventUnitLine,
 	kCGEventLeftMouseDown,
 	kCGEventLeftMouseUp,
 	kCGEventLeftMouseDragged,
 	kCGMouseButtonLeft,
 } from "./constants.ts"
+
+function postMouse(
+	eventType: number,
+	x: number,
+	y: number,
+	button: number,
+): void {
+	postMouseEvent(kCGHIDEventTap, eventType, x, y, button)
+}
+
+function postScroll(deltaX: number, deltaY: number): void {
+	postScrollEvent(
+		kCGHIDEventTap,
+		kCGScrollEventUnitLine,
+		Math.round(deltaY),
+		Math.round(deltaX),
+	)
+}
+
+function postKey(keyCode: number, keyDown: boolean): void {
+	postKeyEvent(kCGHIDEventTap, keyCode, keyDown)
+}
 import { MAC_KEY_MAP } from "../keyMap.ts"
 import type { TouchContact } from "../../types.ts"
 import { PINCH_PAN_THRESHOLD } from "../../constants.ts"
@@ -54,7 +82,7 @@ export class MacTouch {
 		if (this.activeContacts.size === 0) return
 
 		const first = [...this.activeContacts.values()][0]
-		postMouseEvent(kCGEventLeftMouseUp, first.x, first.y, kCGMouseButtonLeft)
+		postMouse(kCGEventLeftMouseUp, first.x, first.y, kCGMouseButtonLeft)
 		this.activeContacts.clear()
 		this.pinch = null
 	}
@@ -71,13 +99,13 @@ export class MacTouch {
 		if (active === 1 && downs.length > 0) {
 			// First finger touching — start a mouse press
 			const c = downs[0]
-			postMouseEvent(kCGEventLeftMouseDown, c.x, c.y, kCGMouseButtonLeft)
+			postMouse(kCGEventLeftMouseDown, c.x, c.y, kCGMouseButtonLeft)
 			this.pinch = null
 		} else if (active === 2) {
 			// Second finger arrived — lift the simulated mouse press and switch
 			// to two-finger / pinch mode
 			const first = [...this.activeContacts.values()][0]
-			postMouseEvent(kCGEventLeftMouseUp, first.x, first.y, kCGMouseButtonLeft)
+			postMouse(kCGEventLeftMouseUp, first.x, first.y, kCGMouseButtonLeft)
 			this.pinch = this.buildPinchState()
 		} else if (active > 2) {
 			console.warn(
@@ -93,7 +121,7 @@ export class MacTouch {
 
 			if (active === 1 && prev) {
 				// Single-finger drag
-				postMouseEvent(kCGEventLeftMouseDragged, c.x, c.y, kCGMouseButtonLeft)
+				postMouse(kCGEventLeftMouseDragged, c.x, c.y, kCGMouseButtonLeft)
 			} else if (active === 2) {
 				this.handleTwoFingerMove(c, prev)
 			}
@@ -109,13 +137,13 @@ export class MacTouch {
 
 			if (this.activeContacts.size === 0 && prev) {
 				// Last finger lifted
-				postMouseEvent(kCGEventLeftMouseUp, c.x, c.y, kCGMouseButtonLeft)
+				postMouse(kCGEventLeftMouseUp, c.x, c.y, kCGMouseButtonLeft)
 				this.pinch = null
 			} else if (this.activeContacts.size === 1 && this.pinch) {
 				// Dropped from 2 → 1 finger: re-press at the remaining finger's pos
 				this.pinch = null
 				const remaining = [...this.activeContacts.values()][0]
-				postMouseEvent(
+				postMouse(
 					kCGEventLeftMouseDown,
 					remaining.x,
 					remaining.y,
@@ -163,7 +191,7 @@ export class MacTouch {
 				const dx = c.x - (prev?.x ?? c.x)
 				const dy = c.y - (prev?.y ?? c.y)
 				// CG scroll: positive Y = scroll up; finger moving down = scroll down
-				postScrollEvent(dx, -dy)
+				postScroll(dx, -dy)
 			}
 		}
 	}
@@ -179,9 +207,9 @@ export class MacTouch {
 			)
 			return
 		}
-		postKeyEvent(ctrlCode, true)
-		postScrollEvent(0, lines)
-		postKeyEvent(ctrlCode, false)
+		postKey(ctrlCode, true)
+		postScroll(0, lines)
+		postKey(ctrlCode, false)
 	}
 
 	//Helpers
