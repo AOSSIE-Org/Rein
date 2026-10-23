@@ -13,33 +13,33 @@ Cross-platform input injection layer used by the server to generate native mouse
 
 ### Linux (`linux/`)
 
-Implements input injection using the Linux **uinput** subsystem.
+Implements input injection using `@imxade/inject/linux` (**uinput** subsystem).
 
 * **index.ts** – Main Linux input injector.
 * **keyboard.ts** – Keyboard event injection.
 * **touch.ts** – Multi-touch input handling using the Linux MT slot protocol.
+* **gamepad.ts** – Linux virtual gamepad device injection.
 * **constants.ts** – Linux-specific constants and event codes.
-* **structs.ts** – Native bindings and uinput structures.
 
 ### macOS (`mac/`)
 
-Implements input injection using **CoreGraphics** APIs.
+Implements input injection using `@imxade/inject/mac` (**CoreGraphics**) and IOHIDUserDevice.
 
 * **index.ts** – Main macOS input injector.
-* **keyboard.ts** – Keyboard and Unicode text injection.
+* **keyboard.ts** – Keyboard, Unicode text, and media key injection.
 * **touch.ts** – Touch gesture translation (drag, scroll, pinch zoom).
+* **gamepad.ts** – Virtual HID gamepad device injection.
 * **constants.ts** – CoreGraphics constants and event definitions.
-* **structs.ts** – Native bindings for CoreGraphics functions.
 
 ### Windows (`windows/`)
 
-Implements input injection using **SendInput** and the **Synthetic Pointer API**.
+Implements input injection using `@imxade/inject/windows` (**SendInput**, **Synthetic Pointer API**, and **ViGEmBus**).
 
 * **index.ts** – Main Windows input injector.
 * **keyboard.ts** – Keyboard and Unicode text injection.
 * **touch.ts** – Synthetic multi-touch input implementation.
+* **gamepad.ts** – Virtual Xbox 360 controller injection via ViGEmBus.
 * **constants.ts** – Windows input constants and flags.
-* **structs.ts** – Win32 and synthetic pointer bindings.
 
 ## Supported Input Types
 

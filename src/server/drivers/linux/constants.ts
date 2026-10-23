@@ -4,10 +4,7 @@ export {
 	EV_KEY,
 	EV_REL,
 	EV_ABS,
-	SYN_REPORT,
 } from "@imxade/inject/linux"
-
-export const SYN_MT_REPORT = 0x02
 
 // ---- Relative axes (mouse movement / scroll) ----
 export const REL_X = 0x00
@@ -38,16 +35,10 @@ export const BTN_TOOL_TRIPLETAP = 0x14e
 export const BTN_TOOL_QUADTAP = 0x14f
 
 // ---- Gamepad buttons ----
-export const BTN_SOUTH = 0x130
 export const BTN_A = 0x130
-export const BTN_EAST = 0x131
 export const BTN_B = 0x131
-export const BTN_C = 0x132
-export const BTN_NORTH = 0x133
 export const BTN_X = 0x133
-export const BTN_WEST = 0x134
 export const BTN_Y = 0x134
-export const BTN_Z = 0x135
 export const BTN_TL = 0x136
 export const BTN_TR = 0x137
 export const BTN_TL2 = 0x138
@@ -74,7 +65,6 @@ export const ABS_HAT0Y = 0x11
 // ---- Key press states ----
 export const KEY_PRESS = 1
 export const KEY_RELEASE = 0
-export const KEY_REPEAT = 2
 
 // ---- Misc ----
 export const MAX_CONTACTS = 10
