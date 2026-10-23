@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react"
 import { Maximize, Minimize } from "lucide-react"
 import { useRemoteConnection } from "../hooks/useRemoteConnection"
 import { useWebRtcStream } from "../hooks/useWebRtcStream"
+import { useWakeLock } from "../hooks/useWakeLock"
 import { ScreenMirror } from "../components/Trackpad/ScreenMirror"
 import { ErrorComponent } from "../components/Trackpad/ErrorComponent"
 import { GamepadOverlay } from "../components/Gamepad/GamepadOverlay"
@@ -50,6 +51,9 @@ function GamepadPage() {
 	const [audioMuted, setAudioMuted] = useState<boolean>(
 		() => getLocalStorageItem("rein_audio_muted") === "true",
 	)
+	const [keepAwake, setKeepAwake] = useState<boolean>(
+		() => getLocalStorageItem("rein_keep_awake") !== "false",
+	)
 
 	useEffect(() => {
 		const onStorage = (e: StorageEvent) => {
@@ -59,10 +63,17 @@ function GamepadPage() {
 			if (e.key === "rein_audio_muted") {
 				setAudioMuted(e.newValue === "true")
 			}
+			if (e.key === "rein_keep_awake") {
+				setKeepAwake(e.newValue !== "false")
+			}
 		}
 		window.addEventListener("storage", onStorage)
 		return () => window.removeEventListener("storage", onStorage)
 	}, [])
+
+	useWakeLock({
+		enabled: keepAwake && status === "connected",
+	})
 
 	const [layout] = useGamepadLayout()
 
