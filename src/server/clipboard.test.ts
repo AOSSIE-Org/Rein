@@ -56,6 +56,7 @@ describe("Clipboard helper", () => {
 	})
 
 	afterEach(() => {
+		vi.clearAllMocks()
 		vi.restoreAllMocks()
 	})
 

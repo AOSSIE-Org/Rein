@@ -3,8 +3,9 @@ import { Transform } from "node:stream"
 import logger from "../../utils/logger.ts"
 import winston from "winston"
 import { getOrCreateActiveToken } from "../tokenStore.ts"
-import { GstManager } from "../gstreamer/gstManager.ts"
+import { GstManager, probeGstreamer } from "../gstreamer/gstManager.ts"
 import { WebRTCManager } from "./webRTC.ts"
+import { probeInputInjector } from "../InputHandler.ts"
 import type { InputConfig } from "../types.ts"
 import { getLanIp, isLoopbackAddress } from "../../utils/net.ts"
 import { requireAuth, parseJsonBody, json } from "./utils.ts"
@@ -81,6 +82,15 @@ class SseTransport extends winston.transports.Stream {
 
 logger.add(new SseTransport())
 
+function getHostDiagnostics() {
+	return {
+		gstRunning: gstManager?.isRunning() ?? false,
+		gstError: gstManager?.getLastError() ?? null,
+		inputError: probeInputInjector().error ?? null,
+		hostStatus: getEffectiveHostStatus(),
+	}
+}
+
 function getEffectiveHostStatus():
 	| "stopped"
 	| "starting"
@@ -110,12 +120,27 @@ export function attachSignalingRoutes(server: any): void {
 	storedHttpServer = httpServer
 
 	try {
+		// Run initial health probes to log any setup issues upfront
+		const inputProbe = probeInputInjector()
+		if (!inputProbe.ok) {
+			logger.warn(
+				`[HealthCheck] Input device initialization warning: ${inputProbe.error}`,
+			)
+		}
+		const gstProbe = probeGstreamer()
+		if (!gstProbe.ok) {
+			logger.warn(`[HealthCheck] GStreamer binary warning: ${gstProbe.error}`)
+		}
+
 		if (!webrtcManager) {
-			webrtcManager = new WebRTCManager()
+			webrtcManager = new WebRTCManager(getHostDiagnostics)
 		}
 
 		if (!gstManager) {
 			gstManager = new GstManager()
+			gstManager.setOnError((err) => {
+				webrtcManager?.broadcastError("GStreamer Pipeline Error", err)
+			})
 			hostStatus = "starting"
 			lifecyclePromise = lifecyclePromise
 				.then(async () => {
@@ -209,7 +234,24 @@ export function attachSignalingRoutes(server: any): void {
 
 			if (pathname === "/api/host/status" && req.method === "GET") {
 				if (!requireAuth(req, res)) return
-				json(res, 200, { status: getEffectiveHostStatus() })
+				const inputHealth = probeInputInjector()
+				const gstProbe = probeGstreamer()
+				const gstError = gstManager?.getLastError() ?? null
+				const gstOk = gstProbe.ok && !gstError && hostStatus !== "error"
+				const udpOk = webrtcManager ? !webrtcManager.hasError() : true
+
+				json(res, 200, {
+					status: getEffectiveHostStatus(),
+					healthy: inputHealth.ok && gstOk && udpOk,
+					checks: {
+						inputDevice: inputHealth,
+						gstreamer: {
+							ok: gstOk,
+							error: gstError || gstProbe.error,
+						},
+						udpRelay: { ok: udpOk },
+					},
+				})
 				return
 			}
 
@@ -533,8 +575,11 @@ export async function restartServer(): Promise<void> {
 		await new Promise((resolve) => setTimeout(resolve, 200))
 
 		try {
-			webrtcManager = new WebRTCManager()
+			webrtcManager = new WebRTCManager(getHostDiagnostics)
 			gstManager = new GstManager()
+			gstManager.setOnError((err) => {
+				webrtcManager?.broadcastError("GStreamer Pipeline Error", err)
+			})
 			await gstManager.start()
 			hostStatus = "running"
 			logger.info("Server engine successfully restarted")

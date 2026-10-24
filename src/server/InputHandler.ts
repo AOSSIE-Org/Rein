@@ -87,7 +87,7 @@ export class InputHandler {
 			const errMsg = `Input injector initialization failed: ${e instanceof Error ? e.message : String(e)}`
 			console.warn(e)
 			if (this.onError) {
-				this.onError("input-injector-init-failed", errMsg)
+				this.onError("Input Device Error", errMsg)
 			}
 		}
 	}
@@ -420,5 +420,39 @@ function createStubInjector(): PlatformInjector {
 		injectGamepadButton: () => warn("injectGamepadButton"),
 		injectGamepadAxis: () => warn("injectGamepadAxis"),
 		destroy: () => {},
+	}
+}
+
+/**
+ * Probes whether the host environment can successfully create virtual input devices.
+ * Instantiates the platform injector and immediately tears it down.
+ */
+export function probeInputInjector(): { ok: boolean; error?: string } {
+	const plat = os.platform()
+	try {
+		if (plat === "win32") {
+			const { WindowsInputInjector } = require("./drivers/windows")
+			const injector = new WindowsInputInjector()
+			injector.destroy?.()
+			return { ok: true }
+		}
+		if (plat === "linux") {
+			const { LinuxInputInjector } = require("./drivers/linux")
+			const injector = new LinuxInputInjector()
+			injector.destroy?.()
+			return { ok: true }
+		}
+		if (plat === "darwin") {
+			const { MacInputInjector } = require("./drivers/mac")
+			const injector = new MacInputInjector()
+			injector.destroy?.()
+			return { ok: true }
+		}
+		return { ok: false, error: `Unsupported platform: ${plat}` }
+	} catch (e) {
+		return {
+			ok: false,
+			error: e instanceof Error ? e.message : String(e),
+		}
 	}
 }

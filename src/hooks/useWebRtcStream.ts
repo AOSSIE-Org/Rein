@@ -14,6 +14,22 @@ const MAX_RETRIES = 5
 // Signaling helpers
 // ---------------------------------------------------------------------------
 
+interface SignalingErrorResponse {
+	error?: string
+	errorType?: string
+}
+
+class SignalingError extends Error {
+	constructor(
+		public status: number,
+		message: string,
+		public errorType?: string,
+	) {
+		super(message)
+		this.name = "SignalingError"
+	}
+}
+
 /** POST helper that attaches the Bearer token and parses JSON response. */
 async function signalingPost<T>(
 	path: string,
@@ -29,9 +45,13 @@ async function signalingPost<T>(
 		body: JSON.stringify(body),
 	})
 	if (!res.ok) {
-		const err = await res.json().catch(() => ({ error: res.statusText }))
-		throw new Error(
-			`[Signaling] ${path} failed (${res.status}): ${(err as { error?: string }).error ?? res.statusText}`,
+		const err = (await res.json().catch(() => ({
+			error: res.statusText,
+		}))) as SignalingErrorResponse
+		throw new SignalingError(
+			res.status,
+			err.error ?? res.statusText,
+			err.errorType,
 		)
 	}
 	return res.json() as Promise<T>
@@ -304,11 +324,16 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 							remoteIceQueue.push(msg.candidate)
 						}
 					} else if (msg.type === "error") {
-						// InputHandler error from the server — surface it in ErrorComponent
-						console.error("[WebRTC] Server InputHandler error:", msg)
+						// Error from the server — surface it in ErrorComponent
+						console.error("[WebRTC] Server error:", msg)
+						if (retryTimerRef.current) {
+							clearTimeout(retryTimerRef.current)
+							retryTimerRef.current = null
+						}
+						isRetryingRef.current = false
 						setConnecting(false)
 						setErrorHandle(msg.errorType ?? "Host Error")
-						setError(msg.message ?? "The host reported an input error")
+						setError(msg.message ?? "The host reported an error")
 					}
 				} catch (err) {
 					console.error("[WebRTC] Session SSE parse error:", err)
@@ -375,6 +400,17 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 			} catch (err) {
 				if (!isDisposed && !isRetryingRef.current) {
 					console.error("[WebRTC] Signaling handshake failed:", err)
+					if (err instanceof SignalingError && err.errorType) {
+						if (retryTimerRef.current) {
+							clearTimeout(retryTimerRef.current)
+							retryTimerRef.current = null
+						}
+						isRetryingRef.current = false
+						setConnecting(false)
+						setErrorHandle(err.errorType)
+						setError(err.message)
+						return
+					}
 					handleNetworkFailure()
 				}
 			}

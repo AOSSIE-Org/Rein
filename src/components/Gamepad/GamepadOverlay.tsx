@@ -622,7 +622,6 @@ export function GamepadOverlay({
 		const update = () => {
 			requestAnimationFrame(updateVideoRect)
 		}
-
 		update()
 
 		const video = preview

@@ -38,12 +38,31 @@ function isAuthorized(
 }
 export type { SessionSnapshot }
 
+export interface HostDiagnostics {
+	gstRunning: boolean
+	gstError: string | null
+	inputError: string | null
+	hostStatus: string
+}
+
 export class WebRTCManager {
 	private readonly clients = new Map<string, ClientSession>()
 	private readonly udp: UdpSocketManager
+	private readonly getHostDiagnostics?: () => HostDiagnostics
 
-	constructor() {
+	constructor(getHostDiagnostics?: () => HostDiagnostics) {
 		this.udp = new UdpSocketManager(this.clients)
+		this.getHostDiagnostics = getHostDiagnostics
+	}
+
+	public broadcastError(errorType: string, message: string): void {
+		for (const session of this.clients.values()) {
+			pushSessionEvent(this.clients, session.sessionId, {
+				type: "error",
+				errorType,
+				message,
+			})
+		}
 	}
 
 	public hasError(): boolean {
@@ -107,11 +126,34 @@ export class WebRTCManager {
 		const audioTrack = new MediaStreamTrack({ kind: "audio" })
 		pc.addTrack(audioTrack)
 
-		// Errors that fire synchronously during InputHandler construction arrive
-		// before this session exists in this.clients, so pushSessionEvent would
-		// drop them. Buffer them here and flush into pendingEvents after the
-		// session is registered.
+		// Errors that fire synchronously during InputHandler construction or initial
+		// health checks arrive before this session exists in this.clients.
+		// Buffer them here and flush into pendingEvents after the session is registered.
 		const preInitErrors: SessionSseEvent[] = []
+
+		if (this.getHostDiagnostics) {
+			const diag = this.getHostDiagnostics()
+			if (diag.gstError) {
+				preInitErrors.push({
+					type: "error",
+					errorType: "GStreamer Capture Error",
+					message: diag.gstError,
+				})
+			} else if (!diag.gstRunning && diag.hostStatus === "error") {
+				preInitErrors.push({
+					type: "error",
+					errorType: "Capture Engine Error",
+					message: "GStreamer capture engine is not running on the host.",
+				})
+			}
+			if (diag.inputError) {
+				preInitErrors.push({
+					type: "error",
+					errorType: "Input Driver Error",
+					message: diag.inputError,
+				})
+			}
+		}
 
 		const inputHandler = new InputHandler(
 			this.loadConfig(),
