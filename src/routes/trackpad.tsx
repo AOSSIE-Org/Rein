@@ -1,7 +1,7 @@
 import { BufferBar } from "@/components/Trackpad/Buffer"
 import type { ModifierState } from "@/types"
 import { createFileRoute } from "@tanstack/react-router"
-import { useRef, useState, useEffect } from "react"
+import { useRef, useState, useEffect, useCallback } from "react"
 import { Keyboard } from "lucide-react"
 import { ControlBar } from "../components/Trackpad/ControlBar"
 import { ExtraKeys } from "../components/Trackpad/ExtraKeys"
@@ -101,9 +101,12 @@ function TrackpadPage() {
 	})
 
 	// Send input actions safely over WebRTC DataChannels
-	const broadcastMessage = (payload: unknown) => {
-		send(payload)
-	}
+	const broadcastMessage = useCallback(
+		(payload: unknown) => {
+			send(payload)
+		},
+		[send],
+	)
 
 	const gesture = useTrackpadGesture(broadcastMessage, scrollMode)
 	const { isTracking, handlers } = gesture

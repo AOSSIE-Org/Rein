@@ -164,6 +164,9 @@ export const useMouseInput = (send: (msg: unknown) => void, enabled = true) => {
 	const [isLocked, setIsLocked] = useState(false)
 	const [showLockHint, setShowLockHint] = useState(false)
 	const lockHintTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+	const sendRef = useRef(send)
+	sendRef.current = send
+	const heldKeysRef = useRef<Set<string>>(new Set())
 	const [mouseMode, setMouseMode] = useState<boolean>(
 		() => getLocalStorageItem("rein_mouse_mode") === "true",
 	)
@@ -342,13 +345,11 @@ export const useMouseInput = (send: (msg: unknown) => void, enabled = true) => {
 	useEffect(() => {
 		if (!isLocked) return
 
-		const heldKeys = new Set<string>()
-
 		const releaseAllHeldKeys = () => {
-			for (const key of heldKeys) {
-				send({ type: "key", key, pos: "RELEASE" })
+			for (const key of heldKeysRef.current) {
+				sendRef.current({ type: "key", key, pos: "RELEASE" })
 			}
-			heldKeys.clear()
+			heldKeysRef.current.clear()
 		}
 
 		const handleKeyDown = (e: KeyboardEvent) => {
@@ -361,8 +362,11 @@ export const useMouseInput = (send: (msg: unknown) => void, enabled = true) => {
 			}
 
 			const key = domEventToKey(e)
-			heldKeys.add(key)
-			send({ type: "key", key, pos: "HOLD" })
+			if (!key || key === "unidentified" || key === "process") {
+				return
+			}
+			heldKeysRef.current.add(key)
+			sendRef.current({ type: "key", key, pos: "HOLD" })
 			e.preventDefault()
 		}
 
@@ -372,8 +376,11 @@ export const useMouseInput = (send: (msg: unknown) => void, enabled = true) => {
 			}
 
 			const key = domEventToKey(e)
-			heldKeys.delete(key)
-			send({ type: "key", key, pos: "RELEASE" })
+			if (!key || key === "unidentified" || key === "process") {
+				return
+			}
+			heldKeysRef.current.delete(key)
+			sendRef.current({ type: "key", key, pos: "RELEASE" })
 			e.preventDefault()
 		}
 
@@ -390,7 +397,7 @@ export const useMouseInput = (send: (msg: unknown) => void, enabled = true) => {
 			window.removeEventListener("blur", handleBlur)
 			releaseAllHeldKeys()
 		}
-	}, [isLocked, send])
+	}, [isLocked])
 
 	const handleClick = useCallback(
 		(e: React.MouseEvent | React.PointerEvent) => {

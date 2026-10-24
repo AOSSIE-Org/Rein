@@ -307,7 +307,9 @@ export class InputHandler {
 				if (
 					!msg.key ||
 					typeof msg.key !== "string" ||
-					msg.key.length > MAX_KEY_LENGTH
+					msg.key.length > MAX_KEY_LENGTH ||
+					msg.key.toLowerCase() === "unidentified" ||
+					msg.key.toLowerCase() === "process"
 				)
 					break
 				const key =
