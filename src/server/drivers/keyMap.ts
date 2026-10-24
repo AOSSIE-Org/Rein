@@ -86,6 +86,59 @@ export const VK_MAP: Record<string, number> = {
 	audiostop: 0xb2,
 	audioplay: 0xb3,
 	audiopause: 0xb3,
+
+	// ---- Left / Right Modifiers ----
+	leftshift: 0xa0,
+	rightshift: 0xa1,
+	leftcontrol: 0xa2,
+	leftctrl: 0xa2,
+	rightcontrol: 0xa3,
+	rightctrl: 0xa3,
+	leftalt: 0xa4,
+	rightalt: 0xa5,
+	leftmeta: 0x5b,
+	rightmeta: 0x5c,
+
+	// ---- Numpad ----
+	numpad0: 0x60,
+	numpad1: 0x61,
+	numpad2: 0x62,
+	numpad3: 0x63,
+	numpad4: 0x64,
+	numpad5: 0x65,
+	numpad6: 0x66,
+	numpad7: 0x67,
+	numpad8: 0x68,
+	numpad9: 0x69,
+	numpadmultiply: 0x6a,
+	numpadadd: 0x6b,
+	numpadsubtract: 0x6d,
+	numpaddecimal: 0x6e,
+	numpaddivide: 0x6f,
+
+	// ---- Punctuation / OEM keys ----
+	";": 0xba,
+	":": 0xba,
+	"=": 0xbb,
+	"+": 0xbb,
+	",": 0xbc,
+	"<": 0xbc,
+	"-": 0xbd,
+	_: 0xbd,
+	".": 0xbe,
+	">": 0xbe,
+	"/": 0xbf,
+	"?": 0xbf,
+	"`": 0xc0,
+	"~": 0xc0,
+	"[": 0xdb,
+	"{": 0xdb,
+	"\\": 0xdc,
+	"|": 0xdc,
+	"]": 0xdd,
+	"}": 0xdd,
+	"'": 0xde,
+	'"': 0xde,
 }
 
 export const LINUX_KEY_MAP: Record<string, number> = {
@@ -375,3 +428,133 @@ export const SHIFTED_CHARS: Record<string, string> = {
 	"?": "/",
 	"~": "`",
 }
+
+export const VK_TO_SCANCODE: Record<number, number> = {
+	8: 0x0e, // Backspace
+	9: 0x0f, // Tab
+	13: 0x1c, // Enter
+	16: 0x2a, // Shift
+	17: 0x1d, // Ctrl
+	18: 0x38, // Alt
+	20: 0x3a, // CapsLock
+	27: 0x01, // Escape
+	32: 0x39, // Space
+	33: 0x49, // PageUp
+	34: 0x51, // PageDown
+	35: 0x4f, // End
+	36: 0x47, // Home
+	37: 0x4b, // Left Arrow
+	38: 0x48, // Up Arrow
+	39: 0x4d, // Right Arrow
+	40: 0x50, // Down Arrow
+	44: 0x37, // PrintScreen
+	45: 0x52, // Insert
+	46: 0x53, // Delete
+	// Digits 0-9
+	48: 0x0b,
+	49: 0x02,
+	50: 0x03,
+	51: 0x04,
+	52: 0x05,
+	53: 0x06,
+	54: 0x07,
+	55: 0x08,
+	56: 0x09,
+	57: 0x0a,
+	// Letters A-Z
+	65: 0x1e,
+	66: 0x30,
+	67: 0x2e,
+	68: 0x20,
+	69: 0x12,
+	70: 0x21,
+	71: 0x22,
+	72: 0x23,
+	73: 0x17,
+	74: 0x24,
+	75: 0x25,
+	76: 0x26,
+	77: 0x32,
+	78: 0x31,
+	79: 0x18,
+	80: 0x19,
+	81: 0x10,
+	82: 0x13,
+	83: 0x1f,
+	84: 0x14,
+	85: 0x16,
+	86: 0x2f,
+	87: 0x11,
+	88: 0x2d,
+	89: 0x15,
+	90: 0x2c,
+	91: 0x5b, // Windows / Meta
+	92: 0x5c, // Right Windows / Meta
+	// Numpad 0-9
+	96: 0x52,
+	97: 0x4f,
+	98: 0x50,
+	99: 0x51,
+	100: 0x4b,
+	101: 0x4c,
+	102: 0x4d,
+	103: 0x47,
+	104: 0x48,
+	105: 0x49,
+	106: 0x37, // Numpad *
+	107: 0x4e, // Numpad +
+	109: 0x4a, // Numpad -
+	110: 0x53, // Numpad .
+	111: 0x35, // Numpad /
+	// F1-F12
+	112: 0x3b,
+	113: 0x3c,
+	114: 0x3d,
+	115: 0x3e,
+	116: 0x3f,
+	117: 0x40,
+	118: 0x41,
+	119: 0x42,
+	120: 0x43,
+	121: 0x44,
+	122: 0x57,
+	123: 0x58,
+	// Specific Modifiers
+	160: 0x2a, // LShift
+	161: 0x36, // RShift
+	162: 0x1d, // LCtrl
+	163: 0x1d, // RCtrl (extended)
+	164: 0x38, // LAlt
+	165: 0x38, // RAlt (extended)
+	// OEM / Punctuation
+	186: 0x27, // ;
+	187: 0x0d, // =
+	188: 0x33, // ,
+	189: 0x0c, // -
+	190: 0x34, // .
+	191: 0x35, // /
+	192: 0x29, // `
+	219: 0x1a, // [
+	220: 0x2b, // \
+	221: 0x1b, // ]
+	222: 0x28, // '
+}
+
+export const EXTENDED_KEY_VKS = new Set<number>([
+	0x21, // pageup
+	0x22, // pagedown
+	0x23, // end
+	0x24, // home
+	0x25, // arrowleft
+	0x26, // arrowup
+	0x27, // arrowright
+	0x28, // arrowdown
+	0x2c, // printscreen
+	0x2d, // insert
+	0x2e, // delete
+	0x5b, // meta / win
+	0x5c, // right meta / win
+	0x6f, // numpad divide
+	0xa3, // right control
+	0xa5, // right alt
+])

@@ -10,9 +10,11 @@ import {
 	INPUT_KEYBOARD,
 	KEYEVENTF_KEYUP,
 	KEYEVENTF_UNICODE,
+	KEYEVENTF_SCANCODE,
+	KEYEVENTF_EXTENDEDKEY,
 	type WindowsInput,
 } from "@imxade/inject/windows"
-import { VK_MAP } from "../keyMap.ts"
+import { EXTENDED_KEY_VKS, VK_MAP, VK_TO_SCANCODE } from "../keyMap.ts"
 
 export class WindowsKeyboard {
 	injectKey(key: string, pos: string = ""): void {
@@ -20,11 +22,23 @@ export class WindowsKeyboard {
 		const vk = VK_MAP[lowerKey]
 
 		if (vk !== undefined) {
+			const scancode = VK_TO_SCANCODE[vk]
+			const extendedFlag = EXTENDED_KEY_VKS.has(vk) ? KEYEVENTF_EXTENDEDKEY : 0
+			const scanFlag = scancode !== undefined ? KEYEVENTF_SCANCODE : 0
+			const wVk = scancode !== undefined ? 0 : vk
+			const wScan = scancode ?? 0
+
 			const events: WindowsInput[] = []
 			if (pos !== "RELEASE") {
 				events.push({
 					type: INPUT_KEYBOARD,
-					u: { ki: { wVk: vk, wScan: 0, dwFlags: 0 } },
+					u: {
+						ki: {
+							wVk,
+							wScan,
+							dwFlags: scanFlag | extendedFlag,
+						},
+					},
 				})
 			}
 			if (pos !== "HOLD") {
@@ -32,18 +46,18 @@ export class WindowsKeyboard {
 					type: INPUT_KEYBOARD,
 					u: {
 						ki: {
-							wVk: vk,
-							wScan: 0,
-							dwFlags: KEYEVENTF_KEYUP,
+							wVk,
+							wScan,
+							dwFlags: scanFlag | extendedFlag | KEYEVENTF_KEYUP,
 						},
 					},
 				})
 			}
 			this.sendInput(events)
-		} else if (key.length === 1) {
+		} else if (key.length === 1 && pos === "") {
 			this.injectText(key)
 		} else {
-			console.warn("[Keyboard] Unknown key and not a single character:", key)
+			console.warn("[Keyboard] Unknown or unmapped key:", key)
 		}
 	}
 
@@ -61,21 +75,24 @@ export class WindowsKeyboard {
 
 		// Press all keys
 		for (const vk of vks) {
+			const extendedFlag = EXTENDED_KEY_VKS.has(vk) ? KEYEVENTF_EXTENDEDKEY : 0
 			events.push({
 				type: INPUT_KEYBOARD,
-				u: { ki: { wVk: vk, wScan: 0, dwFlags: 0 } },
+				u: { ki: { wVk: vk, wScan: 0, dwFlags: extendedFlag } },
 			})
 		}
 
 		// Release in reverse order
 		for (let i = vks.length - 1; i >= 0; i--) {
+			const vk = vks[i]
+			const extendedFlag = EXTENDED_KEY_VKS.has(vk) ? KEYEVENTF_EXTENDEDKEY : 0
 			events.push({
 				type: INPUT_KEYBOARD,
 				u: {
 					ki: {
-						wVk: vks[i],
+						wVk: vk,
 						wScan: 0,
-						dwFlags: KEYEVENTF_KEYUP,
+						dwFlags: extendedFlag | KEYEVENTF_KEYUP,
 					},
 				},
 			})
