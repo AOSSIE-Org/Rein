@@ -58,7 +58,7 @@
             cp src/server-config.json $out/lib/rein/src/
 
             mkdir -p $out/bin
-            makeWrapper ${pkgs.nodejs_24}/bin/node $out/bin/rein \
+            makeWrapper ${pkgs.nodejs_24}/bin/node $out/bin/rein-serve \
               --add-flags "$out/lib/rein/.output/server/index.mjs" \
               --prefix PATH : "${pkgs.gst_all_1.gstreamer}/bin" \
               --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath sharedLibs}" \
@@ -70,16 +70,17 @@
           meta = {
             description = "Rein — remote desktop / couch keyboard streaming server";
             homepage = "https://github.com/AOSSIE-Org/Rein";
-            mainProgram = "rein";
+            mainProgram = "rein-serve";
           };
         };
       in
       {
         packages.default = rein;
+        packages.rein = rein;
 
         apps.default = {
           type = "app";
-          program = "${rein}/bin/rein";
+          program = "${rein}/bin/rein-serve";
         };
 
         devShells.default = pkgs.mkShell {
