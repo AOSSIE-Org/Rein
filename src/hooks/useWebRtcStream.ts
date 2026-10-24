@@ -93,6 +93,7 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 	const trackActiveRef = useRef(false)
 	const retryCountRef = useRef(0)
 	const isRetryingRef = useRef(false)
+	const terminalErrorRef = useRef(false)
 
 	useEffect(() => {
 		trackActiveRef.current = trackActive
@@ -127,7 +128,13 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 	}, [])
 
 	const triggerRetry = useCallback(() => {
-		if (retryTimerRef.current || isRetryingRef.current) return
+		if (
+			terminalErrorRef.current ||
+			retryTimerRef.current ||
+			isRetryingRef.current
+		) {
+			return
+		}
 		isRetryingRef.current = true
 
 		if (retryCountRef.current >= MAX_RETRIES) {
@@ -162,6 +169,7 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 	}, [triggerRetry])
 
 	const reconnect = useCallback(() => {
+		terminalErrorRef.current = false
 		if (retryTimerRef.current) {
 			clearTimeout(retryTimerRef.current)
 			retryTimerRef.current = null
@@ -251,7 +259,9 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 		}
 
 		pc.onconnectionstatechange = () => {
-			if (isDisposed || isRetryingRef.current) return
+			if (isDisposed || isRetryingRef.current || terminalErrorRef.current) {
+				return
+			}
 			if (
 				pc.connectionState === "failed" ||
 				pc.connectionState === "disconnected"
@@ -265,7 +275,14 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 		// -------------------------------------------------------------------
 
 		pc.onicecandidate = (event) => {
-			if (isDisposed || isRetryingRef.current || !event.candidate) return
+			if (
+				isDisposed ||
+				isRetryingRef.current ||
+				terminalErrorRef.current ||
+				!event.candidate
+			) {
+				return
+			}
 			const init = event.candidate.toJSON()
 			if (!sessionId) {
 				// Buffer until we receive the sessionId from the offer response
@@ -276,7 +293,11 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 				sessionId,
 				candidate: init,
 			}).catch((err) => {
-				if (!isDisposed && !isRetryingRef.current) {
+				if (
+					!isDisposed &&
+					!isRetryingRef.current &&
+					!terminalErrorRef.current
+				) {
 					console.error("[WebRTC] Failed to send local ICE candidate:", err)
 					handleNetworkFailure()
 				}
@@ -306,7 +327,9 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 			iceSseRef.current = es
 
 			es.onmessage = async (event) => {
-				if (isDisposed || isRetryingRef.current) return
+				if (isDisposed || isRetryingRef.current || terminalErrorRef.current) {
+					return
+				}
 				try {
 					const msg = JSON.parse(event.data) as {
 						type: string
@@ -326,14 +349,21 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 					} else if (msg.type === "error") {
 						// Error from the server — surface it in ErrorComponent
 						console.error("[WebRTC] Server error:", msg)
+						terminalErrorRef.current = true
 						if (retryTimerRef.current) {
 							clearTimeout(retryTimerRef.current)
 							retryTimerRef.current = null
 						}
 						isRetryingRef.current = false
+						cleanup()
+						setActiveSessionId(null)
+						setTrackActive(false)
+						setVideoStream(null)
 						setConnecting(false)
-						setErrorHandle(msg.errorType ?? "Host Error")
-						setError(msg.message ?? "The host reported an error")
+						setErrorHandle(
+							msg.errorType ?? t("errorComponent", "hostErrorTitle"),
+						)
+						setError(msg.message ?? t("errorComponent", "hostErrorFallback"))
 					}
 				} catch (err) {
 					console.error("[WebRTC] Session SSE parse error:", err)
@@ -341,7 +371,11 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 			}
 
 			es.onerror = () => {
-				if (!isDisposed && !isRetryingRef.current) {
+				if (
+					!isDisposed &&
+					!isRetryingRef.current &&
+					!terminalErrorRef.current
+				) {
 					console.warn(
 						"[WebRTC] Session SSE stream error – retrying connection",
 					)
@@ -362,7 +396,9 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 					offer: RTCSessionDescriptionInit
 				}>("/api/rtc/offer", token, {})
 
-				if (isDisposed || isRetryingRef.current) return
+				if (isDisposed || isRetryingRef.current || terminalErrorRef.current) {
+					return
+				}
 
 				sessionId = sid
 				sessionIdRef.current = sid
@@ -386,7 +422,9 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 					sdp: answer,
 				})
 
-				if (isDisposed || isRetryingRef.current) return
+				if (isDisposed || isRetryingRef.current || terminalErrorRef.current) {
+					return
+				}
 
 				// Step 5: flush any local ICE candidates that arrived before sessionId
 				for (const candidate of localIceQueue.splice(0)) {
@@ -398,14 +436,23 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 
 				console.log(`[WebRTC] Handshake complete – session ${sid}`)
 			} catch (err) {
-				if (!isDisposed && !isRetryingRef.current) {
+				if (
+					!isDisposed &&
+					!isRetryingRef.current &&
+					!terminalErrorRef.current
+				) {
 					console.error("[WebRTC] Signaling handshake failed:", err)
 					if (err instanceof SignalingError && err.errorType) {
+						terminalErrorRef.current = true
 						if (retryTimerRef.current) {
 							clearTimeout(retryTimerRef.current)
 							retryTimerRef.current = null
 						}
 						isRetryingRef.current = false
+						cleanup()
+						setActiveSessionId(null)
+						setTrackActive(false)
+						setVideoStream(null)
 						setConnecting(false)
 						setErrorHandle(err.errorType)
 						setError(err.message)
@@ -424,7 +471,14 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 		let lastBytesTime = Date.now()
 
 		const statsInterval = setInterval(async () => {
-			if (isDisposed || isRetryingRef.current || !trackActiveRef.current) return
+			if (
+				isDisposed ||
+				isRetryingRef.current ||
+				!trackActiveRef.current ||
+				terminalErrorRef.current
+			) {
+				return
+			}
 			try {
 				const stats = await pc.getStats()
 				for (const report of stats.values()) {

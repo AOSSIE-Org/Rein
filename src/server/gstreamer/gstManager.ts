@@ -293,9 +293,13 @@ export class GstManager {
 
 		this.process.on("close", async (code) => {
 			logger.info(`GStreamer process exited with status: ${code}`)
-			if (code !== 0 && !this.stopping) {
+			if (!this.stopping) {
 				// Don't overwrite an already specific spawn error (e.g. from error event)
-				const errMsg = this.lastError ?? formatGstExitError(code)
+				const errMsg =
+					this.lastError ??
+					(code !== 0
+						? formatGstExitError(code)
+						: "GStreamer pipeline closed unexpectedly")
 				this.lastError = errMsg
 				this.onErrorCallback?.(errMsg)
 			}

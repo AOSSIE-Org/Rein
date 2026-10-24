@@ -163,16 +163,37 @@ export class ImplementDbus {
 		}
 
 		// 2. Select Sources
+		let supportsEmbeddedCursor = false
+		try {
+			const propInterface = obj.getInterface("org.freedesktop.DBus.Properties")
+			if (propInterface && typeof propInterface.Get === "function") {
+				const modesVariant = await propInterface.Get(
+					"org.freedesktop.portal.ScreenCast",
+					"AvailableCursorModes",
+				)
+				const modes = Number(modesVariant?.value ?? 0)
+				// Bit 2 indicates embedded cursor mode (1: hidden, 2: embedded, 4: metadata)
+				supportsEmbeddedCursor = (modes & 2) !== 0
+			}
+		} catch (err) {
+			logger.warn(
+				`Failed to query Wayland AvailableCursorModes: ${err instanceof Error ? err.message : String(err)}`,
+			)
+		}
+
 		const selectToken = "rein_select_req"
 		const selectResponsePromise = this.waitForPortalResponse(
 			`/org/freedesktop/portal/desktop/request/${this.getDbusId()}/${selectToken}`,
 		)
-		await screenCast.SelectSources(this.sessionPath, {
+		const selectOptions: Record<string, unknown> = {
 			multiple: new this.dbusModule.Variant("b", false),
 			types: new this.dbusModule.Variant("u", 1),
-			cursor_mode: new this.dbusModule.Variant("u", 2),
 			handle_token: new this.dbusModule.Variant("s", selectToken),
-		})
+		}
+		if (supportsEmbeddedCursor) {
+			selectOptions.cursor_mode = new this.dbusModule.Variant("u", 2)
+		}
+		await screenCast.SelectSources(this.sessionPath, selectOptions)
 		await selectResponsePromise
 
 		// 3. Start Session

@@ -33,7 +33,7 @@ export const Route = createRootRoute({
 		return (
 			<RootDocument>
 				<div>
-					Error:{" "}
+					{t("errorComponent", "errorPrefix")}
 					{props.error instanceof Error
 						? props.error.message
 						: String(props.error)}
@@ -67,8 +67,8 @@ function ThemeInit() {
 	useEffect(() => {
 		const applyTheme = () => {
 			const saved = getLocalStorageItem(APP_CONFIG.THEME_STORAGE_KEY)
-			const isValidTheme = THEME_LIST.some((t) => t.value === saved)
-			const theme = isValidTheme ? saved! : THEMES.DEFAULT
+			const theme =
+				THEME_LIST.find((t) => t.value === saved)?.value ?? THEMES.DEFAULT
 			document.documentElement.setAttribute("data-theme", theme)
 		}
 

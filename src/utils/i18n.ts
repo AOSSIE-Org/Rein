@@ -145,6 +145,9 @@ export const i18n = {
 			unexpectedNetworkError: "An unexpected network error occurred.",
 			connectionFailedTitle: "Connection Failed",
 			connectionFailedBody: "Unable to establish WebRTC stream connection.",
+			hostErrorTitle: "Host Error",
+			hostErrorFallback: "The host reported an error",
+			errorPrefix: "Error: ",
 		},
 		server: {
 			welcomeTitle: "Welcome to Rein",

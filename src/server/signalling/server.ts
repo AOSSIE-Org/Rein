@@ -96,8 +96,22 @@ function getEffectiveHostStatus():
 	| "starting"
 	| "running"
 	| "error" {
-	if (hostStatus === "running" && webrtcManager?.hasError()) return "error"
+	if (
+		hostStatus === "running" &&
+		(webrtcManager?.hasError() || !gstManager?.isRunning())
+	) {
+		return "error"
+	}
 	return hostStatus
+}
+
+function createGstManager(): GstManager {
+	const mgr = new GstManager()
+	mgr.setOnError((err) => {
+		hostStatus = "error"
+		webrtcManager?.broadcastError("GStreamer Pipeline Error", err)
+	})
+	return mgr
 }
 
 // ---------------------------------------------------------------------------
@@ -137,10 +151,7 @@ export function attachSignalingRoutes(server: any): void {
 		}
 
 		if (!gstManager) {
-			gstManager = new GstManager()
-			gstManager.setOnError((err) => {
-				webrtcManager?.broadcastError("GStreamer Pipeline Error", err)
-			})
+			gstManager = createGstManager()
 			hostStatus = "starting"
 			lifecyclePromise = lifecyclePromise
 				.then(async () => {
@@ -185,7 +196,7 @@ export function attachSignalingRoutes(server: any): void {
 				lifecyclePromise = lifecyclePromise
 					.then(async () => {
 						hostStatus = "starting"
-						if (!gstManager) gstManager = new GstManager()
+						if (!gstManager) gstManager = createGstManager()
 						await gstManager.start()
 						hostStatus = "running"
 					})
@@ -237,7 +248,12 @@ export function attachSignalingRoutes(server: any): void {
 				const inputHealth = probeInputInjector()
 				const gstProbe = probeGstreamer()
 				const gstError = gstManager?.getLastError() ?? null
-				const gstOk = gstProbe.ok && !gstError && hostStatus !== "error"
+				const isGstRunning = gstManager?.isRunning() ?? false
+				const gstOk =
+					gstProbe.ok &&
+					!gstError &&
+					hostStatus !== "error" &&
+					(hostStatus !== "running" || isGstRunning)
 				const udpOk = webrtcManager ? !webrtcManager.hasError() : true
 
 				json(res, 200, {
@@ -576,10 +592,7 @@ export async function restartServer(): Promise<void> {
 
 		try {
 			webrtcManager = new WebRTCManager(getHostDiagnostics)
-			gstManager = new GstManager()
-			gstManager.setOnError((err) => {
-				webrtcManager?.broadcastError("GStreamer Pipeline Error", err)
-			})
+			gstManager = createGstManager()
 			await gstManager.start()
 			hostStatus = "running"
 			logger.info("Server engine successfully restarted")
