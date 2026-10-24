@@ -33,6 +33,12 @@
           libnice
         ];
 
+        # Runtime executables the server shells out to.
+        runtimeBins = with pkgs; [
+          gst_all_1.gstreamer   # gst-launch-1.0
+          pulseaudio            # pactl (desktop-audio monitor detection)
+        ];
+
         rein = pkgs.buildNpmPackage {
           pname = "rein";
           version = "0.5.0";
@@ -60,7 +66,7 @@
             mkdir -p $out/bin
             makeWrapper ${pkgs.nodejs_24}/bin/node $out/bin/rein-serve \
               --add-flags "$out/lib/rein/.output/server/index.mjs" \
-              --prefix PATH : "${pkgs.gst_all_1.gstreamer}/bin" \
+              --prefix PATH : "${pkgs.lib.makeBinPath runtimeBins}" \
               --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath sharedLibs}" \
               --set GST_PLUGIN_SYSTEM_PATH_1_0 "${pkgs.lib.makeSearchPathOutput "lib" "lib/gstreamer-1.0" sharedLibs}"
 
@@ -90,7 +96,7 @@
             pkg-config
             procps
             appimage-run
-          ] ++ sharedLibs;
+          ] ++ sharedLibs ++ runtimeBins;
 
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath sharedLibs;
           GST_PLUGIN_SYSTEM_PATH_1_0 =
