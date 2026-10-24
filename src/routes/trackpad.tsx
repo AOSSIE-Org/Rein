@@ -12,6 +12,7 @@ import { useMouseInput } from "../hooks/useMouseInput"
 import { ScreenMirror } from "../components/Trackpad/ScreenMirror"
 import { ErrorComponent } from "../components/Trackpad/ErrorComponent"
 import { useWebRtcStream } from "../hooks/useWebRtcStream"
+import { useKeepAwake } from "../hooks/useKeepAwake"
 import {
 	getLocalStorageItem,
 	setLocalStorageItem,
@@ -72,6 +73,9 @@ function TrackpadPage() {
 	const [audioMuted, setAudioMuted] = useState<boolean>(
 		() => getLocalStorageItem("rein_audio_muted") === "true",
 	)
+	const [keepAwake, setKeepAwake] = useState<boolean>(
+		() => getLocalStorageItem("rein_keep_awake") !== "false",
+	)
 
 	// Sync mirror/audio flags when changed in the Settings tab (same origin)
 	useEffect(() => {
@@ -82,12 +86,16 @@ function TrackpadPage() {
 			if (e.key === "rein_audio_muted") {
 				setAudioMuted(e.newValue === "true")
 			}
+			if (e.key === "rein_keep_awake") {
+				setKeepAwake(e.newValue !== "false")
+			}
 		}
 		window.addEventListener("storage", onStorage)
 		return () => window.removeEventListener("storage", onStorage)
 	}, [])
 
 	const { status, send, sendCombo } = useRemoteConnection()
+	useKeepAwake(keepAwake && status === "connected")
 	const {
 		trackActive,
 		videoStream,

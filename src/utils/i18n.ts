@@ -42,6 +42,10 @@ export const i18n = {
 			interactionMode: "Toggle Interaction Mode",
 			mouseModeDesc: "Interactions will behave like a trackpad",
 			touchModeDesc: "Interactions will behave like a touchscreen",
+			keepAwake: "Keep Screen Awake",
+			keepAwakeDesc: "Screen will stay awake while the remote is active",
+			keepAwakeDisabledDesc:
+				"Screen will turn off according to system settings",
 		},
 		gamepad: {
 			buttonLayoutPreview: "Button Layout Preview",
