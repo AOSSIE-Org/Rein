@@ -170,6 +170,7 @@ export class ImplementDbus {
 		await screenCast.SelectSources(this.sessionPath, {
 			multiple: new this.dbusModule.Variant("b", false),
 			types: new this.dbusModule.Variant("u", 1),
+			cursor_mode: new this.dbusModule.Variant("u", 2),
 			handle_token: new this.dbusModule.Variant("s", selectToken),
 		})
 		await selectResponsePromise
