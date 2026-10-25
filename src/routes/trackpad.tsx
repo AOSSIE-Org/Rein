@@ -261,10 +261,8 @@ function TrackpadPage() {
 	const handlePaste = async () => {
 		try {
 			let clientText: string | undefined
-			let reason: "http" | "denied" =
-				typeof window !== "undefined" && !window.isSecureContext
-					? "http"
-					: "denied"
+			const isSecure = typeof window !== "undefined" && window.isSecureContext
+			let reason: "http" | "denied" = isSecure ? "denied" : "http"
 
 			// Try reading client clipboard if browser supports it (HTTPS / secure context)
 			if (navigator.clipboard?.readText) {
@@ -273,7 +271,7 @@ function TrackpadPage() {
 				} catch {
 					// Reading rejected or blocked
 					clientText = undefined
-					reason = "denied"
+					reason = isSecure ? "denied" : "http"
 				}
 			}
 
@@ -306,7 +304,7 @@ function TrackpadPage() {
 			setPasteModalOpen(false)
 		} catch (err) {
 			console.error("[Clipboard] Paste error:", err)
-			showClipboardToast(t("controlBar", "pasteFailed"))
+			throw err
 		}
 	}
 

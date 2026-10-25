@@ -17,12 +17,14 @@ export const PasteModal: React.FC<PasteModalProps> = ({
 }) => {
 	const [text, setText] = useState("")
 	const [isSubmitting, setIsSubmitting] = useState(false)
+	const [error, setError] = useState<string | null>(null)
 	const dialogRef = useRef<HTMLDialogElement>(null)
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
 
 	useEffect(() => {
 		if (isOpen) {
 			setText("")
+			setError(null)
 			const dialog = dialogRef.current
 			if (dialog && !dialog.open) {
 				dialog.showModal()
@@ -45,8 +47,11 @@ export const PasteModal: React.FC<PasteModalProps> = ({
 		e?.preventDefault()
 		if (isSubmitting) return
 		setIsSubmitting(true)
+		setError(null)
 		try {
 			await onSubmit(text)
+		} catch {
+			setError(t("controlBar", "pasteFailed"))
 		} finally {
 			setIsSubmitting(false)
 		}
@@ -58,7 +63,9 @@ export const PasteModal: React.FC<PasteModalProps> = ({
 			handleSubmit()
 		} else if (e.key === "Escape") {
 			e.preventDefault()
-			onClose()
+			if (!isSubmitting) {
+				onClose()
+			}
 		}
 	}
 
@@ -66,7 +73,13 @@ export const PasteModal: React.FC<PasteModalProps> = ({
 		<dialog
 			ref={dialogRef}
 			className="modal modal-open z-50"
-			onCancel={onClose}
+			onCancel={(e) => {
+				if (isSubmitting) {
+					e.preventDefault()
+				} else {
+					onClose()
+				}
+			}}
 			aria-labelledby="paste-modal-title"
 		>
 			<div className="modal-box bg-base-100 border border-base-300 shadow-2xl max-w-md w-full p-5">
@@ -83,6 +96,7 @@ export const PasteModal: React.FC<PasteModalProps> = ({
 						onClick={onClose}
 						className="btn btn-ghost btn-sm btn-circle text-base-content/70 hover:text-base-content"
 						aria-label={t("controlBar", "pasteModalCancel")}
+						disabled={isSubmitting}
 					>
 						<X size={18} />
 					</button>
@@ -99,14 +113,27 @@ export const PasteModal: React.FC<PasteModalProps> = ({
 						id="clipboard-paste-input"
 						ref={textareaRef}
 						value={text}
-						onChange={(e) => setText(e.target.value)}
+						onChange={(e) => {
+							setText(e.target.value)
+							if (error) setError(null)
+						}}
 						onKeyDown={handleKeyDown}
 						placeholder={t("controlBar", "pasteModalPlaceholder")}
 						className="textarea textarea-bordered w-full h-28 bg-base-200 text-base-content placeholder:text-base-content/40 resize-none focus:outline-primary font-mono text-base"
 						autoCapitalize="off"
 						autoComplete="off"
 						spellCheck={false}
+						aria-describedby={error ? "paste-modal-error" : undefined}
 					/>
+					{error && (
+						<p
+							id="paste-modal-error"
+							role="alert"
+							className="text-xs text-error font-medium"
+						>
+							{error}
+						</p>
+					)}
 					<div className="modal-action flex justify-end gap-2 pt-2 border-t border-base-300 mt-0">
 						<button
 							type="button"
@@ -131,7 +158,11 @@ export const PasteModal: React.FC<PasteModalProps> = ({
 				method="dialog"
 				className="modal-backdrop bg-black/60 backdrop-blur-xs"
 			>
-				<button type="button" onClick={onClose}>
+				<button
+					type="button"
+					onClick={() => !isSubmitting && onClose()}
+					disabled={isSubmitting}
+				>
 					{t("controlBar", "pasteModalCancel")}
 				</button>
 			</form>
