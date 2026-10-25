@@ -2,8 +2,9 @@ import { BufferBar } from "@/components/Trackpad/Buffer"
 import type { ModifierState } from "@/types"
 import { createFileRoute } from "@tanstack/react-router"
 import { useRef, useState, useEffect, useCallback } from "react"
-import { Keyboard } from "lucide-react"
+import { Keyboard, ClipboardPaste, Info } from "lucide-react"
 import { ControlBar } from "../components/Trackpad/ControlBar"
+import { PasteModal } from "../components/Trackpad/PasteModal"
 import { ExtraKeys } from "../components/Trackpad/ExtraKeys"
 import { TouchArea } from "../components/Trackpad/TouchArea"
 import { useRemoteConnection } from "../hooks/useRemoteConnection"
@@ -64,8 +65,23 @@ function TrackpadPage() {
 	const isComposingRef = useRef(false)
 	const [keyboardOpen, setKeyboardOpen] = useState(false)
 	const [extraKeysVisible, setExtraKeysVisible] = useState(true)
-	const [noKeyboardToast, setNoKeyboardToast] = useState(false)
+	const [pasteModalOpen, setPasteModalOpen] = useState(false)
+	const [toastState, setToastState] = useState<{
+		message: string
+		icon?: "keyboard" | "clipboard" | "info"
+	} | null>(null)
 	const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+	const showToast = useCallback(
+		(message: string, icon: "keyboard" | "clipboard" | "info" = "info") => {
+			if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
+			setToastState({ message, icon })
+			toastTimeoutRef.current = setTimeout(() => {
+				setToastState(null)
+			}, 3500)
+		},
+		[],
+	)
 
 	const [mirrorPaused, setMirrorPaused] = useState<boolean>(
 		() => getLocalStorageItem("rein_mirror_paused") === "true",
@@ -153,11 +169,7 @@ function TrackpadPage() {
 				return next
 			})
 		} else {
-			setNoKeyboardToast(true)
-			if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
-			toastTimeoutRef.current = setTimeout(() => {
-				setNoKeyboardToast(false)
-			}, 3000)
+			showToast(t("settings", "noOnscreenKeyboard"), "keyboard")
 		}
 	}
 
@@ -165,11 +177,7 @@ function TrackpadPage() {
 		if (hasOnScreenKeyboard()) {
 			hiddenInputRef.current?.focus()
 		} else {
-			setNoKeyboardToast(true)
-			if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
-			toastTimeoutRef.current = setTimeout(() => {
-				setNoKeyboardToast(false)
-			}, 3000)
+			showToast(t("settings", "noOnscreenKeyboard"), "keyboard")
 		}
 	}
 
@@ -227,22 +235,8 @@ function TrackpadPage() {
 		}
 	}
 
-	const handlePaste = async () => {
+	const sendPasteToServer = async (text: string) => {
 		try {
-			let clientText: string | undefined
-
-			// Try reading client clipboard if browser supports it (HTTPS / secure context)
-			if (navigator.clipboard?.readText) {
-				try {
-					clientText = await navigator.clipboard.readText()
-				} catch {
-					// Reading rejected or blocked on plain HTTP
-					clientText = undefined
-				}
-			}
-
-			// Send to server: if clientText is provided, server writes it to host clipboard first;
-			// otherwise falls back to pasting the existing host clipboard.
 			const res = await fetch("/api/clipboard/paste", {
 				method: "POST",
 				headers: {
@@ -251,13 +245,66 @@ function TrackpadPage() {
 				},
 				body: JSON.stringify({
 					sessionId: activeSessionId,
-					...(clientText !== undefined ? { text: clientText } : {}),
+					text,
 				}),
 			})
-			if (!res.ok) throw new Error(`Paste failed: ${res.status}`)
+			if (!res.ok) {
+				const errData = (await res.json().catch(() => ({}))) as {
+					error?: string
+				}
+				throw new Error(errData.error || `Paste failed: ${res.status}`)
+			}
 		} catch (err) {
 			console.error("[Clipboard] Paste error:", err)
+			showToast(t("errorComponent", "inputDriverError"), "info")
 		}
+	}
+
+	const handlePaste = async () => {
+		try {
+			let clientText: string | undefined
+
+			// Try reading client clipboard if browser supports it (HTTPS / secure context)
+			if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
+				try {
+					clientText = await navigator.clipboard.readText()
+				} catch {
+					// Reading rejected or blocked on plain HTTP
+					clientText = undefined
+				}
+			}
+
+			// If client clipboard reading succeeded and contains text, send directly
+			if (typeof clientText === "string" && clientText.length > 0) {
+				await sendPasteToServer(clientText)
+				return
+			}
+
+			// Over insecure HTTP (LAN) or when readText is blocked/empty, open interactive modal fallback
+			if (keyboardOpen) {
+				setKeyboardOpen(false)
+			}
+			hiddenInputRef.current?.blur()
+			setPasteModalOpen(true)
+		} catch (err) {
+			console.error("[Clipboard] Paste error:", err)
+			setPasteModalOpen(true)
+		}
+	}
+
+	const handlePasteModalSubmit = async (pastedText: string) => {
+		if (!pastedText.trim()) {
+			setPasteModalOpen(false)
+			showToast(t("controlBar", "pasteEmptyWarning"), "info")
+			return
+		}
+		setPasteModalOpen(false)
+		await sendPasteToServer(pastedText)
+	}
+
+	const handlePasteModalCancel = () => {
+		setPasteModalOpen(false)
+		showToast(t("controlBar", "clipboardHttpBlocked"), "info")
 	}
 
 	const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -501,12 +548,24 @@ function TrackpadPage() {
 				</div>
 			</div>
 
-			{noKeyboardToast && (
+			<PasteModal
+				isOpen={pasteModalOpen}
+				onClose={handlePasteModalCancel}
+				onSubmit={handlePasteModalSubmit}
+			/>
+
+			{toastState && (
 				<div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-base-100/95 backdrop-blur-md px-4 py-2.5 rounded-full border border-base-300 shadow-2xl text-xs md:text-sm text-base-content pointer-events-none transition-all duration-300 animate-in fade-in slide-in-from-bottom-3">
-					<Keyboard size={16} className="text-warning shrink-0" />
-					<span className="font-medium">
-						{t("settings", "noOnscreenKeyboard")}
-					</span>
+					{toastState.icon === "keyboard" && (
+						<Keyboard size={16} className="text-warning shrink-0" />
+					)}
+					{toastState.icon === "clipboard" && (
+						<ClipboardPaste size={16} className="text-info shrink-0" />
+					)}
+					{toastState.icon === "info" && (
+						<Info size={16} className="text-info shrink-0" />
+					)}
+					<span className="font-medium">{toastState.message}</span>
 				</div>
 			)}
 
@@ -519,7 +578,7 @@ function TrackpadPage() {
 				onCompositionStart={handleCompositionStart}
 				onCompositionEnd={handleCompositionEnd}
 				onBlur={() => {
-					if (keyboardOpen) {
+					if (keyboardOpen && !pasteModalOpen) {
 						setTimeout(() => hiddenInputRef.current?.focus(), 10)
 					}
 				}}

@@ -358,13 +358,16 @@ export function attachSignalingRoutes(server: any): void {
 								return
 							}
 
-							// If client sent text, write it to host clipboard first
+							// Require client text payload to avoid silently pasting stale host clipboard data
 							if (typeof body.text === "string") {
 								await setSystemClipboard(body.text)
 								await new Promise((r) => setTimeout(r, 50))
+							} else {
+								json(res, 400, { ok: false, error: "Text payload required" })
+								return
 							}
 
-							// Trigger paste on host (either pasting the new text or existing host clipboard)
+							// Trigger paste on host
 							await handler.handleMessage({ type: "paste" })
 							json(res, 200, { ok: true })
 						} catch (err) {

@@ -111,6 +111,18 @@ export const i18n = {
 			paste: "Paste",
 			keyboard: "Keyboard",
 			modifier: "Modifier",
+			pasteModalTitle: "Paste to Desktop",
+			pasteModalDesc:
+				"Direct clipboard reading is restricted over HTTP. Long-press below to paste your text:",
+			pasteModalPlaceholder: "Tap and hold to paste text here…",
+			pasteModalHint:
+				"Tip: Tap and hold inside the box to paste from your device.",
+			pasteModalSubmit: "Paste to Desktop",
+			pasteModalCancel: "Cancel",
+			clipboardHttpBlocked:
+				"Direct clipboard access is blocked over plain HTTP. Use the paste modal to send text.",
+			pasteEmptyWarning:
+				"Clipboard is empty or access was blocked over plain HTTP.",
 		},
 		settings: {
 			title: "Settings",
