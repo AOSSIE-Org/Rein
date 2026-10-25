@@ -1,4 +1,4 @@
-import { spawn, execSync, type ChildProcess } from "node:child_process"
+import { spawn, spawnSync, type ChildProcess } from "node:child_process"
 import os from "node:os"
 import fs from "node:fs"
 import path from "node:path"
@@ -20,9 +20,19 @@ export function probeGstreamer(): { ok: boolean; error?: string } {
 	const platform = os.platform()
 	const binary = platform === "win32" ? "gst-launch-1.0.exe" : "gst-launch-1.0"
 	try {
-		const checkCmd =
-			platform === "win32" ? `where.exe "${binary}"` : `which "${binary}"`
-		execSync(checkCmd, { stdio: "ignore" })
+		const res = spawnSync(binary, ["--version"], { stdio: "ignore" })
+		if (res.error) {
+			return {
+				ok: false,
+				error: `GStreamer binary '${binary}' not found on system PATH. Please install GStreamer.`,
+			}
+		}
+		if (res.status !== 0) {
+			return {
+				ok: false,
+				error: `GStreamer binary '${binary}' exited with code ${res.status}.`,
+			}
+		}
 		return { ok: true }
 	} catch {
 		return {

@@ -179,9 +179,32 @@
   - *Self-certification note:* Architecture implements defense-in-depth: zero cloud dependency (local peer-to-peer WebRTC), loopback-only restrictions for token minting, constant-time token comparison against timing attacks, and strict bounds checking on input injection.
 
 - [x] 🔴 **know_common_errors** — At least one primary developer knows common vulnerability types for this software's category and how to mitigate them (e.g., injection, XSS, reentrancy for Solidity, prompt injection for AI).
-  - *Self-certification note:* Input handlers strictly validate and sanitize coordinate ranges (`clampFinite`, `MAX_COORD`), key string lengths (`MAX_KEY_LENGTH`), and touch contact arrays to prevent native FFI crashes and buffer overflows.
+  - *Self-certification note:* Input handlers validate and sanitize coordinate ranges (`clampFinite`, `MAX_COORD`) and key string lengths (`MAX_KEY_LENGTH`) before FFI calls.
 
---
+### Cryptography
+
+- [x] 🔴 **crypto_published** — Software uses, by default, only cryptographic protocols and algorithms that are publicly published and reviewed by experts.
+  - *Note:* Rein relies on standard WebRTC encryption protocols (DTLS 1.2+ and SRTP with AES-GCM) and standard Node.js crypto primitives (`crypto.randomBytes`, `crypto.timingSafeEqual`). No custom cryptographic algorithms are implemented.
+
+- [x] 🔴 **crypto_floss** — All functionality in the software produced by the project that depends on cryptography can be implemented using FLOSS.
+  - *Note:* Built entirely on open-source cryptographic foundations: Node.js standard library (`node:crypto`) and `werift` WebRTC DTLS/SRTP implementations.
+
+- [x] 🔴 **crypto_keyed_hash** — Keyed hash message authentication codes (HMAC) or digital signatures are used for data integrity and authentication.
+  - *Note:* WebRTC media and input data channels enforce message integrity and peer authentication via DTLS/SRTP HMAC and certificates. HTTP signaling tokens use cryptographically random 256-bit entropy.
+
+- [x] 🔴 **crypto_algorithm_minimum** — Cryptographic algorithms meet modern security strength standards (e.g., at least 128-bit key lengths for symmetric ciphers).
+  - *Note:* DTLS/SRTP session negotiation enforces AES-128-GCM or AES-256-GCM ciphers, and authentication tokens are generated with 32 bytes (256 bits) of cryptographic entropy.
+
+- [x] 🔴 **crypto_weak_sensitivities** — Default security mechanisms do not depend on broken or weak cryptographic algorithms (such as MD5 or SHA-1 for signatures).
+  - *Note:* Deprecated algorithms (MD5, SHA-1, DES) are not used for authentication, encryption, or integrity verification across the codebase.
+
+- [x] 🔴 **crypto_used_network** — Project uses encryption for sensitive data communications over networks.
+  - *Note:* All desktop media relays and remote trackpad/keyboard input data channels are encrypted end-to-end via WebRTC (DTLS/SRTP).
+
+- [x] 🔴 **crypto_tls12** — If TLS is used, the software supports at least TLS version 1.2.
+  - *Note:* WebRTC peer connections mandate DTLS 1.2 or higher for secure session negotiation.
+
+---
 
 ## 🔬 Analysis
 
@@ -226,7 +249,7 @@
 ### Security, Auth & Input Safety
 - **Timing-Safe Verification:** Token lookups utilize `crypto.timingSafeEqual()` to mitigate side-channel timing attacks.
 - **Loopback Enforcement:** Sensitive administration endpoints (such as `POST /api/auth/token`) are restricted to loopback interfaces (`127.0.0.1`, `::1`, `::ffff:127.0.0.1`) and return HTTP 403 Forbidden to remote network callers.
-- **FFI Bounds Protection:** Touch, mouse deltas, wheel increments, and key strings are validated against strict constants (`MAX_COORD`, `MAX_TEXT_LENGTH`, `MAX_KEY_LENGTH`) before being forwarded to platform FFI injectors (Windows `SendInput`, Linux `/dev/uinput`, macOS CoreGraphics).
+- **FFI Bounds Protection:** Coordinates (`clampFinite`, `MAX_COORD`) and key strings (`MAX_KEY_LENGTH`) are validated before being forwarded to platform FFI injectors (Windows `SendInput`, Linux `/dev/uinput`, macOS CoreGraphics).
 
 ---
 

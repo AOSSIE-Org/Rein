@@ -5,7 +5,10 @@ import winston from "winston"
 import { getOrCreateActiveToken } from "../tokenStore.ts"
 import { GstManager, probeGstreamer } from "../gstreamer/gstManager.ts"
 import { WebRTCManager } from "./webRTC.ts"
-import { probeInputInjector } from "../InputHandler.ts"
+import {
+	probeInputInjector,
+	clearInputInjectorProbeCache,
+} from "../InputHandler.ts"
 import type { InputConfig } from "../types.ts"
 import { getLanIp, isLoopbackAddress } from "../../utils/net.ts"
 import { requireAuth, parseJsonBody, json } from "./utils.ts"
@@ -568,6 +571,7 @@ export async function restartServer(): Promise<void> {
 	const restart = lifecyclePromise.then(async () => {
 		logger.info("Executing full server engine restart...")
 		hostStatus = "starting"
+		clearInputInjectorProbeCache()
 
 		if (gstManager) {
 			try {

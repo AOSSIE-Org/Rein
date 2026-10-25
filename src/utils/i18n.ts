@@ -147,6 +147,11 @@ export const i18n = {
 			connectionFailedBody: "Unable to establish WebRTC stream connection.",
 			hostErrorTitle: "Host Error",
 			hostErrorFallback: "The host reported an error",
+			unauthorizedTitle: "Authentication Failed",
+			unauthorizedBody: "Session token is invalid or expired.",
+			gstreamerCaptureError: "GStreamer Capture Error",
+			captureEngineError: "Capture Engine Error",
+			inputDriverError: "Input Driver Error",
 			errorPrefix: "Error: ",
 		},
 		server: {

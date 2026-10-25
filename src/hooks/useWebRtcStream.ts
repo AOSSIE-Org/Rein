@@ -71,6 +71,19 @@ async function signalingDelete(path: string, token: string, body: unknown) {
 	})
 }
 
+function getLocalizedErrorTitle(errorType?: string): string {
+	switch (errorType) {
+		case "GStreamer Capture Error":
+			return t("errorComponent", "gstreamerCaptureError")
+		case "Capture Engine Error":
+			return t("errorComponent", "captureEngineError")
+		case "Input Driver Error":
+			return t("errorComponent", "inputDriverError")
+		default:
+			return t("errorComponent", "hostErrorTitle")
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -94,6 +107,17 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 	const retryCountRef = useRef(0)
 	const isRetryingRef = useRef(false)
 	const terminalErrorRef = useRef(false)
+
+	const prevTokenRef = useRef(token)
+	useEffect(() => {
+		if (prevTokenRef.current !== token) {
+			prevTokenRef.current = token
+			terminalErrorRef.current = false
+			retryCountRef.current = 0
+			setError(null)
+			setErrorHandle(null)
+		}
+	}, [token])
 
 	useEffect(() => {
 		trackActiveRef.current = trackActive
@@ -355,14 +379,18 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 							retryTimerRef.current = null
 						}
 						isRetryingRef.current = false
+						if (sessionIdRef.current && token) {
+							signalingDelete("/api/rtc/session", token, {
+								sessionId: sessionIdRef.current,
+							})
+							sessionIdRef.current = null
+						}
 						cleanup()
 						setActiveSessionId(null)
 						setTrackActive(false)
 						setVideoStream(null)
 						setConnecting(false)
-						setErrorHandle(
-							msg.errorType ?? t("errorComponent", "hostErrorTitle"),
-						)
+						setErrorHandle(getLocalizedErrorTitle(msg.errorType))
 						setError(msg.message ?? t("errorComponent", "hostErrorFallback"))
 					}
 				} catch (err) {
@@ -397,6 +425,7 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 				}>("/api/rtc/offer", token, {})
 
 				if (isDisposed || isRetryingRef.current || terminalErrorRef.current) {
+					signalingDelete("/api/rtc/session", token, { sessionId: sid })
 					return
 				}
 
@@ -423,6 +452,7 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 				})
 
 				if (isDisposed || isRetryingRef.current || terminalErrorRef.current) {
+					signalingDelete("/api/rtc/session", token, { sessionId: sid })
 					return
 				}
 
@@ -442,20 +472,34 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 					!terminalErrorRef.current
 				) {
 					console.error("[WebRTC] Signaling handshake failed:", err)
-					if (err instanceof SignalingError && err.errorType) {
+					if (
+						err instanceof SignalingError &&
+						(err.errorType || err.status === 401 || err.status === 403)
+					) {
 						terminalErrorRef.current = true
 						if (retryTimerRef.current) {
 							clearTimeout(retryTimerRef.current)
 							retryTimerRef.current = null
 						}
 						isRetryingRef.current = false
+						if (sessionIdRef.current && token) {
+							signalingDelete("/api/rtc/session", token, {
+								sessionId: sessionIdRef.current,
+							})
+							sessionIdRef.current = null
+						}
 						cleanup()
 						setActiveSessionId(null)
 						setTrackActive(false)
 						setVideoStream(null)
 						setConnecting(false)
-						setErrorHandle(err.errorType)
-						setError(err.message)
+						if (err.status === 401 || err.status === 403) {
+							setErrorHandle(t("errorComponent", "unauthorizedTitle"))
+							setError(t("errorComponent", "unauthorizedBody"))
+						} else {
+							setErrorHandle(getLocalizedErrorTitle(err.errorType))
+							setError(err.message)
+						}
 						return
 					}
 					handleNetworkFailure()
