@@ -108,7 +108,7 @@ export const i18n = {
 			keyboard: "Keyboard",
 			modifier: "Modifier",
 			clipboardHttpBlocked:
-				"Direct clipboard reading is blocked over plain HTTP.",
+				"Direct clipboard reading is blocked over plain HTTP. Paste text manually.",
 			clipboardPermissionDenied:
 				"Clipboard access was denied. Paste text manually.",
 			pasteFailed: "Failed to paste clipboard text to desktop.",
