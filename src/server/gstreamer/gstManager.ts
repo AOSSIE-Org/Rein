@@ -1,4 +1,4 @@
-import { spawn, execSync, type ChildProcess } from "node:child_process"
+import { spawn, spawnSync, type ChildProcess } from "node:child_process"
 import os from "node:os"
 import fs from "node:fs"
 import path from "node:path"
@@ -16,10 +16,71 @@ import {
 const GST_LAUNCH =
 	os.platform() === "win32" ? "gst-launch-1.0.exe" : "gst-launch-1.0"
 
+export function probeGstreamer(): { ok: boolean; error?: string } {
+	const platform = os.platform()
+	const binary = platform === "win32" ? "gst-launch-1.0.exe" : "gst-launch-1.0"
+	try {
+		const res = spawnSync(binary, ["--version"], { stdio: "ignore" })
+		if (res.error) {
+			return {
+				ok: false,
+				error: `GStreamer binary '${binary}' not found on system PATH. Please install GStreamer.`,
+			}
+		}
+		if (res.status !== 0) {
+			return {
+				ok: false,
+				error: `GStreamer binary '${binary}' exited with code ${res.status}.`,
+			}
+		}
+		return { ok: true }
+	} catch {
+		return {
+			ok: false,
+			error: `GStreamer binary '${binary}' not found on system PATH. Please install GStreamer.`,
+		}
+	}
+}
+
+function formatGstSpawnError(err: NodeJS.ErrnoException | Error): string {
+	const errno = "errno" in err ? err.errno : undefined
+	const code = "code" in err ? err.code : undefined
+	if (code === "ENOENT" || errno === -4058) {
+		return "GStreamer binary ('gst-launch-1.0') was not found on your system. Please install GStreamer and add it to your PATH."
+	}
+	if (code === "EACCES" || errno === -4019) {
+		return "Permission denied while attempting to execute GStreamer binary ('gst-launch-1.0')."
+	}
+	return `GStreamer process failed to start: ${err.message}`
+}
+function formatGstExitError(code: number | null): string {
+	if (code === -4058) {
+		return "GStreamer binary ('gst-launch-1.0') was not found on your system. Please install GStreamer and add it to your PATH."
+	}
+	if (code === 127) {
+		return "GStreamer executable ('gst-launch-1.0') was not found or a required shared library is missing."
+	}
+	return `GStreamer process exited unexpectedly with code ${code}`
+}
+
 export class GstManager {
 	private process: ChildProcess | null = null
 	private provider: CaptureProvider | null = null
 	private stopping = false
+	private lastError: string | null = null
+	private onErrorCallback?: (errorMsg: string) => void
+
+	public setOnError(cb: (errorMsg: string) => void): void {
+		this.onErrorCallback = cb
+	}
+
+	public getLastError(): string | null {
+		return this.lastError
+	}
+
+	public isRunning(): boolean {
+		return this.process !== null && !this.stopping
+	}
 
 	private getAudioSourceBlocks(cfg: ServerConfig): string[] {
 		if (cfg.audioSource) {
@@ -164,18 +225,25 @@ export class GstManager {
 		if (this.process || this.stopping) return
 
 		logger.info("Spawning GStreamer UDP engine")
+		this.lastError = null
 
 		try {
 			this.provider = createCaptureProvider()
 			await this.provider.initialize(async (err) => {
-				logger.error(`Capture provider failed after startup: ${err.message}`)
+				const errMsg = `Capture provider failed after startup: ${err.message}`
+				logger.error(errMsg)
+				this.lastError = errMsg
+				this.onErrorCallback?.(errMsg)
 				await this.stop()
 			})
 			const sourceBlocks = await this.provider.getGStreamerSource()
 			const pipelineArgs = this.buildPipelineArgs(sourceBlocks)
 			this.executePipeline(pipelineArgs)
 		} catch (error) {
-			logger.error(`Capture initialization failed: ${String(error)}`)
+			const errMsg = `Capture initialization failed: ${error instanceof Error ? error.message : String(error)}`
+			logger.error(errMsg)
+			this.lastError = errMsg
+			this.onErrorCallback?.(errMsg)
 			await this.cleanup()
 			throw error
 		}
@@ -205,8 +273,11 @@ export class GstManager {
 		logger.info(`GStreamer args: gst-launch-1.0 ${pipelineArgs.join(" ")}`)
 		this.process = spawn(GST_LAUNCH, pipelineArgs, { env: spawnedEnv })
 
-		this.process.on("error", async (err) => {
-			logger.error(`GStreamer spawn failed: ${err.message}`)
+		this.process.on("error", async (err: NodeJS.ErrnoException) => {
+			const errMsg = formatGstSpawnError(err)
+			logger.error(`GStreamer spawn failed: ${errMsg} (${err.message})`)
+			this.lastError = errMsg
+			this.onErrorCallback?.(errMsg)
 			this.process = null
 			await this.cleanup()
 			return
@@ -232,6 +303,16 @@ export class GstManager {
 
 		this.process.on("close", async (code) => {
 			logger.info(`GStreamer process exited with status: ${code}`)
+			if (!this.stopping) {
+				// Don't overwrite an already specific spawn error (e.g. from error event)
+				const errMsg =
+					this.lastError ??
+					(code !== 0
+						? formatGstExitError(code)
+						: "GStreamer pipeline closed unexpectedly")
+				this.lastError = errMsg
+				this.onErrorCallback?.(errMsg)
+			}
 			this.process = null
 			await this.cleanup()
 		})

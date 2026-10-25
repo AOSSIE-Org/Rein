@@ -3,8 +3,12 @@ import { Transform } from "node:stream"
 import logger from "../../utils/logger.ts"
 import winston from "winston"
 import { getOrCreateActiveToken } from "../tokenStore.ts"
-import { GstManager } from "../gstreamer/gstManager.ts"
+import { GstManager, probeGstreamer } from "../gstreamer/gstManager.ts"
 import { WebRTCManager } from "./webRTC.ts"
+import {
+	probeInputInjector,
+	clearInputInjectorProbeCache,
+} from "../InputHandler.ts"
 import type { InputConfig } from "../types.ts"
 import { getLanIp, isLoopbackAddress } from "../../utils/net.ts"
 import { requireAuth, parseJsonBody, json } from "./utils.ts"
@@ -81,13 +85,36 @@ class SseTransport extends winston.transports.Stream {
 
 logger.add(new SseTransport())
 
+function getHostDiagnostics() {
+	return {
+		gstRunning: gstManager?.isRunning() ?? false,
+		gstError: gstManager?.getLastError() ?? null,
+		inputError: probeInputInjector().error ?? null,
+		hostStatus: getEffectiveHostStatus(),
+	}
+}
+
 function getEffectiveHostStatus():
 	| "stopped"
 	| "starting"
 	| "running"
 	| "error" {
-	if (hostStatus === "running" && webrtcManager?.hasError()) return "error"
+	if (
+		hostStatus === "running" &&
+		(webrtcManager?.hasError() || !gstManager?.isRunning())
+	) {
+		return "error"
+	}
 	return hostStatus
+}
+
+function createGstManager(): GstManager {
+	const mgr = new GstManager()
+	mgr.setOnError((err) => {
+		hostStatus = "error"
+		webrtcManager?.broadcastError("GStreamer Pipeline Error", err)
+	})
+	return mgr
 }
 
 // ---------------------------------------------------------------------------
@@ -110,12 +137,24 @@ export function attachSignalingRoutes(server: any): void {
 	storedHttpServer = httpServer
 
 	try {
+		// Run initial health probes to log any setup issues upfront
+		const inputProbe = probeInputInjector()
+		if (!inputProbe.ok) {
+			logger.warn(
+				`[HealthCheck] Input device initialization warning: ${inputProbe.error}`,
+			)
+		}
+		const gstProbe = probeGstreamer()
+		if (!gstProbe.ok) {
+			logger.warn(`[HealthCheck] GStreamer binary warning: ${gstProbe.error}`)
+		}
+
 		if (!webrtcManager) {
-			webrtcManager = new WebRTCManager()
+			webrtcManager = new WebRTCManager(getHostDiagnostics)
 		}
 
 		if (!gstManager) {
-			gstManager = new GstManager()
+			gstManager = createGstManager()
 			hostStatus = "starting"
 			lifecyclePromise = lifecyclePromise
 				.then(async () => {
@@ -160,7 +199,7 @@ export function attachSignalingRoutes(server: any): void {
 				lifecyclePromise = lifecyclePromise
 					.then(async () => {
 						hostStatus = "starting"
-						if (!gstManager) gstManager = new GstManager()
+						if (!gstManager) gstManager = createGstManager()
 						await gstManager.start()
 						hostStatus = "running"
 					})
@@ -209,7 +248,29 @@ export function attachSignalingRoutes(server: any): void {
 
 			if (pathname === "/api/host/status" && req.method === "GET") {
 				if (!requireAuth(req, res)) return
-				json(res, 200, { status: getEffectiveHostStatus() })
+				const inputHealth = probeInputInjector()
+				const gstProbe = probeGstreamer()
+				const gstError = gstManager?.getLastError() ?? null
+				const isGstRunning = gstManager?.isRunning() ?? false
+				const gstOk =
+					gstProbe.ok &&
+					!gstError &&
+					hostStatus !== "error" &&
+					(hostStatus !== "running" || isGstRunning)
+				const udpOk = webrtcManager ? !webrtcManager.hasError() : true
+
+				json(res, 200, {
+					status: getEffectiveHostStatus(),
+					healthy: inputHealth.ok && gstOk && udpOk,
+					checks: {
+						inputDevice: inputHealth,
+						gstreamer: {
+							ok: gstOk,
+							error: gstError || gstProbe.error,
+						},
+						udpRelay: { ok: udpOk },
+					},
+				})
 				return
 			}
 
@@ -510,6 +571,7 @@ export async function restartServer(): Promise<void> {
 	const restart = lifecyclePromise.then(async () => {
 		logger.info("Executing full server engine restart...")
 		hostStatus = "starting"
+		clearInputInjectorProbeCache()
 
 		if (gstManager) {
 			try {
@@ -533,8 +595,8 @@ export async function restartServer(): Promise<void> {
 		await new Promise((resolve) => setTimeout(resolve, 200))
 
 		try {
-			webrtcManager = new WebRTCManager()
-			gstManager = new GstManager()
+			webrtcManager = new WebRTCManager(getHostDiagnostics)
+			gstManager = createGstManager()
 			await gstManager.start()
 			hostStatus = "running"
 			logger.info("Server engine successfully restarted")

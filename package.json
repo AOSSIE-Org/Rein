@@ -2,9 +2,14 @@
 	"main": "electron/main.cjs",
 	"name": "Rein",
 	"displayName": "Rein",
-	"version": "0.5.0",
+	"version": "1.0.0",
 	"description": "Rein Desktop Streaming Server",
 	"author": "AOSSIE",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/AOSSIE-Org/Rein"
+	},
 	"private": true,
 	"type": "module",
 	"scripts": {
@@ -31,6 +36,7 @@
 		"koffi": "^2.16.2",
 		"lucide-react": "^0.561.0",
 		"nitro": "^3.0.260429-beta",
+		"nosleep.js": "^0.12.0",
 		"qrcode": "^1.5.4",
 		"react": "^19.2.5",
 		"react-dom": "^19.2.5",
@@ -60,7 +66,7 @@
 		"babel-plugin-react-compiler": "^1.0.0",
 		"concurrently": "^9.2.1",
 		"daisyui": "^5.5.14",
-		"electron": "^41.10.6",
+		"electron": "^44.9.3",
 		"electron-builder": "^26.8.1",
 		"jsdom": "^27.0.0",
 		"postcss": "^8.5.6",
@@ -69,7 +75,7 @@
 		"typescript": "^7.0.2",
 		"vite": "^8.0.10",
 		"vite-tsconfig-paths": "^6.0.2",
-		"vitest": "^4.1.11",
+		"vitest": "^4.1.12",
 		"wait-on": "^9.0.4"
 	},
 	"build": {

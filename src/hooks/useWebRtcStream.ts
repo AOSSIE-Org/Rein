@@ -14,6 +14,22 @@ const MAX_RETRIES = 5
 // Signaling helpers
 // ---------------------------------------------------------------------------
 
+interface SignalingErrorResponse {
+	error?: string
+	errorType?: string
+}
+
+class SignalingError extends Error {
+	constructor(
+		public status: number,
+		message: string,
+		public errorType?: string,
+	) {
+		super(message)
+		this.name = "SignalingError"
+	}
+}
+
 /** POST helper that attaches the Bearer token and parses JSON response. */
 async function signalingPost<T>(
 	path: string,
@@ -29,9 +45,13 @@ async function signalingPost<T>(
 		body: JSON.stringify(body),
 	})
 	if (!res.ok) {
-		const err = await res.json().catch(() => ({ error: res.statusText }))
-		throw new Error(
-			`[Signaling] ${path} failed (${res.status}): ${(err as { error?: string }).error ?? res.statusText}`,
+		const err = (await res.json().catch(() => ({
+			error: res.statusText,
+		}))) as SignalingErrorResponse
+		throw new SignalingError(
+			res.status,
+			err.error ?? res.statusText,
+			err.errorType,
 		)
 	}
 	return res.json() as Promise<T>
@@ -49,6 +69,19 @@ async function signalingDelete(path: string, token: string, body: unknown) {
 	}).catch(() => {
 		/* best-effort teardown */
 	})
+}
+
+function getLocalizedErrorTitle(errorType?: string): string {
+	switch (errorType) {
+		case "GStreamer Capture Error":
+			return t("errorComponent", "gstreamerCaptureError")
+		case "Capture Engine Error":
+			return t("errorComponent", "captureEngineError")
+		case "Input Driver Error":
+			return t("errorComponent", "inputDriverError")
+		default:
+			return t("errorComponent", "hostErrorTitle")
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -73,6 +106,18 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 	const trackActiveRef = useRef(false)
 	const retryCountRef = useRef(0)
 	const isRetryingRef = useRef(false)
+	const terminalErrorRef = useRef(false)
+
+	const prevTokenRef = useRef(token)
+	useEffect(() => {
+		if (prevTokenRef.current !== token) {
+			prevTokenRef.current = token
+			terminalErrorRef.current = false
+			retryCountRef.current = 0
+			setError(null)
+			setErrorHandle(null)
+		}
+	}, [token])
 
 	useEffect(() => {
 		trackActiveRef.current = trackActive
@@ -107,7 +152,13 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 	}, [])
 
 	const triggerRetry = useCallback(() => {
-		if (retryTimerRef.current || isRetryingRef.current) return
+		if (
+			terminalErrorRef.current ||
+			retryTimerRef.current ||
+			isRetryingRef.current
+		) {
+			return
+		}
 		isRetryingRef.current = true
 
 		if (retryCountRef.current >= MAX_RETRIES) {
@@ -142,6 +193,7 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 	}, [triggerRetry])
 
 	const reconnect = useCallback(() => {
+		terminalErrorRef.current = false
 		if (retryTimerRef.current) {
 			clearTimeout(retryTimerRef.current)
 			retryTimerRef.current = null
@@ -231,7 +283,9 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 		}
 
 		pc.onconnectionstatechange = () => {
-			if (isDisposed || isRetryingRef.current) return
+			if (isDisposed || isRetryingRef.current || terminalErrorRef.current) {
+				return
+			}
 			if (
 				pc.connectionState === "failed" ||
 				pc.connectionState === "disconnected"
@@ -245,7 +299,14 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 		// -------------------------------------------------------------------
 
 		pc.onicecandidate = (event) => {
-			if (isDisposed || isRetryingRef.current || !event.candidate) return
+			if (
+				isDisposed ||
+				isRetryingRef.current ||
+				terminalErrorRef.current ||
+				!event.candidate
+			) {
+				return
+			}
 			const init = event.candidate.toJSON()
 			if (!sessionId) {
 				// Buffer until we receive the sessionId from the offer response
@@ -256,7 +317,11 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 				sessionId,
 				candidate: init,
 			}).catch((err) => {
-				if (!isDisposed && !isRetryingRef.current) {
+				if (
+					!isDisposed &&
+					!isRetryingRef.current &&
+					!terminalErrorRef.current
+				) {
 					console.error("[WebRTC] Failed to send local ICE candidate:", err)
 					handleNetworkFailure()
 				}
@@ -286,7 +351,9 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 			iceSseRef.current = es
 
 			es.onmessage = async (event) => {
-				if (isDisposed || isRetryingRef.current) return
+				if (isDisposed || isRetryingRef.current || terminalErrorRef.current) {
+					return
+				}
 				try {
 					const msg = JSON.parse(event.data) as {
 						type: string
@@ -304,11 +371,27 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 							remoteIceQueue.push(msg.candidate)
 						}
 					} else if (msg.type === "error") {
-						// InputHandler error from the server — surface it in ErrorComponent
-						console.error("[WebRTC] Server InputHandler error:", msg)
+						// Error from the server — surface it in ErrorComponent
+						console.error("[WebRTC] Server error:", msg)
+						terminalErrorRef.current = true
+						if (retryTimerRef.current) {
+							clearTimeout(retryTimerRef.current)
+							retryTimerRef.current = null
+						}
+						isRetryingRef.current = false
+						if (sessionIdRef.current && token) {
+							signalingDelete("/api/rtc/session", token, {
+								sessionId: sessionIdRef.current,
+							})
+							sessionIdRef.current = null
+						}
+						cleanup()
+						setActiveSessionId(null)
+						setTrackActive(false)
+						setVideoStream(null)
 						setConnecting(false)
-						setErrorHandle(msg.errorType ?? "Host Error")
-						setError(msg.message ?? "The host reported an input error")
+						setErrorHandle(getLocalizedErrorTitle(msg.errorType))
+						setError(msg.message ?? t("errorComponent", "hostErrorFallback"))
 					}
 				} catch (err) {
 					console.error("[WebRTC] Session SSE parse error:", err)
@@ -316,7 +399,11 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 			}
 
 			es.onerror = () => {
-				if (!isDisposed && !isRetryingRef.current) {
+				if (
+					!isDisposed &&
+					!isRetryingRef.current &&
+					!terminalErrorRef.current
+				) {
 					console.warn(
 						"[WebRTC] Session SSE stream error – retrying connection",
 					)
@@ -337,7 +424,10 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 					offer: RTCSessionDescriptionInit
 				}>("/api/rtc/offer", token, {})
 
-				if (isDisposed || isRetryingRef.current) return
+				if (isDisposed || isRetryingRef.current || terminalErrorRef.current) {
+					signalingDelete("/api/rtc/session", token, { sessionId: sid })
+					return
+				}
 
 				sessionId = sid
 				sessionIdRef.current = sid
@@ -361,7 +451,10 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 					sdp: answer,
 				})
 
-				if (isDisposed || isRetryingRef.current) return
+				if (isDisposed || isRetryingRef.current || terminalErrorRef.current) {
+					signalingDelete("/api/rtc/session", token, { sessionId: sid })
+					return
+				}
 
 				// Step 5: flush any local ICE candidates that arrived before sessionId
 				for (const candidate of localIceQueue.splice(0)) {
@@ -373,8 +466,42 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 
 				console.log(`[WebRTC] Handshake complete – session ${sid}`)
 			} catch (err) {
-				if (!isDisposed && !isRetryingRef.current) {
+				if (
+					!isDisposed &&
+					!isRetryingRef.current &&
+					!terminalErrorRef.current
+				) {
 					console.error("[WebRTC] Signaling handshake failed:", err)
+					if (
+						err instanceof SignalingError &&
+						(err.errorType || err.status === 401 || err.status === 403)
+					) {
+						terminalErrorRef.current = true
+						if (retryTimerRef.current) {
+							clearTimeout(retryTimerRef.current)
+							retryTimerRef.current = null
+						}
+						isRetryingRef.current = false
+						if (sessionIdRef.current && token) {
+							signalingDelete("/api/rtc/session", token, {
+								sessionId: sessionIdRef.current,
+							})
+							sessionIdRef.current = null
+						}
+						cleanup()
+						setActiveSessionId(null)
+						setTrackActive(false)
+						setVideoStream(null)
+						setConnecting(false)
+						if (err.status === 401 || err.status === 403) {
+							setErrorHandle(t("errorComponent", "unauthorizedTitle"))
+							setError(t("errorComponent", "unauthorizedBody"))
+						} else {
+							setErrorHandle(getLocalizedErrorTitle(err.errorType))
+							setError(err.message)
+						}
+						return
+					}
 					handleNetworkFailure()
 				}
 			}
@@ -388,7 +515,14 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 		let lastBytesTime = Date.now()
 
 		const statsInterval = setInterval(async () => {
-			if (isDisposed || isRetryingRef.current || !trackActiveRef.current) return
+			if (
+				isDisposed ||
+				isRetryingRef.current ||
+				!trackActiveRef.current ||
+				terminalErrorRef.current
+			) {
+				return
+			}
 			try {
 				const stats = await pc.getStats()
 				for (const report of stats.values()) {

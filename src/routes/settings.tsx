@@ -191,86 +191,95 @@ function SettingsPage() {
 					</div>
 
 					{/* Right Column: QR Code & Connection Info */}
-					<div className="w-full md:w-96 flex-shrink-0">
-						<div className="card bg-base-200 shadow-xl sticky top-6">
-							<div className="card-body items-center text-center">
-								<h2 className="card-title">{t("settings", "connectMobile")}</h2>
-								<p className="text-sm opacity-70">{t("settings", "scanQr")}</p>
+					<div className="w-full md:w-96 flex-shrink-0 self-stretch">
+						{/* This sticky wrapper spans the full height of the left settings form */}
+						<div className="sticky top-6 flex flex-col items-center">
+							<div className="card bg-base-200 shadow-xl w-full">
+								<div className="card-body items-center text-center">
+									<h2 className="card-title">
+										{t("settings", "connectMobile")}
+									</h2>
+									<p className="text-sm opacity-70">
+										{t("settings", "scanQr")}
+									</p>
 
-								{qrData && (
-									<div className="bg-white p-4 rounded-xl shadow-inner my-4">
-										<img
-											src={qrData}
-											alt="Connection QR"
-											className="w-48 h-48 mix-blend-multiply"
-										/>
-									</div>
-								)}
-
-								<div className="flex flex-col gap-2 mt-2 w-full px-2 items-center">
-									{/* URL row: truncated preview + copy button */}
-									<div className="flex items-center gap-2 w-full bg-base-100 rounded-2xl px-3 py-2">
-										{/* Link icon */}
-										<Link2 size={16} className="shrink-0 opacity-50" />
-										{/* Truncated URL preview — strips the token query param */}
-										<span
-											className="flex-1 font-mono text-sm opacity-80 min-w-0"
-											style={{
-												whiteSpace: "nowrap",
-												overflow: "hidden",
-												textOverflow: "ellipsis",
-											}}
-										>
-											{ip ? `${ip}:${window.location.port}/trackpad` : ""}
-										</span>
-										{/* Copy button */}
-										<button
-											type="button"
-											className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 bg-primary/15 text-primary hover:bg-primary/25 active:scale-95"
-											onClick={async () => {
-												setCopyError("")
-												try {
-													if (
-														window.isSecureContext &&
-														navigator.clipboard?.writeText
-													) {
-														await navigator.clipboard.writeText(shareUrl)
-													} else if (!copyWithFallback(shareUrl)) {
-														throw new Error("Clipboard copy failed")
-													}
-													setCopied(true)
-													if (copyTimerRef.current)
-														clearTimeout(copyTimerRef.current)
-													copyTimerRef.current = setTimeout(() => {
-														setCopied(false)
-														copyTimerRef.current = null
-													}, 1500)
-												} catch (err) {
-													console.error("Failed to copy URL:", err)
-													if (copyTimerRef.current) {
-														clearTimeout(copyTimerRef.current)
-														copyTimerRef.current = null
-													}
-													setCopied(false)
-													setCopyError(t("settings", "copyFailed"))
-												}
-											}}
-										>
-											{copied ? <Check size={16} /> : <Copy size={16} />}
-											{copied ? t("settings", "copied") : t("settings", "copy")}
-										</button>
-									</div>
-									{copyError && (
-										<p className="text-error text-xs text-center max-w-xs">
-											{copyError}
-										</p>
+									{qrData && (
+										<div className="bg-white p-4 rounded-xl shadow-inner my-4">
+											<img
+												src={qrData}
+												alt="Connection QR"
+												className="w-48 h-48 mix-blend-multiply"
+											/>
+										</div>
 									)}
+
+									<div className="flex flex-col gap-2 mt-2 w-full px-2 items-center">
+										{/* URL row: truncated preview + copy button */}
+										<div className="flex items-center gap-2 w-full bg-base-100 rounded-2xl px-3 py-2">
+											<Link2 size={16} className="shrink-0 opacity-50" />
+											{/* Truncated URL preview — strips the token query param */}
+											<span
+												className="flex-1 font-mono text-sm opacity-80 min-w-0"
+												style={{
+													whiteSpace: "nowrap",
+													overflow: "hidden",
+													textOverflow: "ellipsis",
+												}}
+											>
+												{ip ? `${ip}:${window.location.port}/trackpad` : ""}
+											</span>
+											{/* Copy button */}
+											<button
+												type="button"
+												className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 bg-primary/15 text-primary hover:bg-primary/25 active:scale-95"
+												onClick={async () => {
+													setCopyError("")
+													try {
+														if (
+															window.isSecureContext &&
+															navigator.clipboard?.writeText
+														) {
+															await navigator.clipboard.writeText(shareUrl)
+														} else if (!copyWithFallback(shareUrl)) {
+															throw new Error("Clipboard copy failed")
+														}
+														setCopied(true)
+														if (copyTimerRef.current)
+															clearTimeout(copyTimerRef.current)
+														copyTimerRef.current = setTimeout(() => {
+															setCopied(false)
+															copyTimerRef.current = null
+														}, 1500)
+													} catch (err) {
+														console.error("Failed to copy URL:", err)
+														if (copyTimerRef.current) {
+															clearTimeout(copyTimerRef.current)
+															copyTimerRef.current = null
+														}
+														setCopied(false)
+														setCopyError(t("settings", "copyFailed"))
+													}
+												}}
+											>
+												{copied ? <Check size={16} /> : <Copy size={16} />}
+												{copied
+													? t("settings", "copied")
+													: t("settings", "copy")}
+											</button>
+										</div>
+										{copyError && (
+											<p className="text-error text-xs text-center max-w-xs">
+												{copyError}
+											</p>
+										)}
+									</div>
 								</div>
 							</div>
-						</div>
 
-						<div className="text-xs text-center opacity-50 pt-8 pb-8">
-							{t("settings", "appVersion", { version: APP_CONFIG.VERSION })}
+							{/* Version text stays neatly below the card and moves with it */}
+							<div className="text-xs text-center opacity-50 pt-4 pb-2">
+								{t("settings", "appVersion", { version: APP_CONFIG.VERSION })}
+							</div>
 						</div>
 					</div>
 				</div>

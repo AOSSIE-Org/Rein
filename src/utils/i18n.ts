@@ -42,6 +42,10 @@ export const i18n = {
 			interactionMode: "Toggle Interaction Mode",
 			mouseModeDesc: "Interactions will behave like a trackpad",
 			touchModeDesc: "Interactions will behave like a touchscreen",
+			keepAwake: "Keep Screen Awake",
+			keepAwakeDesc: "Screen will stay awake while the remote is active",
+			keepAwakeDisabledDesc:
+				"Screen will turn off according to system settings",
 		},
 		gamepad: {
 			buttonLayoutPreview: "Button Layout Preview",
@@ -141,6 +145,14 @@ export const i18n = {
 			unexpectedNetworkError: "An unexpected network error occurred.",
 			connectionFailedTitle: "Connection Failed",
 			connectionFailedBody: "Unable to establish WebRTC stream connection.",
+			hostErrorTitle: "Host Error",
+			hostErrorFallback: "The host reported an error",
+			unauthorizedTitle: "Authentication Failed",
+			unauthorizedBody: "Session token is invalid or expired.",
+			gstreamerCaptureError: "GStreamer Capture Error",
+			captureEngineError: "Capture Engine Error",
+			inputDriverError: "Input Driver Error",
+			errorPrefix: "Error: ",
 		},
 		server: {
 			welcomeTitle: "Welcome to Rein",

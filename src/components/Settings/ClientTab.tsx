@@ -8,7 +8,13 @@ import {
 } from "../../utils/safeLocalStorage"
 import ThemePicker, { THEME_LIST } from "../ThemePicker/ThemePicker"
 import { GamepadLayoutSettings } from "../Gamepad/GamepadLayoutSettings"
-import { MonitorOff, VolumeX, MousePointerClick, MouseIcon } from "lucide-react"
+import {
+	MonitorOff,
+	VolumeX,
+	MousePointerClick,
+	MouseIcon,
+	Sun,
+} from "lucide-react"
 
 export interface ClientTabProps {
 	authToken: string
@@ -86,6 +92,11 @@ export function ClientTab({ authToken }: ClientTabProps) {
 		return getLocalStorageItem("rein_audio_muted") === "true"
 	})
 
+	const [keepAwake, setKeepAwake] = useState<boolean>(() => {
+		const saved = getLocalStorageItem("rein_keep_awake")
+		return saved !== null ? saved === "true" : true
+	})
+
 	const [theme, setTheme] = useState(() => {
 		const saved = getLocalStorageItem(APP_CONFIG.THEME_STORAGE_KEY)
 		return THEME_LIST.some((t) => t.value === saved) ? saved : "dracula"
@@ -150,6 +161,11 @@ export function ClientTab({ authToken }: ClientTabProps) {
 	const handleAudioMutedChange = (val: boolean) => {
 		setAudioMuted(val)
 		setLocalStorageItem("rein_audio_muted", JSON.stringify(val))
+	}
+
+	const handleKeepAwakeChange = (val: boolean) => {
+		setKeepAwake(val)
+		setLocalStorageItem("rein_keep_awake", JSON.stringify(val))
 	}
 
 	return (
@@ -240,6 +256,18 @@ export function ClientTab({ authToken }: ClientTabProps) {
 					}
 					checked={mouseMode}
 					onChange={handleInteractionModeChange}
+				/>
+				<SettingToggle
+					id="keep-awake-toggle"
+					icon={<Sun size={18} aria-hidden="true" />}
+					label={t("clientTab", "keepAwake")}
+					description={
+						keepAwake
+							? t("clientTab", "keepAwakeDesc")
+							: t("clientTab", "keepAwakeDisabledDesc")
+					}
+					checked={keepAwake}
+					onChange={handleKeepAwakeChange}
 				/>
 			</div>
 

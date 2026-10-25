@@ -87,7 +87,7 @@ export class InputHandler {
 			const errMsg = `Input injector initialization failed: ${e instanceof Error ? e.message : String(e)}`
 			console.warn(e)
 			if (this.onError) {
-				this.onError("input-injector-init-failed", errMsg)
+				this.onError("Input Device Error", errMsg)
 			}
 		}
 	}
@@ -96,6 +96,7 @@ export class InputHandler {
 		console.log("[InputHandler] Updating config:", config)
 		this.config = { ...this.config, ...config }
 		this.injector.updateConfig(config)
+		clearInputInjectorProbeCache()
 	}
 
 	setThrottleMs(ms: number): void {
@@ -420,5 +421,66 @@ function createStubInjector(): PlatformInjector {
 		injectGamepadButton: () => warn("injectGamepadButton"),
 		injectGamepadAxis: () => warn("injectGamepadAxis"),
 		destroy: () => {},
+	}
+}
+
+let lastProbeResult: { ok: boolean; error?: string } | null = null
+let lastProbeTime = 0
+const PROBE_CACHE_TTL_MS = 10_000
+
+export function clearInputInjectorProbeCache(): void {
+	lastProbeResult = null
+	lastProbeTime = 0
+}
+
+/**
+ * Probes whether the host environment can successfully create virtual input devices.
+ * Results are cached for 10 seconds to avoid device churn on Linux (/dev/uinput).
+ */
+export function probeInputInjector(forceRefresh = false): {
+	ok: boolean
+	error?: string
+} {
+	const now = Date.now()
+	if (
+		!forceRefresh &&
+		lastProbeResult &&
+		now - lastProbeTime < PROBE_CACHE_TTL_MS
+	) {
+		return lastProbeResult
+	}
+
+	const plat = os.platform()
+	try {
+		let result: { ok: boolean; error?: string }
+		if (plat === "win32") {
+			const { WindowsInputInjector } = require("./drivers/windows")
+			const injector = new WindowsInputInjector()
+			injector.destroy?.()
+			result = { ok: true }
+		} else if (plat === "linux") {
+			const { LinuxInputInjector } = require("./drivers/linux")
+			const injector = new LinuxInputInjector()
+			injector.destroy?.()
+			result = { ok: true }
+		} else if (plat === "darwin") {
+			const { MacInputInjector } = require("./drivers/mac")
+			const injector = new MacInputInjector()
+			injector.destroy?.()
+			result = { ok: true }
+		} else {
+			result = { ok: false, error: `Unsupported platform: ${plat}` }
+		}
+		lastProbeResult = result
+		lastProbeTime = now
+		return result
+	} catch (e) {
+		const result = {
+			ok: false,
+			error: e instanceof Error ? e.message : String(e),
+		}
+		lastProbeResult = result
+		lastProbeTime = now
+		return result
 	}
 }
