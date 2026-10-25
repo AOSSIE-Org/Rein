@@ -107,6 +107,13 @@ export const i18n = {
 			paste: "Paste",
 			keyboard: "Keyboard",
 			modifier: "Modifier",
+			clipboardHttpBlocked:
+				"Direct clipboard reading is blocked over plain HTTP.",
+			pasteModalTitle: "Paste text to desktop",
+			pasteModalDescription: "Paste text here to send to desktop",
+			pasteModalPlaceholder: "Paste text here…",
+			pasteModalSubmit: "Paste",
+			pasteModalCancel: "Cancel",
 		},
 		settings: {
 			title: "Settings",
