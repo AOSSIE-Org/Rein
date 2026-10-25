@@ -7,7 +7,7 @@ import { t } from "@/utils/i18n"
 interface PasteModalProps {
 	isOpen: boolean
 	onClose: () => void
-	onSubmit: (text: string) => void
+	onSubmit: (text: string) => Promise<void> | void
 }
 
 export const PasteModal: React.FC<PasteModalProps> = ({
@@ -16,23 +16,40 @@ export const PasteModal: React.FC<PasteModalProps> = ({
 	onSubmit,
 }) => {
 	const [text, setText] = useState("")
+	const [isSubmitting, setIsSubmitting] = useState(false)
+	const dialogRef = useRef<HTMLDialogElement>(null)
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
 
 	useEffect(() => {
 		if (isOpen) {
 			setText("")
+			const dialog = dialogRef.current
+			if (dialog && !dialog.open) {
+				dialog.showModal()
+			}
 			const timer = setTimeout(() => {
 				textareaRef.current?.focus()
 			}, 50)
-			return () => clearTimeout(timer)
+			return () => {
+				clearTimeout(timer)
+				if (dialog?.open) {
+					dialog.close()
+				}
+			}
 		}
 	}, [isOpen])
 
 	if (!isOpen) return null
 
-	const handleSubmit = (e?: React.FormEvent) => {
+	const handleSubmit = async (e?: React.FormEvent) => {
 		e?.preventDefault()
-		onSubmit(text)
+		if (isSubmitting) return
+		setIsSubmitting(true)
+		try {
+			await onSubmit(text)
+		} finally {
+			setIsSubmitting(false)
+		}
 	}
 
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -47,8 +64,9 @@ export const PasteModal: React.FC<PasteModalProps> = ({
 
 	return (
 		<dialog
+			ref={dialogRef}
 			className="modal modal-open z-50"
-			open
+			onCancel={onClose}
 			aria-labelledby="paste-modal-title"
 		>
 			<div className="modal-box bg-base-100 border border-base-300 shadow-2xl max-w-md w-full p-5">
@@ -94,10 +112,15 @@ export const PasteModal: React.FC<PasteModalProps> = ({
 							type="button"
 							onClick={onClose}
 							className="btn btn-ghost btn-sm"
+							disabled={isSubmitting}
 						>
 							{t("controlBar", "pasteModalCancel")}
 						</button>
-						<button type="submit" className="btn btn-primary btn-sm gap-1.5">
+						<button
+							type="submit"
+							className="btn btn-primary btn-sm gap-1.5"
+							disabled={isSubmitting}
+						>
 							<ClipboardPaste size={16} />
 							{t("controlBar", "pasteModalSubmit")}
 						</button>
@@ -109,7 +132,7 @@ export const PasteModal: React.FC<PasteModalProps> = ({
 				className="modal-backdrop bg-black/60 backdrop-blur-xs"
 			>
 				<button type="button" onClick={onClose}>
-					close
+					{t("controlBar", "pasteModalCancel")}
 				</button>
 			</form>
 		</dialog>
