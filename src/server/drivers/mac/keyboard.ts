@@ -9,7 +9,6 @@ import koffi from "koffi"
 import { postKeyEvent } from "@imxade/inject/mac"
 import { kCGHIDEventTap } from "./constants.ts"
 import { MAC_KEY_MAP } from "../keyMap.ts"
-import { resolveChar } from "../utils.ts"
 
 export const NX_KEYTYPE_PLAY = 16
 export const NX_KEYTYPE_NEXT = 17
@@ -181,21 +180,7 @@ export class MacKeyboard {
 	injectText(text: string): void {
 		if (!text) return
 		for (const ch of text) {
-			const { code, shifted } = resolveChar(ch, MAC_KEY_MAP)
-			const shiftCode = MAC_KEY_MAP.shift
-			if (code === undefined) {
-				// Fall back to Unicode injection for unmapped characters.
-				this.injectUnicodeChar(ch)
-				continue
-			}
-			if (shiftCode === undefined) {
-				console.warn("[MacKeyboard] Shift key code not defined in key map")
-				continue
-			}
-			if (shifted) postKey(shiftCode, true)
-			postKey(code, true)
-			postKey(code, false)
-			if (shifted) postKey(shiftCode, false)
+			this.injectUnicodeChar(ch)
 		}
 	}
 	private injectUnicodeChar(ch: string): void {
