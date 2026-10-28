@@ -106,10 +106,11 @@ export class WindowsKeyboard {
 			console.warn("[Text] Empty text, returning")
 			return
 		}
-		for (const ch of text) {
-			const c = ch.charCodeAt(0)
+		const events: WindowsInput[] = []
+		for (let i = 0; i < text.length; i++) {
+			const c = text.charCodeAt(i)
 
-			this.sendInput([
+			events.push(
 				{
 					type: INPUT_KEYBOARD,
 					u: {
@@ -130,8 +131,9 @@ export class WindowsKeyboard {
 						},
 					},
 				},
-			])
+			)
 		}
+		this.sendInput(events)
 	}
 
 	private sendInput(events: WindowsInput[]): void {
