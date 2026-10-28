@@ -2,8 +2,9 @@ import { BufferBar } from "@/components/Trackpad/Buffer"
 import type { ModifierState } from "@/types"
 import { createFileRoute } from "@tanstack/react-router"
 import { useRef, useState, useEffect, useCallback } from "react"
-import { Keyboard } from "lucide-react"
+import { Keyboard, Info } from "lucide-react"
 import { ControlBar } from "../components/Trackpad/ControlBar"
+import { PasteModal } from "../components/Trackpad/PasteModal"
 import { ExtraKeys } from "../components/Trackpad/ExtraKeys"
 import { TouchArea } from "../components/Trackpad/TouchArea"
 import { useRemoteConnection } from "../hooks/useRemoteConnection"
@@ -66,6 +67,29 @@ function TrackpadPage() {
 	const [extraKeysVisible, setExtraKeysVisible] = useState(true)
 	const [noKeyboardToast, setNoKeyboardToast] = useState(false)
 	const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+	const [pasteModalOpen, setPasteModalOpen] = useState(false)
+	const [clipboardToast, setClipboardToast] = useState<string | null>(null)
+	const [pasteFallbackReason, setPasteFallbackReason] = useState<
+		"http" | "denied"
+	>("http")
+	const clipboardToastTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+	const showClipboardToast = (message: string) => {
+		setClipboardToast(message)
+		if (clipboardToastTimeoutRef.current)
+			clearTimeout(clipboardToastTimeoutRef.current)
+		clipboardToastTimeoutRef.current = setTimeout(() => {
+			setClipboardToast(null)
+		}, 4000)
+	}
+
+	useEffect(() => {
+		return () => {
+			if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
+			if (clipboardToastTimeoutRef.current)
+				clearTimeout(clipboardToastTimeoutRef.current)
+		}
+	}, [])
 
 	const [mirrorPaused, setMirrorPaused] = useState<boolean>(
 		() => getLocalStorageItem("rein_mirror_paused") === "true",
@@ -128,12 +152,12 @@ function TrackpadPage() {
 	} = mouseInput
 
 	useEffect(() => {
-		if (keyboardOpen) {
+		if (keyboardOpen && !pasteModalOpen) {
 			hiddenInputRef.current?.focus()
-		} else {
+		} else if (!keyboardOpen) {
 			hiddenInputRef.current?.blur()
 		}
-	}, [keyboardOpen])
+	}, [keyboardOpen, pasteModalOpen])
 
 	const toggleKeyboard = () => {
 		if (hasOnScreenKeyboard()) {
@@ -227,37 +251,78 @@ function TrackpadPage() {
 		}
 	}
 
+	const sendPasteToServer = async (text: string) => {
+		const res = await fetch("/api/clipboard/paste", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				...(token ? { Authorization: `Bearer ${token}` } : {}),
+			},
+			body: JSON.stringify({
+				sessionId: activeSessionId,
+				text,
+			}),
+		})
+		if (!res.ok) throw new Error(`Paste failed: ${res.status}`)
+	}
+
 	const handlePaste = async () => {
 		try {
 			let clientText: string | undefined
+			const isSecure = typeof window !== "undefined" && window.isSecureContext
+			let reason: "http" | "denied" = isSecure ? "denied" : "http"
 
 			// Try reading client clipboard if browser supports it (HTTPS / secure context)
 			if (navigator.clipboard?.readText) {
 				try {
 					clientText = await navigator.clipboard.readText()
 				} catch {
-					// Reading rejected or blocked on plain HTTP
+					// Reading rejected or blocked
 					clientText = undefined
+					reason = isSecure ? "denied" : "http"
 				}
 			}
 
-			// Send to server: if clientText is provided, server writes it to host clipboard first;
-			// otherwise falls back to pasting the existing host clipboard.
-			const res = await fetch("/api/clipboard/paste", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					...(token ? { Authorization: `Bearer ${token}` } : {}),
-				},
-				body: JSON.stringify({
-					sessionId: activeSessionId,
-					...(clientText !== undefined ? { text: clientText } : {}),
-				}),
-			})
-			if (!res.ok) throw new Error(`Paste failed: ${res.status}`)
+			if (clientText !== undefined) {
+				await sendPasteToServer(clientText)
+				return
+			}
+
+			// When direct clipboard reading is unavailable (insecure context or denied permission)
+			setPasteFallbackReason(reason)
+			setPasteModalOpen(true)
 		} catch (err) {
 			console.error("[Clipboard] Paste error:", err)
+			showClipboardToast(t("controlBar", "pasteFailed"))
 		}
+	}
+
+	const handlePasteModalSubmit = async (text: string) => {
+		if (!text.trim()) {
+			setPasteModalOpen(false)
+			showClipboardToast(
+				pasteFallbackReason === "http"
+					? t("controlBar", "clipboardHttpBlocked")
+					: t("controlBar", "clipboardPermissionDenied"),
+			)
+			return
+		}
+		try {
+			await sendPasteToServer(text)
+			setPasteModalOpen(false)
+		} catch (err) {
+			console.error("[Clipboard] Paste error:", err)
+			throw err
+		}
+	}
+
+	const handlePasteModalClose = () => {
+		setPasteModalOpen(false)
+		showClipboardToast(
+			pasteFallbackReason === "http"
+				? t("controlBar", "clipboardHttpBlocked")
+				: t("controlBar", "clipboardPermissionDenied"),
+		)
 	}
 
 	const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -515,6 +580,19 @@ function TrackpadPage() {
 				</div>
 			)}
 
+			{clipboardToast && (
+				<div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-base-100/95 backdrop-blur-md px-4 py-2.5 rounded-full border border-base-300 shadow-2xl text-xs md:text-sm text-base-content pointer-events-none transition-all duration-300 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 max-w-[90vw] text-center">
+					<Info size={16} className="text-warning shrink-0" />
+					<span className="font-medium">{clipboardToast}</span>
+				</div>
+			)}
+
+			<PasteModal
+				isOpen={pasteModalOpen}
+				onClose={handlePasteModalClose}
+				onSubmit={handlePasteModalSubmit}
+			/>
+
 			<input
 				ref={hiddenInputRef}
 				className="opacity-0 absolute bottom-0 pointer-events-none h-0 w-0"
@@ -524,7 +602,7 @@ function TrackpadPage() {
 				onCompositionStart={handleCompositionStart}
 				onCompositionEnd={handleCompositionEnd}
 				onBlur={() => {
-					if (keyboardOpen) {
+					if (keyboardOpen && !pasteModalOpen) {
 						setTimeout(() => hiddenInputRef.current?.focus(), 10)
 					}
 				}}
