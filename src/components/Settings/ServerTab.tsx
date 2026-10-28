@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { MdWarning } from "react-icons/md"
+import { TriangleAlert } from "lucide-react"
 import { APP_CONFIG } from "../../config"
 import { getAuthHeaders } from "../../utils/net"
 import { t } from "../../utils/i18n"
@@ -161,7 +161,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 			{/* Restart notice */}
 			{serverConfigSaved && (
 				<div className="alert alert-warning shadow-lg">
-					<MdWarning />
+					<TriangleAlert className="w-5 h-5 shrink-0" />
 					<span className="text-sm font-medium">
 						{t("serverTab", "restartRequired")}
 					</span>
@@ -265,7 +265,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 				</label>
 			</div>
 			<div className="alert alert-warning text-xs shadow-lg">
-				<MdWarning />
+				<TriangleAlert className="w-5 h-5 shrink-0" />
 				<span>
 					{t("serverTab", "firewallAlert", {
 						port: frontendPort || APP_CONFIG.PORT,
@@ -289,7 +289,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 				/>
 			</div>
 			<div className="alert alert-warning text-xs shadow-lg">
-				<MdWarning />
+				<TriangleAlert className="w-5 h-5 shrink-0" />
 				<span>{t("serverTab", "restartWarningAlert")}</span>
 			</div>
 			{/* Shared Upload Directory */}
