@@ -43,11 +43,6 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
 				{isTracking && <div className="loading loading-ring loading-lg" />}
 			</div>
 
-			{scrollMode && (
-				<div className="absolute top-4 right-4 badge badge-info">
-					SCROLL Active
-				</div>
-			)}
 		</div>
 	)
 }
