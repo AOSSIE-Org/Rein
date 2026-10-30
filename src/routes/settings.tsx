@@ -57,8 +57,12 @@ function SettingsPage() {
 	// Derive URLs once at the top
 	const protocol =
 		typeof window !== "undefined" ? window.location.protocol : "http:"
+	const portSuffix =
+		typeof window !== "undefined" && window.location.port
+			? `:${window.location.port}`
+			: ""
 	const shareUrl = ip
-		? `${protocol}//${ip}:${window.location.port}/trackpad${authToken ? `?token=${encodeURIComponent(authToken)}` : ""}`
+		? `${protocol}//${ip}${portSuffix}/trackpad${authToken ? `?token=${encodeURIComponent(authToken)}` : ""}`
 		: ""
 
 	useEffect(() => {
@@ -134,7 +138,7 @@ function SettingsPage() {
 						{/* Tabs */}
 						<div
 							role="tablist"
-							className="flex w-full rounded-lg p-1 mb-6 ml-2 border border-base-300"
+							className="flex w-full rounded-lg p-1 mb-6 border border-base-300"
 						>
 							<button
 								type="button"
@@ -226,7 +230,7 @@ function SettingsPage() {
 													textOverflow: "ellipsis",
 												}}
 											>
-												{ip ? `${ip}:${window.location.port}/trackpad` : ""}
+												{ip ? `${ip}${portSuffix}/trackpad` : ""}
 											</span>
 											{/* Copy button */}
 											<button
