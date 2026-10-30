@@ -103,7 +103,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 			</head>
 			<body className="bg-base-200 text-base-content overflow-hidden overscroll-none">
 				<ThemeInit />
-				<div className="flex flex-col h-[100dvh]">
+				<div className="flex flex-col h-dvh">
 					<Navbar />
 					<main className="flex-1 overflow-hidden relative">{children}</main>
 				</div>
