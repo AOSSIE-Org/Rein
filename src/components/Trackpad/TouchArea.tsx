@@ -42,7 +42,6 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
 				</div>
 				{isTracking && <div className="loading loading-ring loading-lg" />}
 			</div>
-
 		</div>
 	)
 }

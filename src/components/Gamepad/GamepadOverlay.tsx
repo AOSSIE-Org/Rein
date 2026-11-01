@@ -89,7 +89,7 @@ function Btn({
 	label = "",
 	className = "",
 	style,
-	icon = <div />,
+	icon,
 	active,
 	onPress,
 	interactive,
@@ -814,21 +814,27 @@ export function GamepadOverlay({
 
 				{/* Select / Start */}
 				<Group {...groupProps("startSelect")}>
-					<div className="flex gap-3">
+					<div className="flex gap-3 items-center justify-center">
 						<Btn
 							id="select"
 							label={t("gamepad", "select")}
 							className={`
 								${SHOULDER_BASE}
-								px-7
-								text-base
-								rounded-xl
+								px-2.5
+								py-1
+								text-[10px]
+								sm:text-xs
+								uppercase
+								font-bold
+								tracking-wider
+								rounded-lg
 								border-primary
 								shadow-md
+								whitespace-nowrap
 							`}
 							style={{
-								width: btnSm * 1.4,
-								height: btnSm,
+								minWidth: Math.max(54, btnSm * 2.2),
+								height: Math.max(26, btnSm),
 							}}
 							active={activeButtons.has("select")}
 							onPress={handlePress}
@@ -840,15 +846,21 @@ export function GamepadOverlay({
 							label={t("gamepad", "start")}
 							className={`
 								${SHOULDER_BASE}
-								px-7
-								text-base
-								rounded-xl
+								px-2.5
+								py-1
+								text-[10px]
+								sm:text-xs
+								uppercase
+								font-bold
+								tracking-wider
+								rounded-lg
 								border-secondary
 								shadow-md
+								whitespace-nowrap
 							`}
 							style={{
-								width: btnSm * 1.4,
-								height: btnSm,
+								minWidth: Math.max(54, btnSm * 2.2),
+								height: Math.max(26, btnSm),
 							}}
 							active={activeButtons.has("start")}
 							onPress={handlePress}
@@ -871,7 +883,6 @@ export function GamepadOverlay({
 								width: btnFace,
 								height: btnFace,
 								position: "absolute",
-								padding: "10px",
 								top: 0,
 								left: "50%",
 								transform: "translateX(-50%)",
@@ -888,7 +899,6 @@ export function GamepadOverlay({
 								width: btnFace,
 								height: btnFace,
 								position: "absolute",
-								padding: "10px",
 								bottom: 0,
 								left: "50%",
 								transform: "translateX(-50%)",
@@ -904,7 +914,6 @@ export function GamepadOverlay({
 							style={{
 								width: btnFace,
 								height: btnFace,
-								padding: "10px",
 								position: "absolute",
 								top: "50%",
 								left: 0,
