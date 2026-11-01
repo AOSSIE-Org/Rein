@@ -26,16 +26,28 @@ interface GstManagerPrivate {
 	getAudioSourceBlocks: (cfg: Record<string, unknown>) => string[]
 }
 
+function spawnResult(
+	status: number | null,
+	error?: Error,
+): ReturnType<typeof spawnSync> {
+	return {
+		pid: 0,
+		output: [],
+		stdout: Buffer.alloc(0),
+		stderr: Buffer.alloc(0),
+		status,
+		signal: null,
+		error,
+	}
+}
+
 describe("probeGstreamer", () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
 	})
 
 	it("returns ok: true when gst-launch-1.0 exits with 0", () => {
-		vi.mocked(spawnSync).mockReturnValue({
-			status: 0,
-			error: undefined,
-		} as unknown as ReturnType<typeof spawnSync>)
+		vi.mocked(spawnSync).mockReturnValue(spawnResult(0))
 
 		const result = probeGstreamer()
 		expect(result.ok).toBe(true)
@@ -43,10 +55,9 @@ describe("probeGstreamer", () => {
 	})
 
 	it("returns ok: false when binary is not found", () => {
-		vi.mocked(spawnSync).mockReturnValue({
-			status: null,
-			error: new Error("ENOENT"),
-		} as unknown as ReturnType<typeof spawnSync>)
+		vi.mocked(spawnSync).mockReturnValue(
+			spawnResult(null, new Error("ENOENT")),
+		)
 
 		const result = probeGstreamer()
 		expect(result.ok).toBe(false)
@@ -54,10 +65,7 @@ describe("probeGstreamer", () => {
 	})
 
 	it("returns ok: false when binary exits with non-zero code", () => {
-		vi.mocked(spawnSync).mockReturnValue({
-			status: 1,
-			error: undefined,
-		} as unknown as ReturnType<typeof spawnSync>)
+		vi.mocked(spawnSync).mockReturnValue(spawnResult(1))
 
 		const result = probeGstreamer()
 		expect(result.ok).toBe(false)
