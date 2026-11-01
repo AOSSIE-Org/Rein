@@ -55,9 +55,7 @@ describe("probeGstreamer", () => {
 	})
 
 	it("returns ok: false when binary is not found", () => {
-		vi.mocked(spawnSync).mockReturnValue(
-			spawnResult(null, new Error("ENOENT")),
-		)
+		vi.mocked(spawnSync).mockReturnValue(spawnResult(null, new Error("ENOENT")))
 
 		const result = probeGstreamer()
 		expect(result.ok).toBe(false)
