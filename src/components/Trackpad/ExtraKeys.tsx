@@ -1,19 +1,20 @@
 import type React from "react"
 import { useState } from "react"
 import {
-	FaVolumeMute,
-	FaVolumeDown,
-	FaVolumeUp,
-	FaPlay,
-	FaPause,
-	FaArrowUp,
-	FaArrowDown,
-	FaArrowLeft,
-	FaArrowRight,
-	FaLevelDownAlt,
-} from "react-icons/fa"
-import { FaBackwardStep, FaForwardStep } from "react-icons/fa6"
-import { MdSpaceBar } from "react-icons/md"
+	ArrowDown,
+	ArrowLeft,
+	ArrowRight,
+	ArrowUp,
+	CornerDownLeft,
+	Pause,
+	Play,
+	SkipBack,
+	SkipForward,
+	Space,
+	Volume1,
+	Volume2,
+	VolumeX,
+} from "lucide-react"
 
 interface ExtraKeysProps {
 	sendKey: (key: string) => void
@@ -35,38 +36,38 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({
 	const keyGroups = [
 		[
 			{
-				icon: <FaVolumeMute />,
+				icon: <VolumeX size={16} />,
 				key: "audiomute",
 				type: "media",
 				label: "Mute",
 			},
 			{
-				icon: <FaVolumeDown />,
+				icon: <Volume1 size={16} />,
 				key: "audiovoldown",
 				type: "media",
 				label: "Vol Down",
 			},
 			{
-				icon: <FaVolumeUp />,
+				icon: <Volume2 size={16} />,
 				key: "audiovolup",
 				type: "media",
 				label: "Vol Up",
 			},
 			{
-				icon: <FaBackwardStep />,
+				icon: <SkipBack size={16} />,
 				key: "audioprev",
 				type: "media",
 				label: "Previous",
 			},
 			{
-				icon: isPlaying ? <FaPause /> : <FaPlay />,
+				icon: isPlaying ? <Pause size={16} /> : <Play size={16} />,
 				action: handlePlayPause,
 				key: "playpause",
 				type: "media",
 				label: "Play/Pause",
 			},
 			{
-				icon: <FaForwardStep />,
+				icon: <SkipForward size={16} />,
 				key: "audionext",
 				type: "media",
 				label: "Next",
@@ -83,11 +84,21 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({
 		[
 			{ label: "Meta", key: "meta", type: "mod" },
 			{ label: "Alt", key: "alt", type: "mod" },
-			{ icon: <MdSpaceBar />, key: "space", type: "action", label: "Space" },
-			{ label: "Shift", key: "shift", type: "mod" },
-			{ icon: <FaArrowUp />, key: "arrowup", type: "arrow", label: "Up" },
 			{
-				icon: <FaLevelDownAlt style={{ transform: "rotate(90deg)" }} />,
+				icon: <Space size={16} />,
+				key: "space",
+				type: "action",
+				label: "Space",
+			},
+			{ label: "Shift", key: "shift", type: "mod" },
+			{
+				icon: <ArrowUp size={16} />,
+				key: "arrowup",
+				type: "arrow",
+				label: "Up",
+			},
+			{
+				icon: <CornerDownLeft size={16} />,
 				key: "enter",
 				type: "action",
 				label: "Enter",
@@ -97,10 +108,20 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({
 			{ label: "Ctrl", key: "control", type: "mod" },
 			{ label: "Menu", key: "menu", type: "mod" },
 			{ label: "Del", key: "delete", type: "action" },
-			{ icon: <FaArrowLeft />, key: "arrowleft", type: "arrow", label: "Left" },
-			{ icon: <FaArrowDown />, key: "arrowdown", type: "arrow", label: "Down" },
 			{
-				icon: <FaArrowRight />,
+				icon: <ArrowLeft size={16} />,
+				key: "arrowleft",
+				type: "arrow",
+				label: "Left",
+			},
+			{
+				icon: <ArrowDown size={16} />,
+				key: "arrowdown",
+				type: "arrow",
+				label: "Down",
+			},
+			{
+				icon: <ArrowRight size={16} />,
 				key: "arrowright",
 				type: "arrow",
 				label: "Right",
@@ -129,7 +150,12 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({
 		[
 			...keyGroups[1],
 			...[
-				{ icon: <MdSpaceBar />, key: "space", type: "action", label: "Space" },
+				{
+					icon: <Space size={16} />,
+					key: "space",
+					type: "action",
+					label: "Space",
+				},
 				{ label: "Meta", key: "meta", type: "mod" },
 				{ label: "Alt", key: "alt", type: "mod" },
 				{ label: "Shift", key: "shift", type: "mod" },
@@ -139,17 +165,32 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({
 		],
 		[
 			{ label: "Del", key: "delete", type: "action" },
-			{ icon: <FaArrowUp />, key: "arrowup", type: "arrow", label: "Up" },
 			{
-				icon: <FaLevelDownAlt style={{ transform: "rotate(90deg)" }} />,
+				icon: <ArrowUp size={16} />,
+				key: "arrowup",
+				type: "arrow",
+				label: "Up",
+			},
+			{
+				icon: <CornerDownLeft size={16} />,
 				key: "enter",
 				type: "action",
 				label: "Enter",
 			},
-			{ icon: <FaArrowLeft />, key: "arrowleft", type: "arrow", label: "Left" },
-			{ icon: <FaArrowDown />, key: "arrowdown", type: "arrow", label: "Down" },
 			{
-				icon: <FaArrowRight />,
+				icon: <ArrowLeft size={16} />,
+				key: "arrowleft",
+				type: "arrow",
+				label: "Left",
+			},
+			{
+				icon: <ArrowDown size={16} />,
+				key: "arrowdown",
+				type: "arrow",
+				label: "Down",
+			},
+			{
+				icon: <ArrowRight size={16} />,
 				key: "arrowright",
 				type: "arrow",
 				label: "Right",
