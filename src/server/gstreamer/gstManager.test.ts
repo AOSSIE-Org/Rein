@@ -22,6 +22,10 @@ vi.mock("../../utils/configHelper.ts", () => ({
 	loadServerConfig: vi.fn(() => ({})),
 }))
 
+interface GstManagerPrivate {
+	getAudioSourceBlocks: (cfg: Record<string, unknown>) => string[]
+}
+
 describe("probeGstreamer", () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
@@ -76,7 +80,9 @@ describe("GstManager - Audio source detection on Linux", () => {
 			)
 
 			const manager = new GstManager()
-			const blocks = (manager as unknown as { getAudioSourceBlocks: (cfg: Record<string, unknown>) => string[] }).getAudioSourceBlocks({})
+			const blocks = (
+				manager as unknown as GstManagerPrivate
+			).getAudioSourceBlocks({})
 
 			expect(execSync).toHaveBeenCalledWith(
 				"pactl get-default-sink",
@@ -103,7 +109,9 @@ describe("GstManager - Audio source detection on Linux", () => {
 			})
 
 			const manager = new GstManager()
-			const blocks = (manager as unknown as { getAudioSourceBlocks: (cfg: Record<string, unknown>) => string[] }).getAudioSourceBlocks({})
+			const blocks = (
+				manager as unknown as GstManagerPrivate
+			).getAudioSourceBlocks({})
 
 			expect(blocks).toEqual(["pulsesrc"])
 		} finally {
@@ -113,7 +121,9 @@ describe("GstManager - Audio source detection on Linux", () => {
 
 	it("respects custom audioSource if specified in config", () => {
 		const manager = new GstManager()
-		const blocks = (manager as unknown as { getAudioSourceBlocks: (cfg: Record<string, unknown>) => string[] }).getAudioSourceBlocks({
+		const blocks = (
+			manager as unknown as GstManagerPrivate
+		).getAudioSourceBlocks({
 			audioSource: "customaudiosrc device=hw:0",
 		})
 		expect(blocks).toEqual(["customaudiosrc", "device=hw:0"])
