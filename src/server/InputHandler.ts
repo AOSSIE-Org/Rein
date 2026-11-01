@@ -172,7 +172,15 @@ export class InputHandler {
 		const timerKey = isMove ? "moveTimer" : "scrollTimer"
 
 		if (now - this[lastKey] < this.throttleMs) {
-			this[pendingKey] = msg
+			// dx/dy are relative, so merge throttled events instead of dropping the earlier ones
+			const prev = this[pendingKey]
+			this[pendingKey] = prev
+				? {
+						...msg,
+						dx: (prev.dx ?? 0) + (msg.dx ?? 0),
+						dy: (prev.dy ?? 0) + (msg.dy ?? 0),
+					}
+				: msg
 			if (!this[timerKey]) {
 				this[timerKey] = setTimeout(() => {
 					this[timerKey] = null
