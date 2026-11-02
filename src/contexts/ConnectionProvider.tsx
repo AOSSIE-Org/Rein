@@ -26,6 +26,15 @@ interface ConnectionContextType {
 		unorderedDc: RTCDataChannel,
 		orderedDc: RTCDataChannel,
 	) => void
+	unregisterDataChannels: () => void
+}
+
+function detachDataChannel(dc: RTCDataChannel | null): void {
+	if (!dc) return
+	dc.onopen = null
+	dc.onclose = null
+	dc.onerror = null
+	dc.onmessage = null
 }
 
 const ConnectionContext = createContext<ConnectionContextType | null>(null)
@@ -72,11 +81,23 @@ export function ConnectionProvider({
 
 	const registerDataChannel = useCallback(
 		(unorderedDc: RTCDataChannel, orderedDc: RTCDataChannel) => {
+			// Detach event listeners from superseded channels to prevent stale callbacks
+			detachDataChannel(unorderedDcRef.current)
+			detachDataChannel(orderedDcRef.current)
+
 			unorderedDcRef.current = unorderedDc
 			orderedDcRef.current = orderedDc
 			setStatus("connecting")
 
 			const updateStatus = () => {
+				// Guard against stale event dispatches from superseded channels
+				if (
+					unorderedDcRef.current !== unorderedDc ||
+					orderedDcRef.current !== orderedDc
+				) {
+					return
+				}
+
 				if (
 					unorderedDc.readyState === "open" &&
 					orderedDc.readyState === "open"
@@ -92,6 +113,14 @@ export function ConnectionProvider({
 			}
 
 			const handleMessage = (e: MessageEvent) => {
+				// Guard against stale messages from superseded channels
+				if (
+					unorderedDcRef.current !== unorderedDc ||
+					orderedDcRef.current !== orderedDc
+				) {
+					return
+				}
+
 				try {
 					const parsed = JSON.parse(e.data) as {
 						type?: string
@@ -141,6 +170,25 @@ export function ConnectionProvider({
 		[],
 	)
 
+	const unregisterDataChannels = useCallback(() => {
+		detachDataChannel(unorderedDcRef.current)
+		detachDataChannel(orderedDcRef.current)
+		unorderedDcRef.current = null
+		orderedDcRef.current = null
+		setStatus("disconnected")
+		setLatency(null)
+	}, [])
+
+	// Detach listeners and clear references on unmount
+	useEffect(() => {
+		return () => {
+			detachDataChannel(unorderedDcRef.current)
+			detachDataChannel(orderedDcRef.current)
+			unorderedDcRef.current = null
+			orderedDcRef.current = null
+		}
+	}, [])
+
 	// Ping/Pong heartbeat for latency measurement
 	useEffect(() => {
 		if (status !== "connected") {
@@ -148,7 +196,14 @@ export function ConnectionProvider({
 			return
 		}
 
-		const sendPing = () => send({ type: "ping", timestamp: Date.now() })
+		const sendPing = () => {
+			if (
+				unorderedDcRef.current?.readyState === "open" ||
+				orderedDcRef.current?.readyState === "open"
+			) {
+				send({ type: "ping", timestamp: Date.now() })
+			}
+		}
 		sendPing()
 		const interval = setInterval(sendPing, 2000)
 
@@ -159,7 +214,13 @@ export function ConnectionProvider({
 
 	return (
 		<ConnectionContext.Provider
-			value={{ status, latency, send, registerDataChannel }}
+			value={{
+				status,
+				latency,
+				send,
+				registerDataChannel,
+				unregisterDataChannels,
+			}}
 		>
 			{children}
 		</ConnectionContext.Provider>
