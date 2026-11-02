@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { InputHandler } from "./InputHandler.ts"
+import { applyMotion } from "./drivers/utils.ts"
 import type { PlatformInjector } from "./types.ts"
 
 vi.mock("node:os", () => ({ default: { platform: () => "unsupported" } }))
 
-function createHandler() {
-	const handler = new InputHandler({ sensitivity: 1, acceleration: false }, 8)
+function createHandler(acceleration = false) {
+	const handler = new InputHandler({ sensitivity: 1, acceleration }, 8)
 	const injector = {
 		updateConfig: vi.fn(),
 		injectMouseMove: vi.fn(),
@@ -62,5 +63,46 @@ describe("InputHandler throttling", () => {
 
 		expect(total(injector.injectMouseWheel.mock.calls, 1)).toBe(12)
 		handler.destroy()
+	})
+
+	it("applies acceleration per packet, not to the merged sum", async () => {
+		const { handler, injector } = createHandler(true)
+
+		for (let i = 0; i < 5; i++) {
+			await handler.handleMessage({ type: "move", dx: 10, dy: 0 })
+		}
+		await vi.advanceTimersByTimeAsync(50)
+
+		const perPacket = applyMotion(10, 0, {
+			sensitivity: 1,
+			acceleration: true,
+		} as Parameters<typeof applyMotion>[2]).ax
+		expect(total(injector.injectMouseMove.mock.calls, 0)).toBeCloseTo(
+			perPacket * 5,
+		)
+		handler.destroy()
+	})
+
+	it("does not clamp the merged move to MAX_COORD a second time", async () => {
+		const { handler, injector } = createHandler()
+
+		for (let i = 0; i < 3; i++) {
+			await handler.handleMessage({ type: "move", dx: 1500, dy: 0 })
+		}
+		await vi.advanceTimersByTimeAsync(50)
+
+		expect(total(injector.injectMouseMove.mock.calls, 0)).toBe(4500)
+		handler.destroy()
+	})
+
+	it("drops pending deltas on destroy", async () => {
+		const { handler, injector } = createHandler()
+
+		await handler.handleMessage({ type: "move", dx: 5, dy: 0 })
+		await handler.handleMessage({ type: "move", dx: 5, dy: 0 })
+		handler.destroy()
+		await vi.advanceTimersByTimeAsync(50)
+
+		expect(injector.injectMouseMove).toHaveBeenCalledTimes(1)
 	})
 })
