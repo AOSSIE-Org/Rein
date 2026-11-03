@@ -91,7 +91,11 @@ describe("Clipboard helper", () => {
 		expect(text).toBe("windows clipboard text")
 		expect(spawn).toHaveBeenCalledWith(
 			"powershell.exe",
-			expect.arrayContaining(["Get-Clipboard -Raw"]),
+			expect.arrayContaining([
+				expect.stringMatching(
+					/\[Console\]::OutputEncoding\s*=\s*\[System\.Text\.Encoding\]::UTF8;\s*Get-Clipboard -Raw/,
+				),
+			]),
 			expect.any(Object),
 		)
 	})

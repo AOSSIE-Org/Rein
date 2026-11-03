@@ -64,7 +64,7 @@ export async function getSystemClipboard(): Promise<string> {
 		const text = await spawnCaptureOutput("powershell.exe", [
 			"-NoProfile",
 			"-Command",
-			"Get-Clipboard -Raw",
+			"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Clipboard -Raw",
 		])
 		return text.replace(/\r?\n$/, "")
 	}
