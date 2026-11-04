@@ -176,7 +176,9 @@ export class InputHandler {
 		const pendingKey = isMove ? "pendingMove" : "pendingScroll"
 		const timerKey = isMove ? "moveTimer" : "scrollTimer"
 
-		if (now - this[lastKey] >= this.throttleMs) {
+		// Only pass through when nothing is pending, otherwise this packet would be
+		// injected before the earlier deltas still waiting on the timer.
+		if (!this[timerKey] && now - this[lastKey] >= this.throttleMs) {
 			this[lastKey] = now
 			return false
 		}

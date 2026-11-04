@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { InputHandler } from "./InputHandler.ts"
+import { DEFAULT_SCREEN_HEIGHT, DEFAULT_SCREEN_WIDTH } from "./constants.ts"
 import { applyMotion } from "./drivers/utils.ts"
 import type { PlatformInjector } from "./types.ts"
 
@@ -76,7 +77,10 @@ describe("InputHandler throttling", () => {
 		const perPacket = applyMotion(10, 0, {
 			sensitivity: 1,
 			acceleration: true,
-		} as Parameters<typeof applyMotion>[2]).ax
+			invertScroll: false,
+			screenWidth: DEFAULT_SCREEN_WIDTH,
+			screenHeight: DEFAULT_SCREEN_HEIGHT,
+		}).ax
 		expect(total(injector.injectMouseMove.mock.calls, 0)).toBeCloseTo(
 			perPacket * 5,
 		)
@@ -92,6 +96,20 @@ describe("InputHandler throttling", () => {
 		await vi.advanceTimersByTimeAsync(50)
 
 		expect(total(injector.injectMouseMove.mock.calls, 0)).toBe(4500)
+		handler.destroy()
+	})
+
+	it("flushes pending deltas before injecting a newer move", async () => {
+		const { handler, injector } = createHandler()
+
+		await handler.handleMessage({ type: "move", dx: 1, dy: 0 }) // t=0, injected
+		await vi.advanceTimersByTimeAsync(1)
+		await handler.handleMessage({ type: "move", dx: 2, dy: 0 }) // t=1, pending
+		await vi.advanceTimersByTimeAsync(7)
+		await handler.handleMessage({ type: "move", dx: 3, dy: 0 }) // t=8, timer still due at 9
+		await vi.advanceTimersByTimeAsync(50)
+
+		expect(injector.injectMouseMove.mock.calls.map((c) => c[0])).toEqual([1, 5])
 		handler.destroy()
 	})
 
