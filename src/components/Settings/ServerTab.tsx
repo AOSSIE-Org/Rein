@@ -219,28 +219,42 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 								id={`display-opt-${opt.value}`}
 								type="radio"
 								name="display-mode"
-								className="radio radio-primary mt-0.5"
+								className="radio radio-primary mt-0.5 shrink-0"
 								value={opt.value}
 								checked={monitorIndex === opt.value}
 								onChange={() => setMonitorIndex(opt.value)}
 							/>
-							<div>
-								<div className="font-semibold text-sm">{opt.label}</div>
-								<div className="text-xs opacity-60">{opt.desc}</div>
+							<div className="flex-1 min-w-0">
+								<div className="font-semibold text-sm wrap-break-word">
+									{opt.label}
+								</div>
+								<div className="text-xs opacity-60 wrap-break-word whitespace-normal">
+									{opt.desc}
+								</div>
 							</div>
 						</label>
 					))}
 				</div>
 				{monitorIndex === 1 && (
-					<div className="alert alert-info text-xs mt-2 py-2 shadow-sm">
-						<span>{t("serverTab", "displayDriverNotice")}</span>
+					<div
+						className={[
+							"alert alert-info text-xs mt-2 p-3 shadow-sm",
+							"wrap-break-word whitespace-normal text-left",
+						].join(" ")}
+					>
+						<span className="wrap-break-word whitespace-normal leading-relaxed">
+							{t("serverTab", "displayDriverNotice")}
+						</span>
 					</div>
 				)}
-				<label className="label mt-1" htmlFor="display-opt-0">
-					<span className="label-text-alt opacity-50">
-						{t("serverTab", "displaySourceHelp")}
-					</span>
-				</label>
+				<p
+					className={[
+						"text-xs opacity-50 mt-1.5 px-0.5",
+						"wrap-break-word whitespace-normal leading-normal",
+					].join(" ")}
+				>
+					{t("serverTab", "displaySourceHelp")}
+				</p>
 			</div>
 
 			{/* Stream Quality */}
@@ -333,15 +347,23 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 					onChange={(e) => setIp(e.target.value)}
 				/>
 
-				<label className="label" htmlFor="server-ip-input">
-					<span className="label-text-alt opacity-50">
-						{t("serverTab", "lanIpHelp")}
-					</span>
-				</label>
+				<p
+					className={[
+						"text-xs opacity-50 mt-1.5 px-0.5",
+						"break-words whitespace-normal leading-normal",
+					].join(" ")}
+				>
+					{t("serverTab", "lanIpHelp")}
+				</p>
 			</div>
-			<div className="alert alert-warning text-xs shadow-lg">
+			<div
+				className={[
+					"alert alert-warning text-xs shadow-lg",
+					"break-words whitespace-normal text-left",
+				].join(" ")}
+			>
 				<TriangleAlert className="w-5 h-5 shrink-0" />
-				<span>
+				<span className="break-words whitespace-normal leading-relaxed">
 					{t("serverTab", "firewallAlert", {
 						port: frontendPort || APP_CONFIG.PORT,
 					})}
@@ -363,9 +385,16 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 					onChange={(e) => setFrontendPort(e.target.value)}
 				/>
 			</div>
-			<div className="alert alert-warning text-xs shadow-lg">
+			<div
+				className={[
+					"alert alert-warning text-xs shadow-lg",
+					"break-words whitespace-normal text-left",
+				].join(" ")}
+			>
 				<TriangleAlert className="w-5 h-5 shrink-0" />
-				<span>{t("serverTab", "restartWarningAlert")}</span>
+				<span className="break-words whitespace-normal leading-relaxed">
+					{t("serverTab", "restartWarningAlert")}
+				</span>
 			</div>
 			{/* Shared Upload Directory */}
 			<div className="form-control w-full">
@@ -382,11 +411,14 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 					value={uploadDir}
 					onChange={(e) => setUploadDir(e.target.value)}
 				/>
-				<label className="label mt-1" htmlFor="upload-dir-input">
-					<span className="label-text-alt opacity-50">
-						{t("serverTab", "sharedDirectoryHelp")}
-					</span>
-				</label>
+				<p
+					className={[
+						"text-xs opacity-50 mt-1.5 px-0.5",
+						"break-words whitespace-normal leading-normal",
+					].join(" ")}
+				>
+					{t("serverTab", "sharedDirectoryHelp")}
+				</p>
 			</div>
 			{/* Save Config — only visible in Server tab */}
 			<button
