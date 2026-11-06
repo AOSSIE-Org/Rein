@@ -17,6 +17,14 @@ export interface ServerConfig {
 	audioSource?: string
 	version?: string
 	uploadDir?: string
+	/**
+	 * displayMode: "duplicate" (mirror) or "extended" (virtual workspace)
+	 */
+	displayMode?: "duplicate" | "extended"
+	/**
+	 * monitorIndex: 0 = primary/mirror display, 1+ = secondary/extended
+	 */
+	monitorIndex?: number
 }
 let cachedConfig: ServerConfig | null = null
 

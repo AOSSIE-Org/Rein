@@ -20,6 +20,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 		useState<StreamQuality>("performance")
 	const [framerate, setFramerate] = useState<number | null>(null)
 	const [uploadDir, setUploadDir] = useState("")
+	const [monitorIndex, setMonitorIndex] = useState<number>(0)
 	const [serverConfigSaved, setServerConfigSaved] = useState(false)
 	const [serverConfigSaving, setServerConfigSaving] = useState(false)
 
@@ -29,6 +30,24 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 	const [loadedFramerate, setLoadedFramerate] = useState<number | null>(null)
 	const [loadedPort, setLoadedPort] = useState("")
 	const [loadedUploadDir, setLoadedUploadDir] = useState("")
+	const [loadedMonitorIndex, setLoadedMonitorIndex] = useState<number>(0)
+
+	const displayOptions: {
+		value: number
+		label: string
+		desc: string
+	}[] = [
+		{
+			value: 0,
+			label: t("serverTab", "displayPrimary"),
+			desc: t("serverTab", "displayPrimaryDesc"),
+		},
+		{
+			value: 1,
+			label: t("serverTab", "displaySecondary"),
+			desc: t("serverTab", "displaySecondaryDesc"),
+		},
+	]
 
 	const qualityOptions: {
 		value: StreamQuality
@@ -56,6 +75,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 		streamQuality !== loadedStreamQuality ||
 		framerate !== loadedFramerate ||
 		uploadDir !== loadedUploadDir ||
+		monitorIndex !== loadedMonitorIndex ||
 		(frontendPort !== "" && frontendPort !== loadedPort)
 
 	useEffect(() => {
@@ -99,6 +119,11 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 						setUploadDir(data.config.uploadDir)
 						setLoadedUploadDir(data.config.uploadDir)
 					}
+
+					if (typeof data.config.monitorIndex === "number") {
+						setMonitorIndex(data.config.monitorIndex)
+						setLoadedMonitorIndex(data.config.monitorIndex)
+					}
 				}
 			})
 			.catch((e) => console.error("Config fetch error:", e))
@@ -132,6 +157,8 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 				streamQuality,
 				framerate,
 				uploadDir,
+				displayMode: monitorIndex === 1 ? "extended" : "duplicate",
+				monitorIndex,
 			}),
 		})
 			.then((r) => r.json())
@@ -142,6 +169,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 					setLoadedStreamQuality(streamQuality)
 					setLoadedFramerate(framerate)
 					setLoadedUploadDir(uploadDir)
+					setLoadedMonitorIndex(monitorIndex)
 					setFrontendPort(trimmedPort)
 					if (trimmedPort !== "") setLoadedPort(trimmedPort)
 				} else {
@@ -167,6 +195,53 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 					</span>
 				</div>
 			)}
+
+			{/* Display Mode / Screen */}
+			<div className="form-control w-full">
+				<div className="label mb-3">
+					<span className="label-text font-medium">
+						{t("serverTab", "displaySource")}
+					</span>
+				</div>
+				<div className="flex flex-col gap-2">
+					{displayOptions.map((opt) => (
+						<label
+							key={opt.value}
+							htmlFor={`display-opt-${opt.value}`}
+							className={[
+								"flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all",
+								monitorIndex === opt.value
+									? "border-primary bg-primary/10"
+									: "border-base-300 hover:border-primary/50",
+							].join(" ")}
+						>
+							<input
+								id={`display-opt-${opt.value}`}
+								type="radio"
+								name="display-mode"
+								className="radio radio-primary mt-0.5"
+								value={opt.value}
+								checked={monitorIndex === opt.value}
+								onChange={() => setMonitorIndex(opt.value)}
+							/>
+							<div>
+								<div className="font-semibold text-sm">{opt.label}</div>
+								<div className="text-xs opacity-60">{opt.desc}</div>
+							</div>
+						</label>
+					))}
+				</div>
+				{monitorIndex === 1 && (
+					<div className="alert alert-info text-xs mt-2 py-2 shadow-sm">
+						<span>{t("serverTab", "displayDriverNotice")}</span>
+					</div>
+				)}
+				<label className="label mt-1" htmlFor="display-opt-0">
+					<span className="label-text-alt opacity-50">
+						{t("serverTab", "displaySourceHelp")}
+					</span>
+				</label>
+			</div>
 
 			{/* Stream Quality */}
 			<div className="form-control w-full">

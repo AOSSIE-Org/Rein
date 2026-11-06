@@ -382,8 +382,17 @@ export function attachSignalingRoutes(server: any): void {
 			// Config  POST /api/config
 			if (pathname === "/api/config" && req.method === "GET") {
 				if (!requireAuth(req, res)) return
-				const { framerate, streamQuality, frontendPort, uploadDir } =
-					loadServerConfig()
+				const {
+					framerate,
+					streamQuality,
+					frontendPort,
+					uploadDir,
+					displayMode,
+					monitorIndex,
+				} = loadServerConfig()
+				const resolvedDisplayMode =
+					displayMode ??
+					(monitorIndex && monitorIndex > 0 ? "extended" : "duplicate")
 				json(res, 200, {
 					ok: true,
 					config: {
@@ -391,6 +400,10 @@ export function attachSignalingRoutes(server: any): void {
 						streamQuality: streamQuality ?? "performance",
 						frontendPort: frontendPort ?? null,
 						uploadDir: uploadDir ?? null,
+						displayMode: resolvedDisplayMode,
+						monitorIndex:
+							monitorIndex ??
+							(resolvedDisplayMode === "extended" ? 1 : 0),
 					},
 				})
 				return
@@ -404,6 +417,8 @@ export function attachSignalingRoutes(server: any): void {
 						streamQuality?: string
 						frontendPort?: number
 						uploadDir?: string
+						displayMode?: "duplicate" | "extended"
+						monitorIndex?: number
 					}
 				>(req)
 					.then(async (config) => {
@@ -412,12 +427,28 @@ export function attachSignalingRoutes(server: any): void {
 							streamQuality,
 							frontendPort,
 							uploadDir,
+							displayMode,
+							monitorIndex,
 							...inputConfig
 						} = config
 						webrtcManager?.updateConfig(inputConfig)
 						// GStreamer and server fields are persisted to writable config and take effect on restart
 						const gstFields: Partial<ServerConfig> = {}
 						if ("framerate" in config) gstFields.framerate = framerate ?? null
+						if ("displayMode" in config) {
+							const dm = config.displayMode
+							if (dm === "duplicate" || dm === "extended") {
+								gstFields.displayMode = dm
+								gstFields.monitorIndex = dm === "extended" ? 1 : 0
+							}
+						} else if (
+							"monitorIndex" in config &&
+							typeof monitorIndex === "number"
+						) {
+							const idx = Math.max(0, Math.floor(monitorIndex))
+							gstFields.monitorIndex = idx
+							gstFields.displayMode = idx > 0 ? "extended" : "duplicate"
+						}
 						if ("uploadDir" in config && typeof uploadDir === "string") {
 							const trimmedDir = uploadDir.trim()
 							if (trimmedDir && !trimmedDir.includes("\0")) {
@@ -435,12 +466,24 @@ export function attachSignalingRoutes(server: any): void {
 							}
 						}
 						const currentCfg = loadServerConfig()
+						const currentDisplayMode =
+							currentCfg.displayMode ??
+							(currentCfg.monitorIndex && currentCfg.monitorIndex > 0
+								? "extended"
+								: "duplicate")
 						const hasGstChange =
 							("framerate" in config &&
 								(framerate ?? null) !== (currentCfg.framerate ?? null)) ||
 							("streamQuality" in config &&
 								streamQuality !== undefined &&
-								streamQuality !== (currentCfg.streamQuality ?? "performance"))
+								streamQuality !== (currentCfg.streamQuality ?? "performance")) ||
+							("displayMode" in config &&
+								displayMode !== undefined &&
+								displayMode !== currentDisplayMode) ||
+							("monitorIndex" in config &&
+								monitorIndex !== undefined &&
+								Math.max(0, Math.floor(monitorIndex)) !==
+									(currentCfg.monitorIndex ?? 0))
 
 						if (Object.keys(gstFields).length > 0) {
 							saveServerConfig(gstFields)

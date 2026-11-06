@@ -102,6 +102,18 @@ export const i18n = {
 			sharedDirectoryHelp:
 				"Directory on the host server where files uploaded by connected devices will be stored.",
 			sharedDirectoryPlaceholder: "Default: Downloads/ReinShared",
+			displaySource: "Display Mode",
+			displaySourceHelp:
+				"Choose whether to duplicate the screen or extend onto a virtual display.",
+			displayPrimary: "Duplicate (Mirror Screen)",
+			displayPrimaryDesc:
+				"Mirror the main host screen to the connected device",
+			displaySecondary: "Extend (Virtual Workspace)",
+			displaySecondaryDesc:
+				"Stream an extended secondary screen for multitasking",
+			displayDriverNotice:
+				"Note: Extended mode requires a secondary display or virtual " +
+				"display driver. If not detected, Rein streams primary screen.",
 		},
 		controlBar: {
 			scrollMode: "Toggle scroll",

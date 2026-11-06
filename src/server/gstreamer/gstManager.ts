@@ -1,4 +1,9 @@
-import { spawn, spawnSync, type ChildProcess } from "node:child_process"
+import {
+	spawn,
+	spawnSync,
+	execSync,
+	type ChildProcess,
+} from "node:child_process"
 import os from "node:os"
 import fs from "node:fs"
 import path from "node:path"
@@ -60,6 +65,12 @@ function formatGstExitError(code: number | null): string {
 	if (code === 127) {
 		return "GStreamer executable ('gst-launch-1.0') was not found or a required shared library is missing."
 	}
+	if (code === 4294967295 || code === -1) {
+		return (
+			"GStreamer process exited unexpectedly (code -1). " +
+			"A capture device, display monitor, or audio sink may be unavailable."
+		)
+	}
 	return `GStreamer process exited unexpectedly with code ${code}`
 }
 
@@ -69,6 +80,8 @@ export class GstManager {
 	private stopping = false
 	private lastError: string | null = null
 	private onErrorCallback?: (errorMsg: string) => void
+	private currentMonitorIndex = 0
+	private fallbackAttempted = false
 
 	public setOnError(cb: (errorMsg: string) => void): void {
 		this.onErrorCallback = cb
@@ -228,7 +241,14 @@ export class GstManager {
 		this.lastError = null
 
 		try {
-			this.provider = createCaptureProvider()
+			const cfg = loadServerConfig()
+			const mode =
+				cfg.displayMode ??
+				(cfg.monitorIndex && cfg.monitorIndex > 0 ? "extended" : "duplicate")
+			this.currentMonitorIndex =
+				mode === "extended" ? (cfg.monitorIndex || 1) : 0
+			this.fallbackAttempted = false
+			this.provider = createCaptureProvider(this.currentMonitorIndex, mode)
 			await this.provider.initialize(async (err) => {
 				const errMsg = `Capture provider failed after startup: ${err.message}`
 				logger.error(errMsg)
@@ -304,6 +324,31 @@ export class GstManager {
 		this.process.on("close", async (code) => {
 			logger.info(`GStreamer process exited with status: ${code}`)
 			if (!this.stopping) {
+				if (
+					code !== 0 &&
+					this.currentMonitorIndex > 0 &&
+					!this.fallbackAttempted
+				) {
+					logger.warn(
+						`GStreamer failed with monitor index ${this.currentMonitorIndex}. ` +
+							"Falling back to primary display (0).",
+					)
+					this.fallbackAttempted = true
+					this.currentMonitorIndex = 0
+					this.process = null
+					await this.cleanup()
+					try {
+						this.provider = createCaptureProvider(0, "duplicate")
+						await this.provider.initialize()
+						const sourceBlocks = await this.provider.getGStreamerSource()
+						const fallbackArgs = this.buildPipelineArgs(sourceBlocks)
+						this.executePipeline(fallbackArgs)
+						return
+					} catch (fallbackErr) {
+						logger.error(`Fallback to primary monitor failed: ${fallbackErr}`)
+					}
+				}
+
 				// Don't overwrite an already specific spawn error (e.g. from error event)
 				const errMsg =
 					this.lastError ??

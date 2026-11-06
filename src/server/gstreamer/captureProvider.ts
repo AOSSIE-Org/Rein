@@ -15,13 +15,16 @@ export interface CaptureProvider {
 }
 
 export class WindowsCaptureProvider implements CaptureProvider {
+	constructor(private monitorIndex = 0) {}
+
 	public async initialize(_onFailure?: (err: Error) => void): Promise<void> {
-		logger.info("Initialized DXGI capture")
+		logger.info(`Initialized DXGI capture on monitor ${this.monitorIndex}`)
 	}
 
 	public async getGStreamerSource(): Promise<string[]> {
 		return [
 			"d3d11screencapturesrc",
+			`monitor-index=${this.monitorIndex}`,
 			"do-timestamp=true",
 			"show-cursor=true",
 			"!",
@@ -57,20 +60,34 @@ export class LinuxX11CaptureProvider implements CaptureProvider {
 }
 
 export class MacOSCaptureProvider implements CaptureProvider {
+	constructor(private monitorIndex = 0) {}
+
 	public async initialize(_onFailure?: (err: Error) => void): Promise<void> {
-		logger.info("Initialized AVFoundation capture")
+		logger.info(
+			`Initialized AVFoundation capture on monitor ${this.monitorIndex}`,
+		)
 	}
 
 	public async getGStreamerSource(): Promise<string[]> {
-		return ["avfvideosrc", "capture-screen=true", "capture-screen-cursor=true"]
+		return [
+			"avfvideosrc",
+			"capture-screen=true",
+			`device-index=${this.monitorIndex}`,
+			"capture-screen-cursor=true",
+		]
 	}
 
 	public async dispose(): Promise<void> {}
 }
 
 export class LinuxWaylandPortalCaptureProvider implements CaptureProvider {
-	private readonly dbus = new ImplementDbus()
+	private readonly dbus: ImplementDbus
 	private initialized = false
+
+	constructor(displayMode: "duplicate" | "extended" = "duplicate") {
+		this.dbus = new ImplementDbus(displayMode)
+	}
+
 	public async initialize(onFailure?: (err: Error) => void): Promise<void> {
 		logger.info("Initializing Wayland Portal capture")
 		if (onFailure) {
@@ -107,15 +124,18 @@ export class LinuxWaylandPortalCaptureProvider implements CaptureProvider {
 		logger.info("Wayland portal disposed")
 	}
 }
-export function createCaptureProvider(): CaptureProvider {
+export function createCaptureProvider(
+	monitorIndex = 0,
+	displayMode: "duplicate" | "extended" = "duplicate",
+): CaptureProvider {
 	const platform = os.platform()
 
 	if (platform === "win32") {
-		return new WindowsCaptureProvider()
+		return new WindowsCaptureProvider(monitorIndex)
 	}
 
 	if (platform === "darwin") {
-		return new MacOSCaptureProvider()
+		return new MacOSCaptureProvider(monitorIndex)
 	}
 
 	if (platform === "linux") {
@@ -123,7 +143,7 @@ export function createCaptureProvider(): CaptureProvider {
 			process.env.XDG_SESSION_TYPE === "wayland" ||
 			!!process.env.WAYLAND_DISPLAY
 		if (isWayland) {
-			return new LinuxWaylandPortalCaptureProvider()
+			return new LinuxWaylandPortalCaptureProvider(displayMode)
 		}
 		return new LinuxX11CaptureProvider()
 	}
