@@ -337,6 +337,8 @@ export class GstManager {
 					this.currentMonitorIndex = 0
 					this.process = null
 					await this.cleanup()
+					// 300ms pause ensures OS releases bound UDP sockets (5004/5005) and DXGI handles
+					await new Promise((resolve) => setTimeout(resolve, 300))
 					try {
 						this.provider = createCaptureProvider(0, "duplicate")
 						await this.provider.initialize()

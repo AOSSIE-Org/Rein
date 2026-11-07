@@ -350,7 +350,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 				<p
 					className={[
 						"text-xs opacity-50 mt-1.5 px-0.5",
-						"break-words whitespace-normal leading-normal",
+						"wrap-break-word whitespace-normal leading-normal",
 					].join(" ")}
 				>
 					{t("serverTab", "lanIpHelp")}
@@ -359,11 +359,11 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 			<div
 				className={[
 					"alert alert-warning text-xs shadow-lg",
-					"break-words whitespace-normal text-left",
+					"wrap-break-word whitespace-normal text-left",
 				].join(" ")}
 			>
 				<TriangleAlert className="w-5 h-5 shrink-0" />
-				<span className="break-words whitespace-normal leading-relaxed">
+				<span className="wrap-break-word whitespace-normal leading-relaxed">
 					{t("serverTab", "firewallAlert", {
 						port: frontendPort || APP_CONFIG.PORT,
 					})}
@@ -388,11 +388,11 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 			<div
 				className={[
 					"alert alert-warning text-xs shadow-lg",
-					"break-words whitespace-normal text-left",
+					"wrap-break-word whitespace-normal text-left",
 				].join(" ")}
 			>
 				<TriangleAlert className="w-5 h-5 shrink-0" />
-				<span className="break-words whitespace-normal leading-relaxed">
+				<span className="wrap-break-word whitespace-normal leading-relaxed">
 					{t("serverTab", "restartWarningAlert")}
 				</span>
 			</div>
@@ -414,7 +414,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 				<p
 					className={[
 						"text-xs opacity-50 mt-1.5 px-0.5",
-						"break-words whitespace-normal leading-normal",
+						"wrap-break-word whitespace-normal leading-normal",
 					].join(" ")}
 				>
 					{t("serverTab", "sharedDirectoryHelp")}
