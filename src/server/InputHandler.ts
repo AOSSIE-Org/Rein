@@ -26,8 +26,9 @@ export class InputHandler {
 	private platform: "win32" | "linux" | "darwin" | "other"
 	private lastMoveTime = 0
 	private lastScrollTime = 0
-	private pendingMove: InputMessage | null = null
-	private pendingScroll: InputMessage | null = null
+	// Deltas merged during the throttle window. Moves are stored after applyMotion.
+	private pendingMove: { dx: number; dy: number } | null = null
+	private pendingScroll: { dx: number; dy: number } | null = null
 	private moveTimer: ReturnType<typeof setTimeout> | null = null
 	private scrollTimer: ReturnType<typeof setTimeout> | null = null
 	private lastLsTime = 0
@@ -114,6 +115,12 @@ export class InputHandler {
 			if (this.throttleAxis(msg)) return
 		}
 
+		// A button press or release must not overtake movement still waiting on the
+		// throttle timer, or a drag would end before reaching its last position.
+		if (msg.type === "click" || msg.type === "absoluteClick") {
+			this.flushPending(true)
+		}
+
 		try {
 			this.dispatch(msg)
 		} catch (err: unknown) {
@@ -143,6 +150,10 @@ export class InputHandler {
 		this.scrollTimer = null
 		this.lsTimer = null
 		this.rsTimer = null
+		this.pendingMove = null
+		this.pendingScroll = null
+		this.pendingLs = null
+		this.pendingRs = null
 		console.log("[InputHandler] Destroyed")
 	}
 
@@ -171,28 +182,57 @@ export class InputHandler {
 		const pendingKey = isMove ? "pendingMove" : "pendingScroll"
 		const timerKey = isMove ? "moveTimer" : "scrollTimer"
 
-		if (now - this[lastKey] < this.throttleMs) {
-			this[pendingKey] = msg
-			if (!this[timerKey]) {
-				this[timerKey] = setTimeout(() => {
-					this[timerKey] = null
-					const pending = this[pendingKey]
-					if (pending) {
-						this[pendingKey] = null
-						this.handleMessage(pending).catch((err) =>
-							console.error(
-								`[InputHandler] Error flushing pending ${msg.type}:`,
-								err,
-							),
-						)
-					}
-				}, this.throttleMs)
-			}
-			return true
+		// Only pass through when nothing is pending, otherwise this packet would be
+		// injected before the earlier deltas still waiting on the timer.
+		if (!this[timerKey] && now - this[lastKey] >= this.throttleMs) {
+			this[lastKey] = now
+			return false
 		}
 
-		this[lastKey] = now
-		return false
+		// dx/dy are relative, so merge throttled events instead of dropping the earlier ones.
+		// Moves go through applyMotion one packet at a time so acceleration doesn't depend
+		// on how packets happen to be grouped.
+		const { ax, ay } = isMove
+			? applyMotion(msg.dx ?? 0, msg.dy ?? 0, this.config)
+			: { ax: msg.dx ?? 0, ay: msg.dy ?? 0 }
+		const prev = this[pendingKey]
+		this[pendingKey] = { dx: (prev?.dx ?? 0) + ax, dy: (prev?.dy ?? 0) + ay }
+
+		if (!this[timerKey]) {
+			this[timerKey] = setTimeout(
+				() => this.flushPending(isMove),
+				this.throttleMs,
+			)
+		}
+		return true
+	}
+
+	/**
+	 * Inject the merged move or scroll delta waiting on the throttle timer, if any,
+	 * and cancel the timer.
+	 */
+	private flushPending(isMove: boolean): void {
+		const lastKey = isMove ? "lastMoveTime" : "lastScrollTime"
+		const pendingKey = isMove ? "pendingMove" : "pendingScroll"
+		const timerKey = isMove ? "moveTimer" : "scrollTimer"
+
+		clearTimeout(this[timerKey] ?? undefined)
+		this[timerKey] = null
+		const pending = this[pendingKey]
+		this[pendingKey] = null
+		if (!pending || (pending.dx === 0 && pending.dy === 0)) return
+		this[lastKey] = Date.now()
+		// Inject directly: the merged sum was built from already-sanitized packets
+		// and must not be clamped to MAX_COORD again.
+		try {
+			if (isMove) this.injector.injectMouseMove(pending.dx, pending.dy)
+			else this.injector.injectMouseWheel(pending.dx, pending.dy)
+		} catch (err) {
+			console.error(
+				`[InputHandler] Error flushing pending ${isMove ? "move" : "scroll"}:`,
+				err,
+			)
+		}
 	}
 
 	private throttleAxis(msg: InputMessage): boolean {
