@@ -113,6 +113,28 @@ describe("InputHandler throttling", () => {
 		handler.destroy()
 	})
 
+	it("flushes a pending move before a button release", async () => {
+		const { handler, injector } = createHandler()
+		const order: string[] = []
+		injector.injectMouseMove.mockImplementation((dx: number) => {
+			order.push(`move ${dx}`)
+		})
+		injector.injectMouseButton.mockImplementation(
+			(_b: string, press: boolean) => {
+				order.push(press ? "press" : "release")
+			},
+		)
+
+		await handler.handleMessage({ type: "move", dx: 1, dy: 0 }) // t=0, injected
+		await vi.advanceTimersByTimeAsync(1)
+		await handler.handleMessage({ type: "move", dx: 2, dy: 0 }) // t=1, pending until 9
+		await handler.handleMessage({ type: "click", button: "left", press: false })
+		await vi.advanceTimersByTimeAsync(50)
+
+		expect(order).toEqual(["move 1", "move 2", "release"])
+		handler.destroy()
+	})
+
 	it("drops pending deltas on destroy", async () => {
 		const { handler, injector } = createHandler()
 
