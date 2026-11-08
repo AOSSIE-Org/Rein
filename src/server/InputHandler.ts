@@ -115,6 +115,12 @@ export class InputHandler {
 			if (this.throttleAxis(msg)) return
 		}
 
+		// A button press or release must not overtake movement still waiting on the
+		// throttle timer, or a drag would end before reaching its last position.
+		if (msg.type === "click" || msg.type === "absoluteClick") {
+			this.flushPending(true)
+		}
+
 		try {
 			this.dispatch(msg)
 		} catch (err: unknown) {
@@ -193,26 +199,40 @@ export class InputHandler {
 		this[pendingKey] = { dx: (prev?.dx ?? 0) + ax, dy: (prev?.dy ?? 0) + ay }
 
 		if (!this[timerKey]) {
-			this[timerKey] = setTimeout(() => {
-				this[timerKey] = null
-				const pending = this[pendingKey]
-				this[pendingKey] = null
-				if (!pending || (pending.dx === 0 && pending.dy === 0)) return
-				this[lastKey] = Date.now()
-				// Inject directly: the merged sum was built from already-sanitized packets
-				// and must not be clamped to MAX_COORD again.
-				try {
-					if (isMove) this.injector.injectMouseMove(pending.dx, pending.dy)
-					else this.injector.injectMouseWheel(pending.dx, pending.dy)
-				} catch (err) {
-					console.error(
-						`[InputHandler] Error flushing pending ${msg.type}:`,
-						err,
-					)
-				}
-			}, this.throttleMs)
+			this[timerKey] = setTimeout(
+				() => this.flushPending(isMove),
+				this.throttleMs,
+			)
 		}
 		return true
+	}
+
+	/**
+	 * Inject the merged move or scroll delta waiting on the throttle timer, if any,
+	 * and cancel the timer.
+	 */
+	private flushPending(isMove: boolean): void {
+		const lastKey = isMove ? "lastMoveTime" : "lastScrollTime"
+		const pendingKey = isMove ? "pendingMove" : "pendingScroll"
+		const timerKey = isMove ? "moveTimer" : "scrollTimer"
+
+		clearTimeout(this[timerKey] ?? undefined)
+		this[timerKey] = null
+		const pending = this[pendingKey]
+		this[pendingKey] = null
+		if (!pending || (pending.dx === 0 && pending.dy === 0)) return
+		this[lastKey] = Date.now()
+		// Inject directly: the merged sum was built from already-sanitized packets
+		// and must not be clamped to MAX_COORD again.
+		try {
+			if (isMove) this.injector.injectMouseMove(pending.dx, pending.dy)
+			else this.injector.injectMouseWheel(pending.dx, pending.dy)
+		} catch (err) {
+			console.error(
+				`[InputHandler] Error flushing pending ${isMove ? "move" : "scroll"}:`,
+				err,
+			)
+		}
 	}
 
 	private throttleAxis(msg: InputMessage): boolean {
