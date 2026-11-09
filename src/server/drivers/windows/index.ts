@@ -99,8 +99,7 @@ export class WindowsInputInjector {
 		const isExt = this.isExtended()
 		const absX = isExt
 			? Math.round(
-					((this.config.screenWidth + x) /
-						(this.config.screenWidth * 2)) *
+					((this.config.screenWidth + x) / (this.config.screenWidth * 2)) *
 						65535,
 				)
 			: Math.round((x / this.config.screenWidth) * 65535)
