@@ -26,9 +26,7 @@ export class ImplementDbus {
 	public pipewireNodeId: number | null = null
 	public onFailure?: (err: Error) => void
 
-	constructor(
-		private displayMode: "duplicate" | "extended" = "duplicate",
-	) {}
+	constructor(private displayMode: "duplicate" | "extended" = "duplicate") {}
 
 	public async dispose() {
 		this.onFailure = undefined

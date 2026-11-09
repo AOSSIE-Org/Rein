@@ -116,7 +116,8 @@ export const i18n = {
 				"by the host operating system.",
 			displayDriverNotice:
 				"Note: Workspace / Extension Mode requires a secondary display or " +
-				"virtual display driver. If not detected, Rein streams the primary desktop.",
+				"virtual display driver. If not detected, Rein streams the " +
+				"primary desktop.",
 		},
 		controlBar: {
 			scrollMode: "Toggle scroll",

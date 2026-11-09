@@ -101,9 +101,8 @@ export class LinuxWaylandPortalCaptureProvider implements CaptureProvider {
 			await this.dbus.initializeDbus()
 			this.initialized = true
 		} catch (error) {
-			logger.error(
-				`Wayland portal initialization failed: ${error instanceof Error ? error.message : String(error)}`,
-			)
+			const msg = error instanceof Error ? error.message : String(error)
+			logger.error(`Wayland portal initialization failed: ${msg}`)
 			throw error
 		}
 	}

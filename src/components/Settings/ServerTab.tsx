@@ -209,7 +209,8 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 							key={opt.value}
 							htmlFor={`display-opt-${opt.value}`}
 							className={[
-								"flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all",
+								"flex items-start gap-3 p-3 rounded-lg border-2",
+								"cursor-pointer transition-all",
 								monitorIndex === opt.value
 									? "border-primary bg-primary/10"
 									: "border-base-300 hover:border-primary/50",

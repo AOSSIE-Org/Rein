@@ -245,8 +245,7 @@ export class GstManager {
 			const mode =
 				cfg.displayMode ??
 				(cfg.monitorIndex && cfg.monitorIndex > 0 ? "extended" : "duplicate")
-			this.currentMonitorIndex =
-				mode === "extended" ? (cfg.monitorIndex || 1) : 0
+			this.currentMonitorIndex = mode === "extended" ? cfg.monitorIndex || 1 : 0
 			this.fallbackAttempted = false
 			this.provider = createCaptureProvider(this.currentMonitorIndex, mode)
 			await this.provider.initialize(async (err) => {
@@ -337,7 +336,8 @@ export class GstManager {
 					this.currentMonitorIndex = 0
 					this.process = null
 					await this.cleanup()
-					// 300ms pause ensures OS releases bound UDP sockets (5004/5005) and DXGI handles
+					// 300ms pause ensures OS releases bound UDP sockets (5004/5005)
+					// and DXGI handles
 					await new Promise((resolve) => setTimeout(resolve, 300))
 					try {
 						this.provider = createCaptureProvider(0, "duplicate")
