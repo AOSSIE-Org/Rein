@@ -402,8 +402,7 @@ export function attachSignalingRoutes(server: any): void {
 						uploadDir: uploadDir ?? null,
 						displayMode: resolvedDisplayMode,
 						monitorIndex:
-							monitorIndex ??
-							(resolvedDisplayMode === "extended" ? 1 : 0),
+							monitorIndex ?? (resolvedDisplayMode === "extended" ? 1 : 0),
 					},
 				})
 				return
@@ -476,7 +475,8 @@ export function attachSignalingRoutes(server: any): void {
 								(framerate ?? null) !== (currentCfg.framerate ?? null)) ||
 							("streamQuality" in config &&
 								streamQuality !== undefined &&
-								streamQuality !== (currentCfg.streamQuality ?? "performance")) ||
+								streamQuality !==
+									(currentCfg.streamQuality ?? "performance")) ||
 							("displayMode" in config &&
 								displayMode !== undefined &&
 								displayMode !== currentDisplayMode) ||
