@@ -14,6 +14,7 @@ import { getLanIp, isLoopbackAddress } from "../../utils/net.ts"
 import { requireAuth, parseJsonBody, json } from "./utils.ts"
 import {
 	loadServerConfig,
+	resolveDisplayConfig,
 	saveServerConfig,
 	type ServerConfig,
 } from "../../utils/configHelper.ts"
@@ -382,27 +383,17 @@ export function attachSignalingRoutes(server: any): void {
 			// Config  POST /api/config
 			if (pathname === "/api/config" && req.method === "GET") {
 				if (!requireAuth(req, res)) return
-				const {
-					framerate,
-					streamQuality,
-					frontendPort,
-					uploadDir,
-					displayMode,
-					monitorIndex,
-				} = loadServerConfig()
-				const resolvedDisplayMode =
-					displayMode ??
-					(monitorIndex && monitorIndex > 0 ? "extended" : "duplicate")
+				const cfg = loadServerConfig()
+				const { displayMode, monitorIndex } = resolveDisplayConfig(cfg)
 				json(res, 200, {
 					ok: true,
 					config: {
-						framerate: framerate ?? null,
-						streamQuality: streamQuality ?? "performance",
-						frontendPort: frontendPort ?? null,
-						uploadDir: uploadDir ?? null,
-						displayMode: resolvedDisplayMode,
-						monitorIndex:
-							monitorIndex ?? (resolvedDisplayMode === "extended" ? 1 : 0),
+						framerate: cfg.framerate ?? null,
+						streamQuality: cfg.streamQuality ?? "performance",
+						frontendPort: cfg.frontendPort ?? null,
+						uploadDir: cfg.uploadDir ?? null,
+						displayMode,
+						monitorIndex,
 					},
 				})
 				return
@@ -442,9 +433,10 @@ export function attachSignalingRoutes(server: any): void {
 							}
 						} else if (
 							"monitorIndex" in config &&
-							typeof monitorIndex === "number"
+							typeof monitorIndex === "number" &&
+							Number.isFinite(monitorIndex)
 						) {
-							const idx = Math.max(0, Math.floor(monitorIndex))
+							const idx = Math.max(0, Math.min(10, Math.floor(monitorIndex)))
 							gstFields.monitorIndex = idx
 							gstFields.displayMode = idx > 0 ? "extended" : "duplicate"
 						}
@@ -477,13 +469,10 @@ export function attachSignalingRoutes(server: any): void {
 								streamQuality !== undefined &&
 								streamQuality !==
 									(currentCfg.streamQuality ?? "performance")) ||
-							("displayMode" in config &&
-								displayMode !== undefined &&
-								displayMode !== currentDisplayMode) ||
-							("monitorIndex" in config &&
-								monitorIndex !== undefined &&
-								Math.max(0, Math.floor(monitorIndex)) !==
-									(currentCfg.monitorIndex ?? 0))
+							(gstFields.displayMode !== undefined &&
+								gstFields.displayMode !== currentDisplayMode) ||
+							(gstFields.monitorIndex !== undefined &&
+								gstFields.monitorIndex !== (currentCfg.monitorIndex ?? 0))
 
 						if (Object.keys(gstFields).length > 0) {
 							saveServerConfig(gstFields)

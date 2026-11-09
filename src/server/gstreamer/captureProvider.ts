@@ -42,8 +42,17 @@ export class WindowsCaptureProvider implements CaptureProvider {
 }
 
 export class LinuxX11CaptureProvider implements CaptureProvider {
+	constructor(private monitorIndex = 0) {}
+
 	public async initialize(_onFailure?: (err: Error) => void): Promise<void> {
-		logger.info("Initialized X11 capture")
+		if (this.monitorIndex > 0) {
+			logger.warn(
+				`X11 multi-monitor capture on index ${this.monitorIndex} is not ` +
+					"supported; using root display capture.",
+			)
+		} else {
+			logger.info("Initialized X11 capture")
+		}
 	}
 
 	public async getGStreamerSource(): Promise<string[]> {
@@ -144,7 +153,7 @@ export function createCaptureProvider(
 		if (isWayland) {
 			return new LinuxWaylandPortalCaptureProvider(displayMode)
 		}
-		return new LinuxX11CaptureProvider()
+		return new LinuxX11CaptureProvider(monitorIndex)
 	}
 
 	throw new Error(`Unsupported OS platform: ${platform}`)

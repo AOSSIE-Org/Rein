@@ -121,8 +121,9 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 					}
 
 					if (typeof data.config.monitorIndex === "number") {
-						setMonitorIndex(data.config.monitorIndex)
-						setLoadedMonitorIndex(data.config.monitorIndex)
+						const idx = data.config.monitorIndex > 0 ? 1 : 0
+						setMonitorIndex(idx)
+						setLoadedMonitorIndex(idx)
 					}
 				}
 			})

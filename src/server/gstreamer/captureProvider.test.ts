@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import {
 	createCaptureProvider,
 	LinuxWaylandPortalCaptureProvider,
+	LinuxX11CaptureProvider,
 	MacOSCaptureProvider,
 	WindowsCaptureProvider,
 } from "./captureProvider.ts"
@@ -47,9 +48,21 @@ describe("CaptureProvider - Monitor selection", () => {
 
 	describe("createCaptureProvider factory", () => {
 		const originalPlatform = os.platform
+		const originalSession = process.env.XDG_SESSION_TYPE
+		const originalWayland = process.env.WAYLAND_DISPLAY
 
 		afterEach(() => {
 			os.platform = originalPlatform
+			if (originalSession === undefined) {
+				delete process.env.XDG_SESSION_TYPE
+			} else {
+				process.env.XDG_SESSION_TYPE = originalSession
+			}
+			if (originalWayland === undefined) {
+				delete process.env.WAYLAND_DISPLAY
+			} else {
+				process.env.WAYLAND_DISPLAY = originalWayland
+			}
 		})
 
 		it("instantiates WindowsCaptureProvider with monitorIndex", async () => {
@@ -73,6 +86,14 @@ describe("CaptureProvider - Monitor selection", () => {
 			process.env.XDG_SESSION_TYPE = "wayland"
 			const provider = createCaptureProvider(0, "extended")
 			expect(provider).toBeInstanceOf(LinuxWaylandPortalCaptureProvider)
+		})
+
+		it("instantiates LinuxX11CaptureProvider with monitorIndex", () => {
+			os.platform = () => "linux"
+			delete process.env.XDG_SESSION_TYPE
+			delete process.env.WAYLAND_DISPLAY
+			const provider = createCaptureProvider(1)
+			expect(provider).toBeInstanceOf(LinuxX11CaptureProvider)
 		})
 	})
 })

@@ -26,6 +26,22 @@ export interface ServerConfig {
 	 */
 	monitorIndex?: number
 }
+
+export function resolveDisplayConfig(cfg: ServerConfig): {
+	displayMode: "duplicate" | "extended"
+	monitorIndex: number
+} {
+	const displayMode =
+		cfg.displayMode ??
+		(cfg.monitorIndex && cfg.monitorIndex > 0 ? "extended" : "duplicate")
+	const monitorIndex =
+		displayMode === "extended"
+			? typeof cfg.monitorIndex === "number" && cfg.monitorIndex > 0
+				? cfg.monitorIndex
+				: 1
+			: 0
+	return { displayMode, monitorIndex }
+}
 let cachedConfig: ServerConfig | null = null
 
 export function getUploadDir(): string {

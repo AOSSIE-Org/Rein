@@ -15,6 +15,7 @@ import {
 import { RTP_HOST, RTP_PORT, RTP_PORT_AUDIO } from "../constants.ts"
 import {
 	loadServerConfig,
+	resolveDisplayConfig,
 	type ServerConfig,
 } from "../../utils/configHelper.ts"
 
@@ -242,12 +243,13 @@ export class GstManager {
 
 		try {
 			const cfg = loadServerConfig()
-			const mode =
-				cfg.displayMode ??
-				(cfg.monitorIndex && cfg.monitorIndex > 0 ? "extended" : "duplicate")
-			this.currentMonitorIndex = mode === "extended" ? cfg.monitorIndex || 1 : 0
+			const { displayMode, monitorIndex } = resolveDisplayConfig(cfg)
+			this.currentMonitorIndex = monitorIndex
 			this.fallbackAttempted = false
-			this.provider = createCaptureProvider(this.currentMonitorIndex, mode)
+			this.provider = createCaptureProvider(
+				this.currentMonitorIndex,
+				displayMode,
+			)
 			await this.provider.initialize(async (err) => {
 				const errMsg = `Capture provider failed after startup: ${err.message}`
 				logger.error(errMsg)
@@ -339,10 +341,19 @@ export class GstManager {
 					// 300ms pause ensures OS releases bound UDP sockets (5004/5005)
 					// and DXGI handles
 					await new Promise((resolve) => setTimeout(resolve, 300))
+					if (this.stopping) return
 					try {
 						this.provider = createCaptureProvider(0, "duplicate")
 						await this.provider.initialize()
+						if (this.stopping) {
+							await this.cleanup()
+							return
+						}
 						const sourceBlocks = await this.provider.getGStreamerSource()
+						if (this.stopping) {
+							await this.cleanup()
+							return
+						}
 						const fallbackArgs = this.buildPipelineArgs(sourceBlocks)
 						this.executePipeline(fallbackArgs)
 						return
