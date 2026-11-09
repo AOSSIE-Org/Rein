@@ -70,6 +70,9 @@ export class WindowsInputInjector {
 		])
 	}
 
+	/**
+	 * Checks if extended workspace mode or secondary monitor capture is active.
+	 */
 	private isExtended(): boolean {
 		const cfg = this.config as {
 			displayMode?: string
