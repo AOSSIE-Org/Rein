@@ -457,11 +457,10 @@ export function attachSignalingRoutes(server: any): void {
 							}
 						}
 						const currentCfg = loadServerConfig()
-						const currentDisplayMode =
-							currentCfg.displayMode ??
-							(currentCfg.monitorIndex && currentCfg.monitorIndex > 0
-								? "extended"
-								: "duplicate")
+						const {
+							displayMode: currentDisplayMode,
+							monitorIndex: currentMonitorIndex,
+						} = resolveDisplayConfig(currentCfg)
 						const hasGstChange =
 							("framerate" in config &&
 								(framerate ?? null) !== (currentCfg.framerate ?? null)) ||
@@ -472,7 +471,7 @@ export function attachSignalingRoutes(server: any): void {
 							(gstFields.displayMode !== undefined &&
 								gstFields.displayMode !== currentDisplayMode) ||
 							(gstFields.monitorIndex !== undefined &&
-								gstFields.monitorIndex !== (currentCfg.monitorIndex ?? 0))
+								gstFields.monitorIndex !== currentMonitorIndex)
 
 						if (Object.keys(gstFields).length > 0) {
 							saveServerConfig(gstFields)

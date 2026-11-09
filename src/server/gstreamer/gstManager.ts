@@ -83,6 +83,7 @@ export class GstManager {
 	private onErrorCallback?: (errorMsg: string) => void
 	private currentMonitorIndex = 0
 	private fallbackAttempted = false
+	private fallbackInProgress = false
 
 	public setOnError(cb: (errorMsg: string) => void): void {
 		this.onErrorCallback = cb
@@ -93,7 +94,7 @@ export class GstManager {
 	}
 
 	public isRunning(): boolean {
-		return this.process !== null && !this.stopping
+		return (this.process !== null || this.fallbackInProgress) && !this.stopping
 	}
 
 	private getAudioSourceBlocks(cfg: ServerConfig): string[] {
@@ -335,29 +336,37 @@ export class GstManager {
 							"Falling back to primary display (0).",
 					)
 					this.fallbackAttempted = true
+					this.fallbackInProgress = true
 					this.currentMonitorIndex = 0
 					this.process = null
 					await this.cleanup()
 					// 300ms pause ensures OS releases bound UDP sockets (5004/5005)
 					// and DXGI handles
 					await new Promise((resolve) => setTimeout(resolve, 300))
-					if (this.stopping) return
+					if (this.stopping) {
+						this.fallbackInProgress = false
+						return
+					}
 					try {
 						this.provider = createCaptureProvider(0, "duplicate")
 						await this.provider.initialize()
 						if (this.stopping) {
+							this.fallbackInProgress = false
 							await this.cleanup()
 							return
 						}
 						const sourceBlocks = await this.provider.getGStreamerSource()
 						if (this.stopping) {
+							this.fallbackInProgress = false
 							await this.cleanup()
 							return
 						}
 						const fallbackArgs = this.buildPipelineArgs(sourceBlocks)
+						this.fallbackInProgress = false
 						this.executePipeline(fallbackArgs)
 						return
 					} catch (fallbackErr) {
+						this.fallbackInProgress = false
 						logger.error(`Fallback to primary monitor failed: ${fallbackErr}`)
 					}
 				}
@@ -377,10 +386,11 @@ export class GstManager {
 	}
 
 	public async stop(): Promise<void> {
+		this.stopping = true
+		this.fallbackInProgress = false
 		if (this.process) {
 			logger.info("Terminating GStreamer video pipeline")
 			const proc = this.process
-			this.stopping = true
 			await new Promise<void>((resolve) => {
 				const killTimer = setTimeout(() => {
 					if (proc.exitCode === null) {
@@ -397,9 +407,9 @@ export class GstManager {
 				proc.kill("SIGTERM")
 			})
 			this.process = null
-			this.stopping = false
 		}
 		await this.cleanup()
+		this.stopping = false
 	}
 
 	private async cleanup(): Promise<void> {
