@@ -516,12 +516,16 @@ export function attachSignalingRoutes(server: any): void {
 			}
 
 			if (pathname === "/api/files/download" && req.method === "GET") {
-				handleFileDownload(req, res)
+				handleFileDownload(req, res).catch((err) => {
+					logger.error(`File download handler error: ${err}`)
+				})
 				return
 			}
 
 			if (pathname === "/api/files" && req.method === "DELETE") {
-				handleFileDelete(req, res)
+				handleFileDelete(req, res).catch((err) => {
+					logger.error(`File delete handler error: ${err}`)
+				})
 				return
 			}
 
