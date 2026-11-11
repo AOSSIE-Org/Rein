@@ -91,9 +91,26 @@ describe("Clipboard helper", () => {
 		expect(text).toBe("windows clipboard text")
 		expect(spawn).toHaveBeenCalledWith(
 			"powershell.exe",
-			expect.arrayContaining(["Get-Clipboard -Raw"]),
-			expect.any(Object),
+			expect.arrayContaining([
+				expect.stringMatching(
+					/\[Console\]::OutputEncoding\s*=\s*\[System\.Text\.Encoding\]::UTF8;\s*Get-Clipboard -Raw/,
+				),
+			]),
+			expect.objectContaining({ windowsHide: true }),
 		)
+	})
+
+	it("should keep a character split across stdout chunks", async () => {
+		vi.mocked(os.platform).mockReturnValue("win32")
+		const proc = createMockProcess({})
+		vi.mocked(spawn).mockReturnValue(proc)
+		const rocket = Buffer.from("🚀")
+
+		const pending = getSystemClipboard()
+		proc.stdout.emit("data", rocket.subarray(0, 2))
+		proc.stdout.emit("data", rocket.subarray(2))
+
+		await expect(pending).resolves.toBe("🚀")
 	})
 
 	it("should read clipboard on linux using fallback when first command fails", async () => {
