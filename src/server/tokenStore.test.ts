@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs"
+import { mkdtempSync, readFileSync, rmSync } from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import {
@@ -17,12 +17,36 @@ const tempDirs: string[] = []
 type TokenStore = typeof import("./tokenStore.ts")
 
 /** Import a fresh module instance so each test gets its own on-disk state. */
-async function freshStore(): Promise<TokenStore> {
+async function freshStore(): Promise<{ store: TokenStore; dataDir: string }> {
 	const dataDir = mkdtempSync(path.join(os.tmpdir(), "rein-token-store-"))
 	tempDirs.push(dataDir)
 	process.env.REIN_DATA_DIR = dataDir
 	vi.resetModules()
-	return import("./tokenStore.ts")
+	return { store: await import("./tokenStore.ts"), dataDir }
+}
+
+/** Poll the persisted store until the token's lastUsed reaches the expected value. */
+async function waitForPersistedLastUsed(
+	dataDir: string,
+	token: string,
+	expected: number,
+): Promise<boolean> {
+	const file = path.join(dataDir, "tokens.json")
+	for (let attempt = 0; attempt < 40; attempt++) {
+		try {
+			const entries = JSON.parse(readFileSync(file, "utf-8")) as {
+				token: string
+				lastUsed: number
+			}[]
+			if (entries.some((e) => e.token === token && e.lastUsed === expected)) {
+				return true
+			}
+		} catch {
+			// The file may be mid-write; retry.
+		}
+		await new Promise((resolve) => setTimeout(resolve, 25))
+	}
+	return false
 }
 
 describe("tokenStore expiry", () => {
@@ -43,7 +67,7 @@ describe("tokenStore expiry", () => {
 	})
 
 	it("slides the expiry window forward when a token is used", async () => {
-		const store = await freshStore()
+		const { store } = await freshStore()
 		store.storeToken("token-a")
 
 		// Day 9: still within the window, and the check counts as activity.
@@ -56,7 +80,7 @@ describe("tokenStore expiry", () => {
 	})
 
 	it("expires a token after EXPIRY_MS of inactivity", async () => {
-		const store = await freshStore()
+		const { store } = await freshStore()
 		store.storeToken("token-b")
 
 		vi.advanceTimersByTime(10 * DAY_MS + 1)
@@ -64,10 +88,34 @@ describe("tokenStore expiry", () => {
 	})
 
 	it("rejects unknown tokens and leaves known ones intact", async () => {
-		const store = await freshStore()
+		const { store } = await freshStore()
 		store.storeToken("token-c")
 
 		expect(store.isKnownToken("token-d")).toBe(false)
 		expect(store.isKnownToken("token-c")).toBe(true)
+	})
+
+	it("persists a throttled activity update once the window closes", async () => {
+		const { store, dataDir } = await freshStore()
+		store.storeToken("token-p")
+
+		// Let the forced save from storeToken land so the next update is throttled.
+		vi.useRealTimers()
+		await new Promise((resolve) => setTimeout(resolve, 100))
+		vi.useFakeTimers()
+		vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"))
+
+		// A use inside the throttle window only schedules the write.
+		vi.advanceTimersByTime(30 * 1000)
+		expect(store.isKnownToken("token-p")).toBe(true)
+
+		// Let the trailing save fire, then let the real file write settle.
+		vi.advanceTimersByTime(60 * 1000)
+		vi.useRealTimers()
+
+		const expected = Date.parse("2026-01-01T00:00:30.000Z")
+		expect(await waitForPersistedLastUsed(dataDir, "token-p", expected)).toBe(
+			true,
+		)
 	})
 })
