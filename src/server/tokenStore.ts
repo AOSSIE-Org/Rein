@@ -110,10 +110,18 @@ export function storeToken(token: string): void {
 	save(true)
 }
 
-/** Check if a token is already known/stored on the server. */
+/**
+ * Check if a token is already known/stored on the server.
+ * A successful check counts as activity, so the expiry window slides forward
+ * instead of being fixed at creation time.
+ */
 export function isKnownToken(token: string): boolean {
 	purgeExpired()
-	return tokens.some((t) => timingSafeEqual(t.token, token))
+	const entry = tokens.find((t) => timingSafeEqual(t.token, token))
+	if (!entry) return false
+	entry.lastUsed = Date.now()
+	save() // Throttled internally
+	return true
 }
 
 /** Refresh the lastUsed timestamp for a token. */
