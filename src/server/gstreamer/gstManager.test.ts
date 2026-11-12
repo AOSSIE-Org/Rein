@@ -1,4 +1,4 @@
-import { EventEmitter } from "node:events"
+import type { EventEmitter } from "node:events"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { WindowsInput, WindowsMouseInput } from "@imxade/inject/windows"
 import {
@@ -8,31 +8,41 @@ import {
 } from "../../utils/configHelper.ts"
 import { MOUSEEVENTF_VIRTUALDESK } from "../drivers/windows/constants.ts"
 
-class MockChildProcess extends EventEmitter {
-	public stdout = new EventEmitter()
-	public stderr = new EventEmitter()
-	public exitCode: number | null = null
-	public kill = vi.fn(() => {
-		this.exitCode = 0
-		this.emit("close", 0)
-		return true
-	})
-}
-
-const spawnedProcs: MockChildProcess[] = []
-const mockSendInput = vi.fn((events: WindowsInput[]) => events.length)
-let savedConfigMock: ServerConfig = {
-	displayMode: "extended",
-	monitorIndex: 1,
-}
-
-vi.mock("@imxade/inject/windows", async (importOriginal) => {
-	const actual = await importOriginal<typeof import("@imxade/inject/windows")>()
-	return {
-		...actual,
-		sendInput: (events: WindowsInput[]) => mockSendInput(events),
+const mocks = vi.hoisted(() => {
+	const spawnedProcs: Array<
+		EventEmitter & {
+			stdout: EventEmitter
+			stderr: EventEmitter
+			exitCode: number | null
+			kill: ReturnType<typeof vi.fn>
+		}
+	> = []
+	const savedConfig: { current: ServerConfig } = {
+		current: { displayMode: "extended", monitorIndex: 1 },
 	}
+	const sendInput = vi.fn((events: WindowsInput[]) => events.length)
+	return { spawnedProcs, savedConfig, sendInput }
 })
+
+vi.mock("@imxade/inject/windows", () => ({
+	sendInput: (events: WindowsInput[]) => mocks.sendInput(events),
+	INPUT_MOUSE: 0,
+	INPUT_KEYBOARD: 1,
+	MOUSEEVENTF_MOVE: 0x0001,
+	MOUSEEVENTF_LEFTDOWN: 0x0002,
+	MOUSEEVENTF_LEFTUP: 0x0004,
+	MOUSEEVENTF_RIGHTDOWN: 0x0008,
+	MOUSEEVENTF_RIGHTUP: 0x0010,
+	MOUSEEVENTF_MIDDLEDOWN: 0x0020,
+	MOUSEEVENTF_MIDDLEUP: 0x0040,
+	MOUSEEVENTF_WHEEL: 0x0800,
+	MOUSEEVENTF_HWHEEL: 0x1000,
+	MOUSEEVENTF_ABSOLUTE: 0x8000,
+	KEYEVENTF_EXTENDEDKEY: 0x0001,
+	KEYEVENTF_KEYUP: 0x0002,
+	KEYEVENTF_UNICODE: 0x0004,
+	KEYEVENTF_SCANCODE: 0x0008,
+}))
 
 vi.mock("../drivers/windows/touch.ts", () => ({
 	WindowsTouch: class {
@@ -48,11 +58,22 @@ vi.mock("../drivers/windows/gamepad.ts", () => ({
 
 vi.mock("node:child_process", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("node:child_process")>()
+	const { EventEmitter: EE } = await import("node:events")
 	return {
 		...actual,
 		spawn: vi.fn(() => {
-			const proc = new MockChildProcess()
-			spawnedProcs.push(proc)
+			const proc = Object.assign(new EE(), {
+				stdout: new EE(),
+				stderr: new EE(),
+				exitCode: null as number | null,
+				kill: vi.fn(),
+			})
+			proc.kill.mockImplementation(() => {
+				proc.exitCode = 0
+				proc.emit("close", 0)
+				return true
+			})
+			mocks.spawnedProcs.push(proc)
 			return proc
 		}),
 		spawnSync: vi.fn(() => ({ status: 0 })),
@@ -65,7 +86,7 @@ vi.mock("../../utils/configHelper.ts", async (importOriginal) => {
 		await importOriginal<typeof import("../../utils/configHelper.ts")>()
 	return {
 		...actual,
-		loadServerConfig: vi.fn(() => savedConfigMock),
+		loadServerConfig: vi.fn(() => mocks.savedConfig.current),
 	}
 })
 
@@ -105,10 +126,10 @@ describe("GstManager - Fallback Input Synchronization", () => {
 	)
 
 	beforeEach(() => {
-		spawnedProcs.length = 0
-		mockSendInput.mockClear()
+		mocks.spawnedProcs.length = 0
+		mocks.sendInput.mockClear()
 		setActiveDisplayState(null)
-		savedConfigMock = { displayMode: "extended", monitorIndex: 1 }
+		mocks.savedConfig.current = { displayMode: "extended", monitorIndex: 1 }
 	})
 
 	afterEach(() => {
@@ -119,7 +140,7 @@ describe("GstManager - Fallback Input Synchronization", () => {
 		}
 	})
 
-	it("syncs WindowsInputInjector to Display 0 on fallback and restores on start", async () => {
+	it("syncs input state on fallback and restores on start", async () => {
 		vi.useFakeTimers()
 		Object.defineProperty(process, "platform", {
 			value: "win32",
@@ -140,26 +161,26 @@ describe("GstManager - Fallback Input Synchronization", () => {
 
 		// Before fallback: absolute clicks target extended display (VIRTUALDESK)
 		injector.injectMouseAbsolute(960, 540)
-		const before = getMouseInput(mockSendInput.mock.calls[0][0][0])
+		const before = getMouseInput(mocks.sendInput.mock.calls[0][0][0])
 		expect(before.dwFlags & MOUSEEVENTF_VIRTUALDESK).toBe(
 			MOUSEEVENTF_VIRTUALDESK,
 		)
 
 		// Trigger GStreamer non-zero exit fallback to monitor 0
-		spawnedProcs[0].exitCode = 1
-		spawnedProcs[0].emit("close", 1)
+		mocks.spawnedProcs[0].exitCode = 1
+		mocks.spawnedProcs[0].emit("close", 1)
 		await vi.advanceTimersByTimeAsync(350)
 
 		expect(getActiveDisplayState()).toEqual({
 			displayMode: "duplicate",
 			monitorIndex: 0,
 		})
-		expect(savedConfigMock.displayMode).toBe("extended")
+		expect(mocks.savedConfig.current.displayMode).toBe("extended")
 
 		// After fallback: absolute clicks target primary display (no VIRTUALDESK)
-		mockSendInput.mockClear()
+		mocks.sendInput.mockClear()
 		injector.injectMouseAbsolute(960, 540)
-		const after = getMouseInput(mockSendInput.mock.calls[0][0][0])
+		const after = getMouseInput(mocks.sendInput.mock.calls[0][0][0])
 		expect(after.dwFlags & MOUSEEVENTF_VIRTUALDESK).toBe(0)
 		expect(after.dx).toBe(32768)
 
@@ -172,9 +193,9 @@ describe("GstManager - Fallback Input Synchronization", () => {
 			displayMode: "extended",
 			monitorIndex: 1,
 		})
-		mockSendInput.mockClear()
+		mocks.sendInput.mockClear()
 		injector.injectMouseAbsolute(960, 540)
-		const restored = getMouseInput(mockSendInput.mock.calls[0][0][0])
+		const restored = getMouseInput(mocks.sendInput.mock.calls[0][0][0])
 		expect(restored.dwFlags & MOUSEEVENTF_VIRTUALDESK).toBe(
 			MOUSEEVENTF_VIRTUALDESK,
 		)
