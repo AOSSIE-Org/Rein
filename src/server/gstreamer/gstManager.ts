@@ -16,6 +16,7 @@ import { RTP_HOST, RTP_PORT, RTP_PORT_AUDIO } from "../constants.ts"
 import {
 	loadServerConfig,
 	resolveDisplayConfig,
+	setActiveDisplayState,
 	type ServerConfig,
 } from "../../utils/configHelper.ts"
 
@@ -247,6 +248,7 @@ export class GstManager {
 			const { displayMode, monitorIndex } = resolveDisplayConfig(cfg)
 			this.currentMonitorIndex = monitorIndex
 			this.fallbackAttempted = false
+			setActiveDisplayState({ displayMode, monitorIndex })
 			this.provider = createCaptureProvider(
 				this.currentMonitorIndex,
 				displayMode,
@@ -255,6 +257,7 @@ export class GstManager {
 				const errMsg = `Capture provider failed after startup: ${err.message}`
 				logger.error(errMsg)
 				this.lastError = errMsg
+				setActiveDisplayState(null)
 				this.onErrorCallback?.(errMsg)
 				await this.stop()
 			})
@@ -265,6 +268,7 @@ export class GstManager {
 			const errMsg = `Capture initialization failed: ${error instanceof Error ? error.message : String(error)}`
 			logger.error(errMsg)
 			this.lastError = errMsg
+			setActiveDisplayState(null)
 			this.onErrorCallback?.(errMsg)
 			await this.cleanup()
 			throw error
@@ -299,6 +303,7 @@ export class GstManager {
 			const errMsg = formatGstSpawnError(err)
 			logger.error(`GStreamer spawn failed: ${errMsg} (${err.message})`)
 			this.lastError = errMsg
+			setActiveDisplayState(null)
 			this.onErrorCallback?.(errMsg)
 			this.process = null
 			await this.cleanup()
@@ -338,6 +343,7 @@ export class GstManager {
 					this.fallbackAttempted = true
 					this.fallbackInProgress = true
 					this.currentMonitorIndex = 0
+					setActiveDisplayState({ displayMode: "duplicate", monitorIndex: 0 })
 					this.process = null
 					await this.cleanup()
 					// 300ms pause ensures OS releases bound UDP sockets (5004/5005)
@@ -345,6 +351,7 @@ export class GstManager {
 					await new Promise((resolve) => setTimeout(resolve, 300))
 					if (this.stopping) {
 						this.fallbackInProgress = false
+						setActiveDisplayState(null)
 						return
 					}
 					try {
@@ -352,12 +359,14 @@ export class GstManager {
 						await this.provider.initialize()
 						if (this.stopping) {
 							this.fallbackInProgress = false
+							setActiveDisplayState(null)
 							await this.cleanup()
 							return
 						}
 						const sourceBlocks = await this.provider.getGStreamerSource()
 						if (this.stopping) {
 							this.fallbackInProgress = false
+							setActiveDisplayState(null)
 							await this.cleanup()
 							return
 						}
@@ -367,6 +376,7 @@ export class GstManager {
 						return
 					} catch (fallbackErr) {
 						this.fallbackInProgress = false
+						setActiveDisplayState(null)
 						logger.error(`Fallback to primary monitor failed: ${fallbackErr}`)
 					}
 				}
@@ -378,6 +388,7 @@ export class GstManager {
 						? formatGstExitError(code)
 						: "GStreamer pipeline closed unexpectedly")
 				this.lastError = errMsg
+				setActiveDisplayState(null)
 				this.onErrorCallback?.(errMsg)
 			}
 			this.process = null
@@ -388,6 +399,7 @@ export class GstManager {
 	public async stop(): Promise<void> {
 		this.stopping = true
 		this.fallbackInProgress = false
+		setActiveDisplayState(null)
 		if (this.process) {
 			logger.info("Terminating GStreamer video pipeline")
 			const proc = this.process

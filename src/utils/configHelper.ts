@@ -27,6 +27,28 @@ export interface ServerConfig {
 	monitorIndex?: number
 }
 
+export interface ActiveDisplayState {
+	displayMode: "duplicate" | "extended"
+	monitorIndex: number
+}
+
+let activeDisplayState: ActiveDisplayState | null = null
+
+/**
+ * Sets runtime active capture state (e.g., startup or fallback) without
+ * mutating the user's saved server-config.json preferences.
+ */
+export function setActiveDisplayState(state: ActiveDisplayState | null): void {
+	activeDisplayState = state
+}
+
+/**
+ * Returns the active capture display state if GStreamer is running, or null.
+ */
+export function getActiveDisplayState(): ActiveDisplayState | null {
+	return activeDisplayState
+}
+
 export function resolveDisplayConfig(cfg: ServerConfig): {
 	displayMode: "duplicate" | "extended"
 	monitorIndex: number

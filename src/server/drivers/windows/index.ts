@@ -22,6 +22,7 @@ import {
 } from "@imxade/inject/windows"
 import { WHEEL_DELTA, MOUSEEVENTF_VIRTUALDESK } from "./constants.ts"
 import {
+	getActiveDisplayState,
 	loadServerConfig,
 	resolveDisplayConfig,
 } from "../../../utils/configHelper.ts"
@@ -83,6 +84,10 @@ export class WindowsInputInjector {
 		}
 		if (typeof cfg.monitorIndex === "number") {
 			return cfg.monitorIndex > 0
+		}
+		const active = getActiveDisplayState()
+		if (active) {
+			return active.displayMode === "extended" || active.monitorIndex > 0
 		}
 		try {
 			const { displayMode, monitorIndex } = resolveDisplayConfig(
