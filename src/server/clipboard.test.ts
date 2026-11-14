@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events"
-import { spawn } from "node:child_process"
+import { ChildProcess, spawn } from "node:child_process"
 import os from "node:os"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { getSystemClipboard, setSystemClipboard } from "./clipboard.ts"
@@ -14,39 +14,38 @@ vi.mock("node:os", () => ({
 	},
 }))
 
-interface MockChildProcess extends EventEmitter {
-	stdout: EventEmitter
-	stdin: {
-		on: ReturnType<typeof vi.fn>
-		end: ReturnType<typeof vi.fn>
-	}
-}
+type MockChildProcess = ChildProcess & {
+  stdin: NonNullable<ChildProcess['stdin']>;
+  stdout: NonNullable<ChildProcess['stdout']>;
+  stderr: NonNullable<ChildProcess['stderr']>;
+};
+
 
 function createMockProcess(options: {
 	stdoutData?: string
 	exitCode?: number
 	failError?: Error | null
-}) {
+}): MockChildProcess {
 	const { stdoutData = "", exitCode = 0, failError = null } = options
-	const proc = new EventEmitter() as unknown as MockChildProcess
-	proc.stdout = new EventEmitter()
-	proc.stdin = {
-		on: vi.fn(),
-		end: vi.fn(),
-	}
+
+	const proc = new EventEmitter()          // plain EventEmitter, no cast
+	const stdout = new EventEmitter()        // plain EventEmitter, no cast
+	const stdin  = { on: vi.fn(), end: vi.fn() }
+	const stderr = new EventEmitter()
 
 	setTimeout(() => {
 		if (failError) {
 			proc.emit("error", failError)
 		} else {
 			if (stdoutData) {
-				proc.stdout.emit("data", Buffer.from(stdoutData))
+				stdout.emit("data", Buffer.from(stdoutData))
 			}
 			proc.emit("close", exitCode)
 		}
 	}, 1)
 
-	return proc
+	// Single cast, at the boundary
+	return Object.assign(proc, { stdout, stdin, stderr }) as unknown as MockChildProcess
 }
 
 describe("Clipboard helper", () => {
