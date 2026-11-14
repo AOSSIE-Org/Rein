@@ -86,6 +86,54 @@ function broadcastFileEvent(event: unknown): void {
 	}
 }
 
+/**
+ * Exported for unit-testing only. Parses a raw multipart body Buffer and
+ * returns the filename (UTF-8) and content-type of the first part.
+ */
+export function parseFirstPartHeaders(
+	body: Buffer,
+	boundary: string,
+): {
+	name: string
+	mimeType: string
+	dataStart: number
+	dataEnd: number
+} {
+	// Use binary encoding so byte offsets are identical to Buffer indices
+	const bodyStr = body.toString("binary")
+	const firstBoundaryIdx = bodyStr.indexOf(boundary)
+	if (firstBoundaryIdx === -1) throw new Error("Malformed multipart body")
+
+	const headerStart = firstBoundaryIdx + boundary.length + 2 // skip \r\n
+	const headerEnd = bodyStr.indexOf("\r\n\r\n", headerStart)
+	if (headerEnd === -1) throw new Error("Malformed multipart headers")
+
+	// Re-decode header bytes as UTF-8 (bodyStr is binary/latin-1 — each char is
+	// one byte, so Buffer.from(..., "binary") restores the original bytes exactly)
+	const headerBlockUtf8 = Buffer.from(
+		bodyStr.slice(headerStart, headerEnd),
+		"binary",
+	).toString("utf8")
+
+	// RFC 5987: filename*=UTF-8''<percent-encoded>  takes priority over plain filename=
+	const nameStar = headerBlockUtf8.match(/filename\*\s*=\s*UTF-8''([^\r\n;]+)/i)
+	const namePlain = headerBlockUtf8.match(/filename="([^"]*)"/)
+	const name = nameStar
+		? decodeURIComponent(nameStar[1].trim())
+		: namePlain
+			? namePlain[1]
+			: "file"
+
+	const ctMatch = headerBlockUtf8.match(/Content-Type:\s*([^\r\n]+)/i)
+	const mimeType = ctMatch ? ctMatch[1].trim() : "application/octet-stream"
+
+	const dataStart = headerEnd + 4 // skip \r\n\r\n
+	const nextBoundary = bodyStr.indexOf(`\r\n${boundary}`, dataStart)
+	const dataEnd = nextBoundary !== -1 ? nextBoundary : bodyStr.length
+
+	return { name, mimeType, dataStart, dataEnd }
+}
+
 /** Parse a multipart/form-data body and return the first file field. */
 function parseMultipart(
 	req: IncomingMessage,
@@ -98,7 +146,6 @@ function parseMultipart(
 			return
 		}
 		const boundary = `--${boundaryMatch[1]}`
-
 		const chunks: Buffer[] = []
 		let totalSize = 0
 
@@ -115,33 +162,10 @@ function parseMultipart(
 		req.on("end", () => {
 			try {
 				const body = Buffer.concat(chunks)
-				const bodyStr = body.toString("binary")
-
-				// Find the first part header block
-				const firstBoundaryIdx = bodyStr.indexOf(boundary)
-				if (firstBoundaryIdx === -1) throw new Error("Malformed multipart body")
-
-				const headerStart = firstBoundaryIdx + boundary.length + 2 // skip \r\n
-				const headerEnd = bodyStr.indexOf("\r\n\r\n", headerStart)
-				if (headerEnd === -1) throw new Error("Malformed multipart headers")
-
-				const headerBlock = bodyStr.slice(headerStart, headerEnd)
-
-				// Extract filename from Content-Disposition
-				const nameMatch = headerBlock.match(/filename="([^"]+)"/)
-				const name = nameMatch ? nameMatch[1] : "file"
-
-				// Extract Content-Type
-				const ctMatch = headerBlock.match(/Content-Type:\s*([^\r\n]+)/i)
-				const mimeType = ctMatch
-					? ctMatch[1].trim()
-					: "application/octet-stream"
-
-				// Extract binary data (between header end and next boundary)
-				const dataStart = headerEnd + 4 // skip \r\n\r\n
-				const nextBoundary = bodyStr.indexOf(`\r\n${boundary}`, dataStart)
-				const dataEnd = nextBoundary !== -1 ? nextBoundary : bodyStr.length
-
+				const { name, mimeType, dataStart, dataEnd } = parseFirstPartHeaders(
+					body,
+					boundary,
+				)
 				const data = body.slice(dataStart, dataEnd)
 				resolve({ name, mimeType, data })
 			} catch (err) {
@@ -151,6 +175,34 @@ function parseMultipart(
 
 		req.on("error", reject)
 	})
+}
+
+/**
+ * Exported for unit-testing only. Writes data to uploadDir/baseName,
+ * returning the actual filename used. Appends " (N)" before the extension on
+ * collision, up to MAX_COLLISION_ATTEMPTS.
+ */
+export async function writeFileExclusive(
+	uploadDir: string,
+	baseName: string,
+	data: Buffer,
+): Promise<string> {
+	const MAX_COLLISION_ATTEMPTS = 999
+	const ext = path.extname(baseName) // e.g. ".jpg" or "" for extensionless
+	const stem = baseName.slice(0, baseName.length - ext.length) // e.g. "image"
+
+	for (let n = 0; n <= MAX_COLLISION_ATTEMPTS; n++) {
+		const candidate = n === 0 ? baseName : `${stem} (${n})${ext}`
+		const filePath = path.join(uploadDir, candidate)
+		try {
+			await fs.promises.writeFile(filePath, data, { flag: "wx" })
+			return candidate // success – return the name actually used
+		} catch (err: unknown) {
+			if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err
+			// EEXIST → try next candidate
+		}
+	}
+	throw new Error(`Could not save file "${baseName}": too many duplicates`)
 }
 
 // ---------------------------------------------------------------------------
@@ -177,15 +229,22 @@ export async function handleFileUpload(
 			return
 		}
 
-		const filePath = path.join(uploadDir, safeName)
+		// Strip control characters (including null bytes and path separators).
+		// biome-ignore lint/suspicious/noControlCharactersInRegex: intentionally matching control code range \u0000-\u001f
+		const ctrlRe = /[\u0000-\u001f\u007f/\\]/g
+		const sanitizedName = safeName.replace(ctrlRe, "_")
+		// Truncate to 255 bytes (filesystem limit on most platforms)
+		const truncatedName = Buffer.from(sanitizedName, "utf8")
+			.slice(0, 255)
+			.toString("utf8")
 
-		// Save uploaded file to host disk asynchronously
-		await fs.promises.writeFile(filePath, data)
+		const savedName = await writeFileExclusive(uploadDir, truncatedName, data)
+		const filePath = path.join(uploadDir, savedName)
 
 		const id = randomUUID()
 		const file: SharedFile = {
 			id,
-			name: safeName,
+			name: savedName,
 			mimeType,
 			size: data.length,
 			uploadedAt: Date.now(),
@@ -201,7 +260,7 @@ export async function handleFileUpload(
 		broadcastFileEvent({
 			type: "incoming-file",
 			fileId: id,
-			name: safeName,
+			name: savedName,
 			size: data.length,
 			mimeType,
 			uploadedAt: file.uploadedAt,
