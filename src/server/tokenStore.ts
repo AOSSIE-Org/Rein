@@ -34,6 +34,7 @@ const EXPIRY_MS = 10 * 24 * 60 * 60 * 1000 // 10 days
 let tokens: TokenEntry[] = []
 let lastSaveTime = 0
 let isSaving = false
+let saveTimer: ReturnType<typeof setTimeout> | null = null
 const SAVE_THROTTLE_MS = 60 * 1000 // 1 minute
 
 function validateTokens(data: unknown): TokenEntry[] {
@@ -57,10 +58,30 @@ function load(): void {
 	}
 }
 
+/**
+ * Persist a throttled update once the throttle window closes, so activity
+ * recorded in memory is not lost if the process keeps running without a
+ * forced save.
+ */
+function scheduleSave(delayMs: number): void {
+	if (saveTimer) return
+	saveTimer = setTimeout(() => {
+		saveTimer = null
+		void save(true)
+	}, delayMs)
+	saveTimer.unref()
+}
+
 async function save(force = false): Promise<void> {
 	const now = Date.now()
-	if (!force && now - lastSaveTime < SAVE_THROTTLE_MS) return
-	if (isSaving) return
+	if (!force && now - lastSaveTime < SAVE_THROTTLE_MS) {
+		scheduleSave(SAVE_THROTTLE_MS - (now - lastSaveTime))
+		return
+	}
+	if (isSaving) {
+		scheduleSave(SAVE_THROTTLE_MS)
+		return
+	}
 
 	isSaving = true
 	try {
@@ -70,6 +91,10 @@ async function save(force = false): Promise<void> {
 			mode: 0o600, // Restricted to owner only
 		})
 		lastSaveTime = now
+		if (saveTimer) {
+			clearTimeout(saveTimer)
+			saveTimer = null
+		}
 	} catch (e) {
 		console.error("Failed to persist tokens:", e)
 	} finally {
@@ -110,10 +135,18 @@ export function storeToken(token: string): void {
 	save(true)
 }
 
-/** Check if a token is already known/stored on the server. */
+/**
+ * Check if a token is already known/stored on the server.
+ * A successful check counts as activity, so the expiry window slides forward
+ * instead of being fixed at creation time.
+ */
 export function isKnownToken(token: string): boolean {
 	purgeExpired()
-	return tokens.some((t) => timingSafeEqual(t.token, token))
+	const entry = tokens.find((t) => timingSafeEqual(t.token, token))
+	if (!entry) return false
+	entry.lastUsed = Date.now()
+	save() // Throttled internally
+	return true
 }
 
 /** Refresh the lastUsed timestamp for a token. */
