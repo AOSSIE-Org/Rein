@@ -3,6 +3,7 @@ import { ChildProcess, spawn } from "node:child_process"
 import os from "node:os"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { getSystemClipboard, setSystemClipboard } from "./clipboard.ts"
+import { Readable, Writable } from "node:stream"
 
 vi.mock("node:child_process", () => ({
 	spawn: vi.fn(),
@@ -14,38 +15,62 @@ vi.mock("node:os", () => ({
 	},
 }))
 
-type MockChildProcess = ChildProcess & {
-  stdin: NonNullable<ChildProcess['stdin']>;
-  stdout: NonNullable<ChildProcess['stdout']>;
-  stderr: NonNullable<ChildProcess['stderr']>;
-};
 
 
 function createMockProcess(options: {
 	stdoutData?: string
 	exitCode?: number
 	failError?: Error | null
-}): MockChildProcess {
+}): ChildProcess {
 	const { stdoutData = "", exitCode = 0, failError = null } = options
 
-	const proc = new EventEmitter()          // plain EventEmitter, no cast
-	const stdout = new EventEmitter()        // plain EventEmitter, no cast
-	const stdin  = { on: vi.fn(), end: vi.fn() }
-	const stderr = new EventEmitter()
+	// Real streams, so future tests using pipe/read/write/end behave like production
+	const stdout = new Readable({ read() {} })
+	const stderr = new Readable({ read() {} })
+	const stdin  = new Writable({
+		write(_chunk, _encoding, callback) {
+			callback()
+		},
+	})
+
+	// Preserve the ability to assert that `stdin.end` was called
+	vi.spyOn(stdin, "end")
+
+	// Downcast is legitimate: ChildProcess extends EventEmitter. Every required
+	// property is then supplied below with its real type — no `as unknown as`.
+	const proc = new EventEmitter() as ChildProcess
+
+	proc.stdin  = stdin
+	proc.stdout = stdout
+	proc.stderr = stderr
+	proc.kill        = vi.fn()
+	proc.send        = vi.fn()
+	proc.disconnect  = vi.fn()
+	proc.ref         = vi.fn()
+	proc.unref       = vi.fn()
+
+	// Readonly properties from @types/node — define them, don't cast
+	Object.defineProperty(proc, "pid",        { value: 12345 })
+	Object.defineProperty(proc, "killed",     { value: false })
+	Object.defineProperty(proc, "connected",  { value: false })
+	Object.defineProperty(proc, "exitCode",   { value: null })
+	Object.defineProperty(proc, "signalCode", { value: null })
+	Object.defineProperty(proc, "spawnfile",  { value: "mock" })
+	Object.defineProperty(proc, "spawnargs",  { value: [] })
+	Object.defineProperty(proc, "stdio",      { value: [null, stdout, stderr] })
 
 	setTimeout(() => {
 		if (failError) {
 			proc.emit("error", failError)
 		} else {
 			if (stdoutData) {
-				stdout.emit("data", Buffer.from(stdoutData))
+				stdout.push(Buffer.from(stdoutData))
 			}
 			proc.emit("close", exitCode)
 		}
 	}, 1)
 
-	// Single cast, at the boundary
-	return Object.assign(proc, { stdout, stdin, stderr }) as unknown as MockChildProcess
+	return proc
 }
 
 describe("Clipboard helper", () => {
@@ -77,7 +102,7 @@ describe("Clipboard helper", () => {
 
 		await setSystemClipboard("test text")
 		expect(spawn).toHaveBeenCalledWith("pbcopy", [], expect.any(Object))
-		expect(mockProc.stdin.end).toHaveBeenCalledWith("test text", "utf-8")
+		expect(mockProc.stdin!.end).toHaveBeenCalledWith("test text", "utf-8")
 	})
 
 	it("should read clipboard on win32 via powershell", async () => {
@@ -106,8 +131,8 @@ describe("Clipboard helper", () => {
 		const rocket = Buffer.from("🚀")
 
 		const pending = getSystemClipboard()
-		proc.stdout.emit("data", rocket.subarray(0, 2))
-		proc.stdout.emit("data", rocket.subarray(2))
+		proc.stdout!.emit("data", rocket.subarray(0, 2))
+		proc.stdout!.emit("data", rocket.subarray(2))
 
 		await expect(pending).resolves.toBe("🚀")
 	})
