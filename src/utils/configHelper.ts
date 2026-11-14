@@ -17,6 +17,52 @@ export interface ServerConfig {
 	audioSource?: string
 	version?: string
 	uploadDir?: string
+	/**
+	 * displayMode: "duplicate" (mirror) or "extended" (virtual workspace)
+	 */
+	displayMode?: "duplicate" | "extended"
+	/**
+	 * monitorIndex: 0 = primary/mirror display, 1+ = secondary/extended
+	 */
+	monitorIndex?: number
+}
+
+export interface ActiveDisplayState {
+	displayMode: "duplicate" | "extended"
+	monitorIndex: number
+}
+
+let activeDisplayState: ActiveDisplayState | null = null
+
+/**
+ * Sets runtime active capture state (e.g., startup or fallback) without
+ * mutating the user's saved server-config.json preferences.
+ */
+export function setActiveDisplayState(state: ActiveDisplayState | null): void {
+	activeDisplayState = state
+}
+
+/**
+ * Returns the active capture display state if GStreamer is running, or null.
+ */
+export function getActiveDisplayState(): ActiveDisplayState | null {
+	return activeDisplayState
+}
+
+export function resolveDisplayConfig(cfg: ServerConfig): {
+	displayMode: "duplicate" | "extended"
+	monitorIndex: number
+} {
+	const displayMode =
+		cfg.displayMode ??
+		(cfg.monitorIndex && cfg.monitorIndex > 0 ? "extended" : "duplicate")
+	const monitorIndex =
+		displayMode === "extended"
+			? typeof cfg.monitorIndex === "number" && cfg.monitorIndex > 0
+				? cfg.monitorIndex
+				: 1
+			: 0
+	return { displayMode, monitorIndex }
 }
 let cachedConfig: ServerConfig | null = null
 

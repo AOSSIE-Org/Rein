@@ -26,6 +26,8 @@ export class ImplementDbus {
 	public pipewireNodeId: number | null = null
 	public onFailure?: (err: Error) => void
 
+	constructor(private displayMode: "duplicate" | "extended" = "duplicate") {}
+
 	public async dispose() {
 		this.onFailure = undefined
 		if (this.sessionPath && this.dbusConnection) {
@@ -185,9 +187,11 @@ export class ImplementDbus {
 		const selectResponsePromise = this.waitForPortalResponse(
 			`/org/freedesktop/portal/desktop/request/${this.getDbusId()}/${selectToken}`,
 		)
+		// Source types bitmask: 1 = Monitor, 2 = Window, 4 = Virtual
+		const sourceTypes = this.displayMode === "extended" ? 5 : 1
 		const selectOptions: Record<string, unknown> = {
 			multiple: new this.dbusModule.Variant("b", false),
-			types: new this.dbusModule.Variant("u", 1),
+			types: new this.dbusModule.Variant("u", sourceTypes),
 			handle_token: new this.dbusModule.Variant("s", selectToken),
 		}
 		if (supportsEmbeddedCursor) {

@@ -3,6 +3,7 @@ export const POINTER_FEEDBACK_DEFAULT = 3
 export const WHEEL_DELTA = 120
 export const MAX_CONTACTS = 10
 export const MAX_INPUT_EVENTS_PER_BATCH = 1000
+export const MOUSEEVENTF_VIRTUALDESK = 0x4000
 
 //gamepad constants
 const XUSB_GAMEPAD_DPAD_UP = 0x0001

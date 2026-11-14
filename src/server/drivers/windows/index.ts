@@ -20,7 +20,12 @@ import {
 	MOUSEEVENTF_HWHEEL,
 	type WindowsInput,
 } from "@imxade/inject/windows"
-import { WHEEL_DELTA } from "./constants.ts"
+import { WHEEL_DELTA, MOUSEEVENTF_VIRTUALDESK } from "./constants.ts"
+import {
+	getActiveDisplayState,
+	loadServerConfig,
+	resolveDisplayConfig,
+} from "../../../utils/configHelper.ts"
 import { DEFAULT_CONFIG } from "../../constants.ts"
 import type { InputConfig, TouchContact } from "../../types.ts"
 import { WindowsKeyboard } from "./keyboard.ts"
@@ -66,11 +71,52 @@ export class WindowsInputInjector {
 		])
 	}
 
+	/**
+	 * Checks if extended workspace mode or secondary monitor capture is active.
+	 */
+	private isExtended(): boolean {
+		const cfg = this.config as {
+			displayMode?: string
+			monitorIndex?: number
+		}
+		if (cfg.displayMode !== undefined) {
+			return cfg.displayMode === "extended"
+		}
+		if (typeof cfg.monitorIndex === "number") {
+			return cfg.monitorIndex > 0
+		}
+		const active = getActiveDisplayState()
+		if (active) {
+			return active.displayMode === "extended" || active.monitorIndex > 0
+		}
+		try {
+			const { displayMode, monitorIndex } = resolveDisplayConfig(
+				loadServerConfig(),
+			)
+			return displayMode === "extended" || monitorIndex > 0
+		} catch {
+			return false
+		}
+	}
+
 	// Teleports the cursor to an absolute screen position.
-	// Win32 absolute coords are in the [0, 65535] space normalised over the virtual desktop.
+	// Win32 absolute coords are in the [0, 65535] space. When targeting extended
+	// or secondary displays, coordinates must be mapped across the virtual
+	// desktop using MOUSEEVENTF_VIRTUALDESK.
 	injectMouseAbsolute(x: number, y: number): void {
-		const absX = Math.round((x / this.config.screenWidth) * 65535)
+		const isExt = this.isExtended()
+		const absX = isExt
+			? Math.round(
+					((this.config.screenWidth + x) / (this.config.screenWidth * 2)) *
+						65535,
+				)
+			: Math.round((x / this.config.screenWidth) * 65535)
 		const absY = Math.round((y / this.config.screenHeight) * 65535)
+		const dwFlags =
+			MOUSEEVENTF_MOVE |
+			MOUSEEVENTF_ABSOLUTE |
+			(isExt ? MOUSEEVENTF_VIRTUALDESK : 0)
+
 		sendInput([
 			{
 				type: INPUT_MOUSE,
@@ -79,7 +125,7 @@ export class WindowsInputInjector {
 						dx: absX,
 						dy: absY,
 						mouseData: 0,
-						dwFlags: MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
+						dwFlags,
 					},
 				},
 			},
