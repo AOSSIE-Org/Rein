@@ -73,7 +73,7 @@ What we expect:
 
 - [Node.js](https://nodejs.org/) (v18 or higher recommended)
 - npm (comes with Node.js)
-- Access to Windows, Linux Wayland, and macOS (either on bare metal or via VM) is mandatory to fully test the app's cross-platform functionality.
+- Access to Windows and Linux (either on bare metal or via VM) is expected for full cross-platform validation; macOS testing is best-effort and sponsorship-dependent.
 
 ### Setup
 
