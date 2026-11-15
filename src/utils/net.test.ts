@@ -50,11 +50,12 @@ describe("getLanIp", () => {
 		expect(getLanIp()).toBe("127.0.0.1")
 	})
 
-	it("skips internal interfaces", () => {
+	it("skips internal interfaces in favor of an external one", () => {
 		vi.spyOn(os, "networkInterfaces").mockReturnValue({
-			lo: [iface("127.0.0.1", { internal: true })],
+			eth0: [iface("192.168.1.2", { internal: true })],
+			eth1: [iface("192.168.1.3")],
 		})
-		expect(getLanIp()).toBe("127.0.0.1")
+		expect(getLanIp()).toBe("192.168.1.3")
 	})
 
 	it("prefers a physical interface over a virtual one", () => {
