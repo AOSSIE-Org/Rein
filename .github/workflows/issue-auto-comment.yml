@@ -24,6 +24,8 @@ jobs:
               "",
               `Instead of commenting here, go to [the Discord channel](${discordUrl}).`,
               "",
+              "Please do not open macOS-related issues or support requests; macOS is not a supported platform.",
+              "",
               "If you find this project useful, a GitHub star would be appreciated.",
               "",
               marker
