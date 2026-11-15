@@ -19,7 +19,7 @@ vi.mock("@imxade/inject/windows", async (importOriginal) => {
 	}
 })
 
-import { WindowsKeyboard } from "./keyboard.ts"
+import { WindowsKeyboard } from "@/server/drivers/windows/keyboard.ts"
 
 function getKeyboardInput(event: WindowsInput): WindowsKeyboardInput {
 	expect("ki" in event.u).toBe(true)

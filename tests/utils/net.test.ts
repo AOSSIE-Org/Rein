@@ -1,6 +1,6 @@
 import os from "node:os"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { getAuthHeaders, getLanIp, isLoopbackAddress } from "./net"
+import { getAuthHeaders, getLanIp, isLoopbackAddress } from "@/utils/net"
 
 describe("isLoopbackAddress", () => {
 	it("recognizes all loopback forms", () => {

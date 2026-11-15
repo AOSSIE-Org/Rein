@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { t } from "./i18n"
+import { t } from "@/utils/i18n"
 
 describe("t (translation helper)", () => {
 	it("looks up a known key", () => {
