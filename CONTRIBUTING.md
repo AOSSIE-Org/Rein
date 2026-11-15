@@ -133,6 +133,9 @@ We use Vitest for testing and Biome for formatting/linting:
 # Run tests
 npm run test
 
+# Type-check (tsc --noEmit)
+npm run typecheck
+
 # Format & Lint code
 npm run check
 
@@ -178,6 +181,7 @@ git push origin feature/your-feature-name
 ### Before Submitting
 
 - [ ] Your code follows the project's style guidelines (`npm run check`)
+- [ ] Your code type-checks (`npm run typecheck`)
 - [ ] You've tested your changes thoroughly (`npm run test`)
 - [ ] You've updated relevant documentation
 - [ ] Your commits are clean and well-organized
