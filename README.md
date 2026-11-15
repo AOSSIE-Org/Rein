@@ -253,11 +253,21 @@ Port `5004/UDP` is an internal loopback relay between GStreamer and Rein and mus
 
 ### 2. Connect Through a Browser
 
-Open the Rein server from a browser using:
+Remote clients need an access token before they can connect. To pair a device:
 
-```text
-http://<YOUR_PC_IP>:3000
-```
+1. On the host machine, open the Settings page:
+
+   ```text
+   http://localhost:3000/settings
+   ```
+
+2. Scan the QR code shown there with the client device. It opens the trackpad with the access token included:
+
+   ```text
+   http://<YOUR_PC_IP>:3000/trackpad?token=<TOKEN>
+   ```
+
+Opening `http://<YOUR_PC_IP>:3000` directly on a device that has not been paired shows "Disconnected from host".
 
 The client does not require a separate installation.
 
