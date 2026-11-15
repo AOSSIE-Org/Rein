@@ -34,17 +34,20 @@ function spawnWithStdin(
  */
 function spawnCaptureOutput(cmd: string, args: string[]): Promise<string> {
 	return new Promise((resolve, reject) => {
-		const child = spawn(cmd, args, { stdio: ["ignore", "pipe", "ignore"] })
-		let output = ""
+		const child = spawn(cmd, args, {
+			stdio: ["ignore", "pipe", "ignore"],
+			windowsHide: true,
+		})
+		const chunks: Buffer[] = []
 
 		child.stdout.on("data", (chunk: Buffer) => {
-			output += chunk.toString("utf-8")
+			chunks.push(chunk)
 		})
 
 		child.on("error", reject)
 
 		child.on("close", (code) => {
-			if (code === 0) resolve(output)
+			if (code === 0) resolve(Buffer.concat(chunks).toString("utf-8"))
 			else reject(new Error(`${cmd} exited with code ${code}`))
 		})
 	})
@@ -64,7 +67,7 @@ export async function getSystemClipboard(): Promise<string> {
 		const text = await spawnCaptureOutput("powershell.exe", [
 			"-NoProfile",
 			"-Command",
-			"Get-Clipboard -Raw",
+			"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Clipboard -Raw",
 		])
 		return text.replace(/\r?\n$/, "")
 	}

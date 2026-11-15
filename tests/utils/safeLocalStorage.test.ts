@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest"
-import { getLocalStorageItem, setLocalStorageItem } from "./safeLocalStorage"
+import {
+	getLocalStorageItem,
+	setLocalStorageItem,
+} from "@/utils/safeLocalStorage"
 
 describe("safeLocalStorage", () => {
 	const store = new Map<string, string>()

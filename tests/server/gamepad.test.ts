@@ -1,6 +1,9 @@
 import type { UinputDevice } from "@imxade/inject/linux"
 import { describe, expect, it, vi } from "vitest"
-import { GAMEPAD_BUTTON_MAP, LinuxGamepad } from "./drivers/linux/gamepad.ts"
+import {
+	GAMEPAD_BUTTON_MAP,
+	LinuxGamepad,
+} from "@/server/drivers/linux/gamepad.ts"
 
 function createMockDevice() {
 	return {
