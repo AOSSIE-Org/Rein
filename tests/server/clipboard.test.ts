@@ -2,7 +2,7 @@ import { EventEmitter } from "node:events"
 import { spawn } from "node:child_process"
 import os from "node:os"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { getSystemClipboard, setSystemClipboard } from "./clipboard.ts"
+import { getSystemClipboard, setSystemClipboard } from "@/server/clipboard.ts"
 
 vi.mock("node:child_process", () => ({
 	spawn: vi.fn(),

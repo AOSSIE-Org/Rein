@@ -3,7 +3,7 @@ import {
 	getConnectionMessageType,
 	isNeutralGamepadAxis,
 	usesUnorderedChannel,
-} from "./connectionMessage"
+} from "@/utils/connectionMessage"
 
 describe("connection message routing", () => {
 	it("returns a string message type only", () => {
