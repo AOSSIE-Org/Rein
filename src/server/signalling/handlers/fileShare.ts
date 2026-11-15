@@ -313,11 +313,17 @@ export function handleFileDownload(
 	if (filePathParam) {
 		const targetPath = path.resolve(filePathParam)
 
-		if (!fs.existsSync(targetPath) || !fs.statSync(targetPath).isFile()) {
+		let stat: fs.Stats
+		try {
+			stat = fs.statSync(targetPath)
+		} catch {
 			json(res, 404, { error: "File not found" })
 			return
 		}
-		const stat = fs.statSync(targetPath)
+		if (!stat.isFile()) {
+			json(res, 404, { error: "File not found" })
+			return
+		}
 		const fileName = path.basename(targetPath)
 		const mimeType = getMimeType(fileName)
 
