@@ -13,10 +13,10 @@
 import { ViGEmClient, type ViGEmXbox360Target } from "@imxade/inject/windows"
 import { resolveBundledBin } from "../../../utils/binPaths.ts"
 import { BUTTON_BITS } from "./constants.ts"
+import { GAMEPAD_AXIS_MAX } from "../../constants.ts"
 
 const VIGEM_DLL =
 	resolveBundledBin("vigme", "ViGEmClient.dll") ?? "ViGEmClient.dll"
-const AXIS_MAX = 32767
 const TRIGGER_MAX = 255
 
 export class WindowsGamepad {
@@ -76,8 +76,8 @@ export class WindowsGamepad {
 		const clamp = (v: number) => Math.max(-1, Math.min(1, v))
 
 		// XInput Y axis: +32767 = up, so invert ay
-		const intX = Math.round(clamp(ax) * AXIS_MAX)
-		const intY = Math.round(-clamp(ay) * AXIS_MAX)
+		const intX = Math.round(clamp(ax) * GAMEPAD_AXIS_MAX)
+		const intY = Math.round(-clamp(ay) * GAMEPAD_AXIS_MAX)
 
 		if (axis === "ls") {
 			this.sThumbLX = intX
