@@ -24,7 +24,7 @@ jobs:
               "",
               `Instead of commenting here, go to [the Discord channel](${discordUrl}).`,
               "",
-              "macOS support is currently best-effort. We are seeking funding or sponsorship for dedicated macOS testing and maintenance; without that support, we cannot commit to maintaining macOS compatibility.",
+              "macOS and macOS-related issues are not supported at the moment. We are looking for funding to support macOS and would appreciate contributions or sponsorship.",
               "",
               "If you find this project useful, a GitHub star would be appreciated.",
               "",
