@@ -4,7 +4,7 @@
 
 Rein is a **cross-platform remote desktop tool** with a browser-based client for both **touchscreen** and non-touch devices. The desktop server runs on supported host platforms, while clients connect through a web browser over your local network without installing separate client applications.
 
-Rein provides low-latency screen mirroring, remote input control (mouse, keyboard, touch gestures, and virtual gamepad), bidirectional clipboard synchronization, and file sharing through a single interface.
+Rein provides screen mirroring, mouse and keyboard control, touch gestures, a virtual gamepad, clipboard copy and paste, and file sharing through a browser-based interface.
 
 ## Platform Support
 
@@ -111,11 +111,9 @@ for more detail about the host, browser client, and streaming system.
 
 ## Technical Overview
 
-Rein is designed to provide a common interface between a desktop environment and browser-based clients. This makes it suitable not only for direct remote desktop use, but also as an interface layer for **cloud PC and cloud gaming providers**.
+Rein separates the browser-based client from the host-side services. The host manages screen capture, remote input, and connections, while connected browsers provide the interface for viewing and controlling the desktop.
 
-The client is entirely browser-based, so providers can expose Rein without requiring users to install or maintain a separate native client application.
-
-Multiple clients can connect to the same server, with the server coordinating communication and input between connected clients.
+Multiple clients can connect to the same host and interact with its existing desktop session.
 
 ## Input
 
