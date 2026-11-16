@@ -77,6 +77,7 @@ export function handleLogs(
 		deps.sseClients.delete(res)
 		clearInterval(keepAliveTimer)
 	}
-	req.on("close", cleanupSse)
-	req.on("error", cleanupSse)
+	// The request completes before the long-lived SSE response closes.
+	res.on("close", cleanupSse)
+	res.on("error", cleanupSse)
 }
