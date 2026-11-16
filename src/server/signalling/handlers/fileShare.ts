@@ -92,12 +92,15 @@ function parseMultipart(
 ): Promise<{ name: string; mimeType: string; data: Buffer }> {
 	return new Promise((resolve, reject) => {
 		const contentType = req.headers["content-type"] ?? ""
-		const boundaryMatch = contentType.match(/boundary=(.+)$/)
-		if (!boundaryMatch) {
+		const boundaryMatch = contentType.match(
+			/\bboundary\s*=\s*(?:"([^"]+)"|([^;"\s]+))/i,
+		)
+		const boundaryValue = boundaryMatch?.[1] ?? boundaryMatch?.[2]
+		if (!boundaryValue) {
 			reject(new Error("Missing multipart boundary"))
 			return
 		}
-		const boundary = `--${boundaryMatch[1]}`
+		const boundary = `--${boundaryValue}`
 
 		const chunks: Buffer[] = []
 		let totalSize = 0
