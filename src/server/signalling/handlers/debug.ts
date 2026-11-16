@@ -1,6 +1,11 @@
 import type { IncomingMessage, ServerResponse } from "node:http"
 import type { WebRTCManager } from "../webRTC.ts"
-import { requireAuth, parseJsonBody, json } from "../utils.ts"
+import {
+	requireAuth,
+	parseJsonBody,
+	json,
+	respondIfPayloadTooLarge,
+} from "../utils.ts"
 
 // Shared mutable state injected from server.ts
 export interface DebugHandlerDeps {
@@ -40,7 +45,10 @@ export function handleLatency(
 			}
 			json(res, 200, { ok: true })
 		})
-		.catch(() => json(res, 400, { ok: false }))
+		.catch((err) => {
+			if (respondIfPayloadTooLarge(res, err)) return
+			json(res, 400, { ok: false })
+		})
 }
 
 export function handleLogs(

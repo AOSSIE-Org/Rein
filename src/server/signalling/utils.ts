@@ -4,27 +4,57 @@ import { isLoopbackAddress } from "../../utils/net.ts"
 
 const MAX_BODY_BYTES = 1024 * 1024 // 1 MB
 
+export class PayloadTooLargeError extends Error {
+	constructor() {
+		super("Payload too large")
+		this.name = "PayloadTooLargeError"
+	}
+}
+
 export function parseJsonBody<T = unknown>(req: IncomingMessage): Promise<T> {
 	return new Promise((resolve, reject) => {
+		const declared = Number(req.headers["content-length"])
+		if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
+			// Drain without destroying so the caller can still write 413.
+			req.resume()
+			reject(new PayloadTooLargeError())
+			return
+		}
+
 		let body = ""
 		let size = 0
+		let settled = false
+
+		const fail = (err: Error) => {
+			if (settled) return
+			settled = true
+			body = ""
+			reject(err)
+		}
+
 		req.on("data", (chunk) => {
+			if (settled) return
 			size += chunk.length
 			if (size > MAX_BODY_BYTES) {
-				req.destroy()
-				reject(new Error("Payload too large"))
+				// Drop the buffer and keep consuming so the socket stays writable.
+				body = ""
+				fail(new PayloadTooLargeError())
 				return
 			}
 			body += chunk
 		})
 		req.on("end", () => {
+			if (settled) return
+			settled = true
 			try {
 				resolve(body ? JSON.parse(body) : ({} as T))
 			} catch (err) {
-				reject(err)
+				reject(err instanceof Error ? err : new Error(String(err)))
 			}
 		})
-		req.on("error", reject)
+		req.on("error", (err: Error) => {
+			fail(err)
+		})
 	})
 }
 
@@ -35,6 +65,16 @@ export function json(res: ServerResponse, status: number, body: unknown): void {
 		"Content-Length": Buffer.byteLength(payload),
 	})
 	res.end(payload)
+}
+
+/** Writes 413 when `err` is a body-size failure. Returns false for every other error. */
+export function respondIfPayloadTooLarge(
+	res: ServerResponse,
+	err: unknown,
+): boolean {
+	if (!(err instanceof PayloadTooLargeError)) return false
+	json(res, 413, { error: "Payload too large" })
+	return true
 }
 
 /** Returns true when the caller is authorized (local or valid bearer token). */
