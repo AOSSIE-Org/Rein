@@ -218,7 +218,16 @@ export function FileShareProvider({ children }: { children: React.ReactNode }) {
 							)
 						}
 					} else {
-						reject(new Error(`Upload failed: ${xhr.status}`))
+						let serverError: string | undefined
+						try {
+							serverError = (JSON.parse(xhr.responseText) as { error?: string })
+								.error
+						} catch {}
+						reject(
+							new Error(
+								`Upload failed: ${serverError ?? `status ${xhr.status}`}`,
+							),
+						)
 					}
 				}
 
