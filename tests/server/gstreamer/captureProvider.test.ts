@@ -6,9 +6,9 @@ import {
 	LinuxX11CaptureProvider,
 	MacOSCaptureProvider,
 	WindowsCaptureProvider,
-} from "./captureProvider.ts"
+} from "@/server/gstreamer/captureProvider.ts"
 
-vi.mock("../../utils/logger.ts", () => ({
+vi.mock("@/utils/logger.ts", () => ({
 	default: {
 		info: vi.fn(),
 		warn: vi.fn(),

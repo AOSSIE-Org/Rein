@@ -5,8 +5,8 @@ import {
 	getActiveDisplayState,
 	setActiveDisplayState,
 	type ServerConfig,
-} from "../../utils/configHelper.ts"
-import { MOUSEEVENTF_VIRTUALDESK } from "../drivers/windows/constants.ts"
+} from "@/utils/configHelper.ts"
+import { MOUSEEVENTF_VIRTUALDESK } from "@/server/drivers/windows/constants.ts"
 
 const mocks = vi.hoisted(() => {
 	const spawnedProcs: Array<
@@ -44,13 +44,13 @@ vi.mock("@imxade/inject/windows", () => ({
 	KEYEVENTF_SCANCODE: 0x0008,
 }))
 
-vi.mock("../drivers/windows/touch.ts", () => ({
+vi.mock("@/server/drivers/windows/touch.ts", () => ({
 	WindowsTouch: class {
 		destroy() {}
 	},
 }))
 
-vi.mock("../drivers/windows/gamepad.ts", () => ({
+vi.mock("@/server/drivers/windows/gamepad.ts", () => ({
 	WindowsGamepad: class {
 		destroy() {}
 	},
@@ -81,16 +81,16 @@ vi.mock("node:child_process", async (importOriginal) => {
 	}
 })
 
-vi.mock("../../utils/configHelper.ts", async (importOriginal) => {
+vi.mock("@/utils/configHelper.ts", async (importOriginal) => {
 	const actual =
-		await importOriginal<typeof import("../../utils/configHelper.ts")>()
+		await importOriginal<typeof import("@/utils/configHelper.ts")>()
 	return {
 		...actual,
 		loadServerConfig: vi.fn(() => mocks.savedConfig.current),
 	}
 })
 
-vi.mock("./captureProvider.ts", () => ({
+vi.mock("@/server/gstreamer/captureProvider.ts", () => ({
 	createCaptureProvider: vi.fn((monitorIndex = 0) => ({
 		initialize: vi.fn(async () => {}),
 		getGStreamerSource: vi.fn(async () => [
@@ -101,7 +101,7 @@ vi.mock("./captureProvider.ts", () => ({
 	})),
 }))
 
-vi.mock("../../utils/logger.ts", () => ({
+vi.mock("@/utils/logger.ts", () => ({
 	default: {
 		info: vi.fn(),
 		warn: vi.fn(),
@@ -110,7 +110,7 @@ vi.mock("../../utils/logger.ts", () => ({
 	},
 }))
 
-import { GstManager } from "./gstManager.ts"
+import { GstManager } from "@/server/gstreamer/gstManager.ts"
 
 function getMouseInput(event: WindowsInput): WindowsMouseInput {
 	if (!("mi" in event.u)) {
@@ -146,7 +146,9 @@ describe("GstManager - Fallback Input Synchronization", () => {
 			value: "win32",
 			configurable: true,
 		})
-		const { WindowsInputInjector } = await import("../drivers/windows/index.ts")
+		const { WindowsInputInjector } = await import(
+			"@/server/drivers/windows/index.ts"
+		)
 		const injector = new WindowsInputInjector({
 			screenWidth: 1920,
 			screenHeight: 1080,
