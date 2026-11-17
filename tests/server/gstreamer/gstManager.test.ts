@@ -135,4 +135,3 @@ describe("GstManager - Audio source detection on Linux", () => {
 		expect(blocks).toEqual(["customaudiosrc", "device=hw:0"])
 	})
 })
-
