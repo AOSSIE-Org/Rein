@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http"
 import { randomUUID } from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
+import os from "node:os"
 import { json, requireAuth } from "../utils.ts"
 import logger from "../../../utils/logger.ts"
 import { getUploadDir } from "../../../utils/configHelper.ts"
@@ -84,6 +85,24 @@ function broadcastFileEvent(event: unknown): void {
 			notifyClients.delete(res)
 		}
 	}
+}
+
+function isPathSafe(targetPath: string): boolean {
+	const resolvedTarget = path.resolve(targetPath)
+	const homeDir = path.resolve(os.homedir())
+	const uploadDir = path.resolve(getUploadDir())
+
+	const isWindows = process.platform === "win32"
+	const normTarget = isWindows ? resolvedTarget.toLowerCase() : resolvedTarget
+	const normHome = isWindows ? homeDir.toLowerCase() : homeDir
+	const normUpload = isWindows ? uploadDir.toLowerCase() : uploadDir
+
+	const isInsideHome =
+		normTarget === normHome || normTarget.startsWith(normHome + path.sep)
+	const isInsideUpload =
+		normTarget === normUpload || normTarget.startsWith(normUpload + path.sep)
+
+	return isInsideHome || isInsideUpload
 }
 
 /** Parse a multipart/form-data body and return the first file field. */
@@ -231,6 +250,10 @@ export async function handleFileBrowse(
 
 	let targetPath = reqPath ? path.resolve(reqPath) : defaultDir
 
+	if (!isPathSafe(targetPath)) {
+		targetPath = defaultDir
+	}
+
 	if (!fs.existsSync(targetPath)) {
 		targetPath = defaultDir
 	}
@@ -315,6 +338,13 @@ export function handleFileDownload(
 
 	if (filePathParam) {
 		const targetPath = path.resolve(filePathParam)
+
+		if (!isPathSafe(targetPath)) {
+			json(res, 403, {
+				error: "Access denied: path outside allowed boundaries",
+			})
+			return
+		}
 
 		if (!fs.existsSync(targetPath) || !fs.statSync(targetPath).isFile()) {
 			json(res, 404, { error: "File not found" })
