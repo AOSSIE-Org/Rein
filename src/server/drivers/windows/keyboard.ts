@@ -15,6 +15,7 @@ import {
 	type WindowsInput,
 } from "@imxade/inject/windows"
 import { EXTENDED_KEY_VKS, VK_MAP, VK_TO_SCANCODE } from "../keyMap.ts"
+import { MAX_INPUT_EVENTS_PER_BATCH } from "./constants.ts"
 
 export class WindowsKeyboard {
 	injectKey(key: string, pos: string = ""): void {
@@ -106,49 +107,123 @@ export class WindowsKeyboard {
 			console.warn("[Text] Empty text, returning")
 			return
 		}
-		for (const ch of text) {
-			const c = ch.charCodeAt(0)
 
-			this.sendInput([
-				{
-					type: INPUT_KEYBOARD,
-					u: {
-						ki: {
-							wVk: 0,
-							wScan: c,
-							dwFlags: KEYEVENTF_UNICODE,
+		let currentBatch: WindowsInput[] = []
+
+		for (let i = 0; i < text.length; i++) {
+			const c = text.charCodeAt(i)
+			const isHighSurrogate = c >= 0xd800 && c <= 0xdbff
+			const hasLowSurrogate =
+				isHighSurrogate &&
+				i + 1 < text.length &&
+				text.charCodeAt(i + 1) >= 0xdc00 &&
+				text.charCodeAt(i + 1) <= 0xdfff
+
+			const eventsNeeded = hasLowSurrogate ? 4 : 2
+
+			// Flush current batch if adding these events would exceed the 1000 event limit
+			if (currentBatch.length + eventsNeeded > MAX_INPUT_EVENTS_PER_BATCH) {
+				if (!this.sendInput(currentBatch)) return
+				currentBatch = []
+			}
+
+			if (hasLowSurrogate) {
+				const low = text.charCodeAt(i + 1)
+				currentBatch.push(
+					{
+						type: INPUT_KEYBOARD,
+						u: {
+							ki: {
+								wVk: 0,
+								wScan: c,
+								dwFlags: KEYEVENTF_UNICODE,
+							},
 						},
 					},
-				},
-				{
-					type: INPUT_KEYBOARD,
-					u: {
-						ki: {
-							wVk: 0,
-							wScan: c,
-							dwFlags: KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
+					{
+						type: INPUT_KEYBOARD,
+						u: {
+							ki: {
+								wVk: 0,
+								wScan: c,
+								dwFlags: KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
+							},
 						},
 					},
-				},
-			])
+					{
+						type: INPUT_KEYBOARD,
+						u: {
+							ki: {
+								wVk: 0,
+								wScan: low,
+								dwFlags: KEYEVENTF_UNICODE,
+							},
+						},
+					},
+					{
+						type: INPUT_KEYBOARD,
+						u: {
+							ki: {
+								wVk: 0,
+								wScan: low,
+								dwFlags: KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
+							},
+						},
+					},
+				)
+				i++
+			} else {
+				currentBatch.push(
+					{
+						type: INPUT_KEYBOARD,
+						u: {
+							ki: {
+								wVk: 0,
+								wScan: c,
+								dwFlags: KEYEVENTF_UNICODE,
+							},
+						},
+					},
+					{
+						type: INPUT_KEYBOARD,
+						u: {
+							ki: {
+								wVk: 0,
+								wScan: c,
+								dwFlags: KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
+							},
+						},
+					},
+				)
+			}
+		}
+
+		if (currentBatch.length > 0) {
+			this.sendInput(currentBatch)
 		}
 	}
 
-	private sendInput(events: WindowsInput[]): void {
+	private sendInput(events: WindowsInput[]): boolean {
 		if (events.length === 0) {
 			console.warn("[SendInput] No events to send")
-			return
+			return false
 		}
 
-		const result = sendInput(events)
+		let remaining = events
+		while (remaining.length > 0) {
+			const result = sendInput(remaining)
+			if (result === remaining.length) return true
 
-		if (result !== events.length) {
 			console.error(
 				"[SendInput] SendInput failed! Sent:",
 				result,
 				"of",
-				events.length,
+				remaining.length,
 			)
+			if (result <= 0) return false
+			remaining = remaining.slice(result)
 		}
+
+		return true
 	}
 }
