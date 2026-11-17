@@ -104,6 +104,7 @@ export class GstManager {
 			const sink = execSync("pactl get-default-sink", {
 				encoding: "utf-8",
 				stdio: ["ignore", "pipe", "ignore"],
+				timeout: 2000,
 			}).trim()
 			if (sink) {
 				logger.info(`Detected default audio sink: ${sink}`)

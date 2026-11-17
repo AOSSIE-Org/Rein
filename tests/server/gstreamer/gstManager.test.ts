@@ -94,6 +94,7 @@ describe("GstManager - Audio source detection on Linux", () => {
 				"pactl get-default-sink",
 				expect.objectContaining({
 					encoding: "utf-8",
+					timeout: 2000,
 				}),
 			)
 			expect(blocks).toEqual([
