@@ -97,10 +97,11 @@ function isPathSafe(targetPath: string): boolean {
 	const normHome = isWindows ? homeDir.toLowerCase() : homeDir
 	const normUpload = isWindows ? uploadDir.toLowerCase() : uploadDir
 
+	const withSep = (p: string) => (p.endsWith(path.sep) ? p : p + path.sep)
 	const isInsideHome =
-		normTarget === normHome || normTarget.startsWith(normHome + path.sep)
+		normTarget === normHome || normTarget.startsWith(withSep(normHome))
 	const isInsideUpload =
-		normTarget === normUpload || normTarget.startsWith(normUpload + path.sep)
+		normTarget === normUpload || normTarget.startsWith(withSep(normUpload))
 
 	return isInsideHome || isInsideUpload
 }
