@@ -1,7 +1,7 @@
 import { execSync, spawnSync } from "node:child_process"
 import os from "node:os"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { GstManager, probeGstreamer } from "./gstManager.ts"
+import { GstManager, probeGstreamer } from "@/server/gstreamer/gstManager.ts"
 
 vi.mock("node:child_process", () => ({
 	spawn: vi.fn(),
@@ -9,7 +9,7 @@ vi.mock("node:child_process", () => ({
 	execSync: vi.fn(),
 }))
 
-vi.mock("../../utils/logger.ts", () => ({
+vi.mock("@/utils/logger.ts", () => ({
 	default: {
 		info: vi.fn(),
 		warn: vi.fn(),
@@ -18,7 +18,7 @@ vi.mock("../../utils/logger.ts", () => ({
 	},
 }))
 
-vi.mock("../../utils/configHelper.ts", () => ({
+vi.mock("@/utils/configHelper.ts", () => ({
 	loadServerConfig: vi.fn(() => ({})),
 }))
 
@@ -135,3 +135,4 @@ describe("GstManager - Audio source detection on Linux", () => {
 		expect(blocks).toEqual(["customaudiosrc", "device=hw:0"])
 	})
 })
+
