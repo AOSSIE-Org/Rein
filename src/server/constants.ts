@@ -25,3 +25,4 @@ export const ICE_PORT_MAX = 4050
 export const RTP_HOST = "127.0.0.1"
 export const RTP_PORT = 5004
 export const RTP_PORT_AUDIO = 5006
+export const GAMEPAD_AXIS_MAX = 32767

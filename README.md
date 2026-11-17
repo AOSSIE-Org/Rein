@@ -6,9 +6,15 @@ Rein is a **cross-platform remote desktop tool** with a browser-based client for
 
 Rein provides remote desktop interaction, real-time screen streaming, file transfer, and input support through a single interface.
 
+## Platform Support
+
+* **Windows & Linux** — First-party supported and prioritised platforms, reflecting the maintainers' primary usage and testing access.
+* **macOS** — Experimental and best-effort support. macOS is not currently a first-party priority, and compatibility or maintenance may be limited. Input injection requires Accessibility permissions (see [Testing Rein on Virtual Machines → macOS](#macos)).
+* **Sponsorship** — Community funding or hardware sponsorship for macOS is welcome to help provide dedicated testing devices, ongoing maintenance, and sustained platform support.
+
 ## Features
 
-* **Cross-platform server** - Run the Rein server on a variety of supported desktop platforms.
+* **Cross-platform server** - Run the Rein server on a variety of supported desktop platforms (see [Platform Support](#platform-support)).
 * **Browser-based client** - Connect from any modern browser with no native client required.
 * **Multi-client support** - Connect multiple clients to a single host.
 * **Flexible input** - Supports keyboard, mouse, and touchscreen input.
@@ -109,6 +115,10 @@ Rein uses **WebRTC** for real-time communication instead of implementing a custo
 > **For Windows (Virtual Gamepad)**
 >
 > Virtual gamepad emulation requires the [ViGEmBus](https://github.com/nefarius/ViGEmBus/releases) kernel driver installed on the host machine. If ViGEmBus is not installed, virtual controller input injection will be disabled.
+>
+> **For macOS**
+>
+> macOS support is experimental and best-effort, as it is not currently a first-party priority; sustained support and testing depend on community sponsorship. Input injection requires Accessibility permissions granted to your terminal or IDE under **System Settings → Privacy & Security → Accessibility**.
 
 ### Prerequisites - GStreamer
 
