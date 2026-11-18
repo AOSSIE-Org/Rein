@@ -51,15 +51,22 @@ function multipartUpload(name: string): IncomingMessage {
 class FakeResponse extends EventEmitter {
 	statusCode = 0
 	writes: string[] = []
+	ended = false
+	/** Make writes of `data:` events throw, like a socket that has gone away. */
+	failDataWrites = false
 	writeHead(status: number) {
 		this.statusCode = status
 		return this
 	}
 	write(chunk: string) {
+		if (this.failDataWrites && String(chunk).startsWith("data: ")) {
+			throw new Error("socket closed")
+		}
 		this.writes.push(String(chunk))
 		return true
 	}
 	end(chunk?: string) {
+		this.ended = true
 		if (chunk) this.writes.push(String(chunk))
 	}
 	/** The JSON `data:` events written to the stream, in order. */
@@ -160,5 +167,20 @@ describe("file share event stream", () => {
 		const types = res.events().map((e) => e.type)
 		expect(types).toEqual(["snapshot", "incoming-file", "file-deleted"])
 		expect(res.events()[1].fileId).toBe(added)
+	})
+
+	it("ends the stream when the snapshot cannot be written, so the client reconnects", async () => {
+		await upload("x.txt")
+		const res = new FakeResponse()
+		res.failDataWrites = true
+		streams.push(res)
+
+		handleFileEvents(loopbackRequest("/api/files/events"), asResponse(res))
+		expect(res.ended).toBe(true)
+
+		// It was not left subscribed: a later upload is not written to it.
+		res.failDataWrites = false
+		await upload("y.txt")
+		expect(res.events()).toEqual([])
 	})
 })

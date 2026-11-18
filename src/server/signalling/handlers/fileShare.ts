@@ -410,6 +410,9 @@ export function handleFileEvents(
 	try {
 		res.write(`data: ${JSON.stringify({ type: "snapshot", files })}\n\n`)
 	} catch {
+		// End the stream so the client reconnects instead of waiting on one
+		// that never gets the snapshot or later events.
+		res.end()
 		return
 	}
 
