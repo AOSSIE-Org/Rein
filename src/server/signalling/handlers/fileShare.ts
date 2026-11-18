@@ -397,8 +397,9 @@ export function handleFileEvents(
 	})
 	res.write(": connected\n\n")
 
-	const existing = [...fileStore.values()].map((f) => ({
-		type: "incoming-file" as const,
+	// One snapshot of the whole list, so a client that reconnects replaces its
+	// list instead of keeping files deleted or lost while it was away.
+	const files = [...fileStore.values()].map((f) => ({
 		fileId: f.id,
 		name: f.name,
 		size: f.size,
@@ -406,12 +407,10 @@ export function handleFileEvents(
 		uploadedAt: f.uploadedAt,
 		uploadedBy: f.uploadedBy,
 	}))
-	for (const ev of existing) {
-		try {
-			res.write(`data: ${JSON.stringify(ev)}\n\n`)
-		} catch {
-			break
-		}
+	try {
+		res.write(`data: ${JSON.stringify({ type: "snapshot", files })}\n\n`)
+	} catch {
+		return
 	}
 
 	notifyClients.add(res)
