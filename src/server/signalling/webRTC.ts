@@ -227,18 +227,19 @@ export class WebRTCManager {
 		}
 		this.clients.set(sessionId, session)
 
-		let handshakeTimer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
-			handshakeTimer = null
-			if (
-				session.pc.iceConnectionState !== "connected" &&
-				session.pc.iceConnectionState !== "completed"
-			) {
-				logger.warn(
-					`WebRTC handshake timed out for session: ${sessionId}`,
-				)
-				cleanupSession(this.clients, sessionId)
-			}
-		}, 30_000)
+		let handshakeTimer: ReturnType<typeof setTimeout> | null = setTimeout(
+			() => {
+				handshakeTimer = null
+				if (
+					session.pc.iceConnectionState !== "connected" &&
+					session.pc.iceConnectionState !== "completed"
+				) {
+					logger.warn(`WebRTC handshake timed out for session: ${sessionId}`)
+					cleanupSession(this.clients, sessionId)
+				}
+			},
+			30_000,
+		)
 		handshakeTimer.unref()
 
 		// Flush errors that fired before the session was registered
