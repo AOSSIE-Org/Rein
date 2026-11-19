@@ -5,23 +5,61 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const DAY = 24 * 60 * 60 * 1000
 
+// Wraps the fs calls tokenStore uses so tests can observe every save, wait for
+// them to finish, and hold a write open to create a deterministic race window.
+const fsState = vi.hoisted(() => ({
+	active: 0,
+	snapshots: [] as string[],
+	gate: null as Promise<void> | null,
+}))
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("node:fs/promises")>()
+	return {
+		...actual,
+		mkdir: (...args: Parameters<typeof actual.mkdir>) => {
+			fsState.active++
+			return actual.mkdir(...args).catch((e) => {
+				fsState.active--
+				throw e
+			})
+		},
+		writeFile: async (...args: Parameters<typeof actual.writeFile>) => {
+			fsState.snapshots.push(String(args[1]))
+			try {
+				await actual.writeFile(...args)
+				const gate = fsState.gate
+				fsState.gate = null
+				if (gate) await gate
+			} finally {
+				fsState.active--
+			}
+		},
+	}
+})
+
 describe("tokenStore", () => {
 	let dir: string
 
 	beforeEach(() => {
 		dir = fs.mkdtempSync(path.join(os.tmpdir(), "rein-tokens-"))
 		process.env.REIN_DATA_DIR = dir
+		fsState.active = 0
+		fsState.snapshots = []
+		fsState.gate = null
 		vi.resetModules()
 	})
 
-	afterEach(() => {
+	afterEach(async () => {
+		// Let every in-flight save and queued follow-up finish before cleanup.
+		await settled()
 		vi.useRealTimers()
 		Reflect.deleteProperty(process.env, "REIN_DATA_DIR")
 		fs.rmSync(dir, { recursive: true, force: true })
 	})
 
 	const load = () => import("../../src/server/tokenStore.ts")
-	const flush = () => new Promise((r) => setTimeout(r, 50))
+	const settled = () => vi.waitFor(() => expect(fsState.active).toBe(0))
 	const readSaved = () =>
 		JSON.parse(fs.readFileSync(path.join(dir, "tokens.json"), "utf-8")) as {
 			token: string
@@ -50,14 +88,14 @@ describe("tokenStore", () => {
 		const store = await load()
 		store.storeToken("same-token")
 		store.storeToken("same-token")
-		await flush()
+		await settled()
 		expect(readSaved()).toHaveLength(1)
 	})
 
 	it("persists tokens and reloads them on startup", async () => {
 		const store = await load()
 		store.storeToken("persisted-token")
-		await flush()
+		await settled()
 		vi.resetModules()
 		const reloaded = await load()
 		expect(reloaded.isKnownToken("persisted-token")).toBe(true)
@@ -113,14 +151,21 @@ describe("tokenStore", () => {
 	})
 
 	it("does not lose a forced save requested while another is in flight", async () => {
+		let release: () => void = () => {}
+		fsState.gate = new Promise<void>((r) => {
+			release = r
+		})
 		const store = await load()
-		store.storeToken("a") // starts a save
-		store.storeToken("b") // requested while the first save is still running
-		await flush()
-		expect(
-			readSaved()
-				.map((t) => t.token)
-				.sort(),
-		).toEqual(["a", "b"])
+		store.storeToken("a")
+		// The first write has captured a snapshot with only "a" and is held open.
+		await vi.waitFor(() => expect(fsState.snapshots).toHaveLength(1))
+		store.storeToken("b") // requested while the first save is in flight
+		release()
+		await vi.waitFor(() => expect(fsState.snapshots).toHaveLength(2))
+
+		const tokens = (raw: string) =>
+			(JSON.parse(raw) as { token: string }[]).map((t) => t.token)
+		expect(tokens(fsState.snapshots[0])).toEqual(["a"])
+		expect(tokens(fsState.snapshots[1])).toEqual(["a", "b"])
 	})
 })

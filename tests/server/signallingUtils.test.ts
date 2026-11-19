@@ -77,6 +77,12 @@ describe("requireAuth", () => {
 		})
 		expect(auth(bad)).toBe(true)
 	})
+
+	it("returns 401 when the request URL cannot be parsed", () => {
+		// An unclosed IPv6 host makes URL parsing throw, exercising the catch.
+		expect(() => auth(fakeReq({ url: "http://[" }))).not.toThrow()
+		expect(res.status).toBe(401)
+	})
 })
 
 describe("parseJsonBody", () => {
