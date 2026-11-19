@@ -51,8 +51,15 @@ export function requireAuth(
 		: null
 
 	if (!token) {
-		const url = new URL(req.url ?? "", `http://${req.headers.host}`)
-		token = url.searchParams.get("token")
+		// The base is a placeholder: a missing or malformed Host header must not
+		// make URL parsing throw.
+		try {
+			token = new URL(req.url ?? "", "http://localhost").searchParams.get(
+				"token",
+			)
+		} catch {
+			token = null
+		}
 	}
 
 	if (!token || !isKnownToken(token)) {
