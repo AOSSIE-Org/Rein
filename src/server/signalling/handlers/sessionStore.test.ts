@@ -41,7 +41,9 @@ function makeSession(): ClientSession {
 		} as unknown as ClientSession["pc"],
 		videoTrack: {} as ClientSession["videoTrack"],
 		audioTrack: {} as ClientSession["audioTrack"],
-		inputHandler: { destroy: vi.fn() } as unknown as ClientSession["inputHandler"],
+		inputHandler: {
+			destroy: vi.fn(),
+		} as unknown as ClientSession["inputHandler"],
 		sessionId: "session-1",
 		bytesRecv: 12,
 		bytesSent: 34,
@@ -89,9 +91,7 @@ describe("sessionStore lifecycle and SSE delivery", () => {
 
 		pushSessionEvent(clients, "session-1", event)
 
-		expect(response.writes).toEqual([
-			"data: " + JSON.stringify(event) + "\n\n",
-		])
+		expect(response.writes).toEqual([`data: ${JSON.stringify(event)}\n\n`])
 		expect(client.pendingEvents).toEqual([])
 	})
 
@@ -112,14 +112,18 @@ describe("sessionStore lifecycle and SSE delivery", () => {
 
 	it("flushes queued events, keeps the connection alive, and cleans up on close", () => {
 		const client = makeSession()
-		const event = { type: "error" as const, errorType: "ice", message: "queued" }
+		const event = {
+			type: "error" as const,
+			errorType: "ice",
+			message: "queued",
+		}
 		client.pendingEvents.push(event)
 		const response = new FakeResponse()
 
 		attachSessionSse(client, response as unknown as ServerResponse)
 		expect(response.writes).toEqual([
 			": connected\n\n",
-			"data: " + JSON.stringify(event) + "\n\n",
+			`data: ${JSON.stringify(event)}\n\n`,
 		])
 		expect(client.pendingEvents).toEqual([])
 		expect(client.sessionSseRes).toBe(response)
@@ -169,7 +173,8 @@ describe("sessionStore lifecycle and SSE delivery", () => {
 		])
 
 		response.writableEnded = true
-		expect(snapshotSessions(new Map([["session-1", client]]))[0].hasSseConnection)
-			.toBe(false)
+		expect(
+			snapshotSessions(new Map([["session-1", client]]))[0].hasSseConnection,
+		).toBe(false)
 	})
 })
