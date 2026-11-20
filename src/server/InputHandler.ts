@@ -21,6 +21,13 @@ import type { InputConfig, InputMessage, PlatformInjector } from "./types.ts"
 const VALID_BUTTONS = ["left", "right", "middle"] as const
 type MouseButton = (typeof VALID_BUTTONS)[number]
 
+/** Wheel steps per pixel of change in pinch distance. */
+const ZOOM_SCALE = 0.5
+/** Largest wheel step a single pinch event may produce. */
+const MAX_ZOOM_STEP = 5
+/** A pause longer than this starts a new pinch and drops any leftover fraction. */
+const ZOOM_IDLE_RESET_MS = 300
+
 export class InputHandler {
 	private injector: PlatformInjector
 	private platform: "win32" | "linux" | "darwin" | "other"
@@ -37,6 +44,8 @@ export class InputHandler {
 	private lsTimer: ReturnType<typeof setTimeout> | null = null
 	private rsTimer: ReturnType<typeof setTimeout> | null = null
 	private throttleMs: number
+	private zoomRemainder = 0
+	private lastZoomTime = 0
 	private onError?: (errorType: string, message: string) => void
 
 	private config: InputConfig = {
@@ -243,6 +252,34 @@ export class InputHandler {
 		return false
 	}
 
+	/**
+	 * Convert a pinch delta (change in finger distance, in px) into whole
+	 * Ctrl+wheel steps, carrying the fractional remainder over to the next event.
+	 *
+	 * Without the carry, every event below the rounding threshold was dropped, so
+	 * a slow pinch never zoomed. The remainder is reset when the pinch changes
+	 * direction or after a pause, so a new gesture never starts from leftovers.
+	 *
+	 * @returns The wheel amount to inject (negative zooms in), or 0.
+	 */
+	private accumulateZoom(delta: number): number {
+		const now = Date.now()
+		const step =
+			Math.sign(delta) * Math.min(Math.abs(delta) * ZOOM_SCALE, MAX_ZOOM_STEP)
+		if (
+			now - this.lastZoomTime > ZOOM_IDLE_RESET_MS ||
+			Math.sign(step) !== Math.sign(this.zoomRemainder)
+		) {
+			this.zoomRemainder = 0
+		}
+		this.lastZoomTime = now
+		this.zoomRemainder += step
+		const whole = Math.trunc(this.zoomRemainder)
+		this.zoomRemainder -= whole
+		// Positive delta (fingers apart) zooms in, which is a negative wheel amount.
+		return whole === 0 ? 0 : -whole
+	}
+
 	private dispatch(msg: InputMessage): void {
 		switch (msg.type) {
 			case "move": {
@@ -277,14 +314,13 @@ export class InputHandler {
 
 			case "zoom": {
 				if (!Number.isFinite(msg.delta) || msg.delta === 0) break
-				const MAX_ZOOM_STEP = 5
-				const delta = msg.delta ?? 0
-				const scaled =
-					Math.sign(delta) * Math.min(Math.abs(delta) * 0.5, MAX_ZOOM_STEP)
-				const amount = Math.round(-scaled)
+				const amount = this.accumulateZoom(msg.delta ?? 0)
 				if (amount !== 0) {
+					// The drivers apply invertScroll inside injectMouseWheel. That is a
+					// scroll preference and must not flip the pinch direction, so cancel it.
+					const wheel = this.config.invertScroll ? -amount : amount
 					this.injector.injectKey("control", "HOLD")
-					this.injector.injectMouseWheel(0, amount)
+					this.injector.injectMouseWheel(0, wheel)
 					this.injector.injectKey("control", "RELEASE")
 				}
 				break
