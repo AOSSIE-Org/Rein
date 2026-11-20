@@ -73,9 +73,13 @@ describe("RTC signaling HTTP handlers", () => {
 	it("returns 503 when the WebRTC engine is unavailable", async () => {
 		const response = new FakeResponse()
 
-		handleOffer(makeRequest("/api/rtc/offer"), response as unknown as ServerResponse, {
-			webrtcManager: null,
-		})
+		handleOffer(
+			makeRequest("/api/rtc/offer"),
+			response as unknown as ServerResponse,
+			{
+				webrtcManager: null,
+			},
+		)
 
 		expect(await readResponse(response)).toEqual({
 			status: 503,
@@ -111,9 +115,13 @@ describe("RTC signaling HTTP handlers", () => {
 		manager.handleOffer.mockRejectedValue(new Error("unexpected"))
 		const response = new FakeResponse()
 
-		handleOffer(makeRequest("/api/rtc/offer"), response as unknown as ServerResponse, {
-			webrtcManager: asManager(manager),
-		})
+		handleOffer(
+			makeRequest("/api/rtc/offer"),
+			response as unknown as ServerResponse,
+			{
+				webrtcManager: asManager(manager),
+			},
+		)
 
 		expect(await readResponse(response)).toEqual({
 			status: 500,
@@ -194,7 +202,10 @@ describe("RTC signaling HTTP handlers", () => {
 		const response = new FakeResponse()
 
 		handleIce(
-			makeRequest("/api/rtc/ice", JSON.stringify({ sessionId: "s1", candidate })),
+			makeRequest(
+				"/api/rtc/ice",
+				JSON.stringify({ sessionId: "s1", candidate }),
+			),
 			response as unknown as ServerResponse,
 			{ webrtcManager: asManager(manager) },
 		)
@@ -245,7 +256,10 @@ describe("RTC signaling HTTP handlers", () => {
 		const response = new FakeResponse()
 
 		handleSessionDelete(
-			makeRequest("/api/rtc/session?token=from-query", JSON.stringify({ sessionId: "s1" })),
+			makeRequest(
+				"/api/rtc/session?token=from-query",
+				JSON.stringify({ sessionId: "s1" }),
+			),
 			response as unknown as ServerResponse,
 			{ webrtcManager: asManager(manager) },
 		)
