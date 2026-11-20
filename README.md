@@ -253,11 +253,15 @@ Port `5004/UDP` is an internal loopback relay between GStreamer and Rein and mus
 
 ### 2. Connect Through a Browser
 
-Open the Rein server from a browser using:
+Connecting is as simple as scanning a QR code. On the PC running Rein, open the Settings page:
 
 ```text
-http://<YOUR_PC_IP>:3000
+http://localhost:3000/settings
 ```
+
+You'll see a QR code there. Scan it with your phone (or copy the connection link shown there to any device on the same network), and the trackpad opens right in the browser.
+
+The QR code carries a small access token that tells Rein this device is yours, so nobody else on your network can control your PC. That's also why opening the Rein address directly on a new device shows "Disconnected from host": scan the QR code first.
 
 The client does not require a separate installation.
 
