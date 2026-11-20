@@ -19,6 +19,7 @@ Run the ones for the areas you touched. CI runs the check column; use the fix co
 |---|---|---|
 | Biome lint & format | `npm run check` | `npm run check:fix` |
 | Pre-dev auto-format | — | `npm run predev` |
+| TypeScript typecheck | `npm run typecheck` | — |
 | Unit tests | `npm run test` | — |
 | Web production build | `npm run build` | — |
 | Electron development | `npm run electron-dev` | — |
@@ -73,4 +74,4 @@ Contribution workflow
 Definition of done
 ## Definition of done
 
-A change is not finished until the relevant checks pass locally. At minimum, run `npm run check` and `npm run test`. If you changed the web application or production build configuration, also run `npm run build`. If you touched input drivers, gestures, or WebRTC signaling, test end-to-end via QR code scan on a mobile device or VM.
+A change is not finished until the relevant checks pass locally. At minimum, run `npm run check`, `npm run typecheck` and `npm run test`. If you changed the web application or production build configuration, also run `npm run build`. If you touched input drivers, gestures, or WebRTC signaling, test end-to-end via QR code scan on a mobile device or VM.

@@ -1,10 +1,11 @@
-import { EventEmitter } from "node:events"
-import { spawn } from "node:child_process"
+import { ChildProcess, spawn } from "node:child_process"
 import os from "node:os"
+import { PassThrough } from "node:stream"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { getSystemClipboard, setSystemClipboard } from "@/server/clipboard.ts"
 
-vi.mock("node:child_process", () => ({
+vi.mock("node:child_process", async (importOriginal) => ({
+	...(await importOriginal<typeof import("node:child_process")>()),
 	spawn: vi.fn(),
 }))
 
@@ -14,12 +15,13 @@ vi.mock("node:os", () => ({
 	},
 }))
 
-interface MockChildProcess extends EventEmitter {
-	stdout: EventEmitter
-	stdin: {
-		on: ReturnType<typeof vi.fn>
-		end: ReturnType<typeof vi.fn>
-	}
+/**
+ * A real ChildProcess (so every member is typed by Node's own declarations)
+ * with the streams clipboard.ts uses replaced by non-null PassThrough streams.
+ */
+class MockChildProcess extends ChildProcess {
+	override stdout = new PassThrough()
+	override stdin = new PassThrough()
 }
 
 function createMockProcess(options: {
@@ -28,12 +30,8 @@ function createMockProcess(options: {
 	failError?: Error | null
 }) {
 	const { stdoutData = "", exitCode = 0, failError = null } = options
-	const proc = new EventEmitter() as unknown as MockChildProcess
-	proc.stdout = new EventEmitter()
-	proc.stdin = {
-		on: vi.fn(),
-		end: vi.fn(),
-	}
+	const proc = new MockChildProcess()
+	vi.spyOn(proc.stdin, "end")
 
 	setTimeout(() => {
 		if (failError) {
