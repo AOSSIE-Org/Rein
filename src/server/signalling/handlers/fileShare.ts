@@ -34,6 +34,13 @@ const notifyClients = new Set<ServerResponse>()
 
 const MAX_FILE_BYTES = 512 * 1024 * 1024 // 512 MB hard ceiling
 
+class PayloadTooLargeError extends Error {
+	constructor() {
+		super(`File exceeds ${MAX_FILE_BYTES / (1024 * 1024)} MB limit`)
+		this.name = "PayloadTooLargeError"
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
@@ -102,20 +109,34 @@ function parseMultipart(
 		}
 		const boundary = `--${boundaryValue}`
 
+		const declaredLength = Number(req.headers["content-length"])
+		if (declaredLength > MAX_FILE_BYTES) {
+			// Drain (not destroy) so the client finishes sending and can read the 413.
+			req.resume()
+			reject(new PayloadTooLargeError())
+			return
+		}
+
 		const chunks: Buffer[] = []
 		let totalSize = 0
+		let aborted = false
 
 		req.on("data", (chunk: Buffer) => {
+			if (aborted) return
 			totalSize += chunk.length
 			if (totalSize > MAX_FILE_BYTES) {
-				req.destroy()
-				reject(new Error("File too large"))
+				// Keep draining instead of destroying the socket, otherwise the
+				// client gets a connection reset and never sees the 413.
+				aborted = true
+				chunks.length = 0
+				reject(new PayloadTooLargeError())
 				return
 			}
 			chunks.push(chunk)
 		})
 
 		req.on("end", () => {
+			if (aborted) return
 			try {
 				const body = Buffer.concat(chunks)
 				const bodyStr = body.toString("binary")
@@ -214,6 +235,10 @@ export async function handleFileUpload(
 		json(res, 200, { ok: true, fileId: id, path: filePath })
 	} catch (err) {
 		logger.error(`File upload error: ${String(err)}`)
+		if (err instanceof PayloadTooLargeError) {
+			json(res, 413, { ok: false, error: err.message })
+			return
+		}
 		json(res, 400, { ok: false, error: String(err) })
 	}
 }

@@ -34,6 +34,7 @@ const EXPIRY_MS = 10 * 24 * 60 * 60 * 1000 // 10 days
 let tokens: TokenEntry[] = []
 let lastSaveTime = 0
 let isSaving = false
+let pendingSave = false
 const SAVE_THROTTLE_MS = 60 * 1000 // 1 minute
 
 function validateTokens(data: unknown): TokenEntry[] {
@@ -60,7 +61,11 @@ function load(): void {
 async function save(force = false): Promise<void> {
 	const now = Date.now()
 	if (!force && now - lastSaveTime < SAVE_THROTTLE_MS) return
-	if (isSaving) return
+	if (isSaving) {
+		// A save is in flight; re-run afterwards so the latest state is persisted.
+		pendingSave = true
+		return
+	}
 
 	isSaving = true
 	try {
@@ -74,6 +79,10 @@ async function save(force = false): Promise<void> {
 		console.error("Failed to persist tokens:", e)
 	} finally {
 		isSaving = false
+		if (pendingSave) {
+			pendingSave = false
+			void save(true)
+		}
 	}
 }
 
