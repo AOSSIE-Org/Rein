@@ -1,10 +1,10 @@
-<img width="1915" height="718" alt="Group 13" src="https://github.com/user-attachments/assets/f1560464-bd32-455b-b5a5-a8bfdb76e1f4" />
+<img width="1915" height="718" alt="Rein remote desktop banner showing desktop host and mobile browser client" src="https://github.com/user-attachments/assets/f1560464-bd32-455b-b5a5-a8bfdb76e1f4" />
 
 # What's Rein
 
-Rein is a **cross-platform remote desktop tool** with a browser-based client for both **Touch Screen** as well as non-touch devices. The desktop server runs on supported host platforms, while clients connect through a web browser without requiring a separate native application.
+Rein is a **cross-platform remote desktop tool** with a browser-based client for both **touchscreen** and non-touch devices. The desktop server runs on supported host platforms, while clients connect through a web browser over your local network without installing separate client applications.
 
-Rein provides remote desktop interaction, real-time screen streaming, file transfer, and input support through a single interface.
+Rein provides screen mirroring, mouse and keyboard control, touch gestures, a virtual gamepad, clipboard copy and paste, and file sharing through a browser-based interface.
 
 ## Platform Support
 
@@ -14,22 +14,106 @@ Rein provides remote desktop interaction, real-time screen streaming, file trans
 
 ## Features
 
-* **Cross-platform server** - Run the Rein server on a variety of supported desktop platforms (see [Platform Support](#platform-support)).
-* **Browser-based client** - Connect from any modern browser with no native client required.
-* **Multi-client support** - Connect multiple clients to a single host.
-* **Flexible input** - Supports keyboard, mouse, and touchscreen input.
-* **Real-time streaming** - Stream the host's screen using WebRTC.
-* **File transfer** - Transfer files between the host and connected clients.
-* **Cloud-ready interface** - Provides a standardized interface for cloud PC and cloud gaming providers.
-* **Cross-platform input injection** - Uses Rein's input injection library for platform-specific system input, including support for environments such as Wayland.
+Rein runs on a host computer and lets other devices on the same local
+network view and control its desktop through a browser. You can use a
+phone as a wireless trackpad or keyboard, view the desktop from another
+computer, or use the on-screen gamepad for supported games. Connected
+clients share the host's existing desktop session.
+
+### Screen mirroring and audio
+
+- **Desktop streaming:** View and control the host's existing desktop
+  through a browser. Rein uses GStreamer for screen capture and H.264
+  encoding, and WebRTC to deliver video to connected clients. Capture
+  support includes Windows (DXGI), Linux (X11 or PipeWire/XDG Desktop
+  Portal on Wayland), and experimental macOS support (AVFoundation).
+- **Stream settings:** Choose Performance, Balanced, or Quality and set
+  a target of 24, 30, 60, or 120 FPS, or leave the frame rate unlimited.
+  These options are available in the host settings.
+- **Viewing controls:** Show or hide the mirrored view, enter full-screen
+  mode, and mute or unmute playback without disabling remote input.
+- **Host audio:** On Windows and Linux, Rein can stream desktop audio
+  alongside video using Opus. Browser playback initially starts muted
+  because of autoplay restrictions. On experimental macOS builds, the
+  default audio source is not a desktop loopback source, so capturing
+  system sound requires additional audio routing and configuration.
+
+> [!NOTE]
+> Rein currently mirrors the host's existing desktop. An independent
+> workspace or extended-desktop mode is
+> [proposed in #462](https://github.com/AOSSIE-Org/Rein/issues/462),
+> but is not available as a current feature.
+
+### Mouse, touch, and keyboard
+
+- **Trackpad and direct touch:** Move the pointer with relative trackpad
+  gestures or tap the mirrored screen to click at a specific position.
+  A desktop mouse can also be used with pointer lock.
+- **Touch gestures:** Tap with one, two, or three fingers for left,
+  right, or middle click; use two fingers to scroll, pinch to zoom,
+  or double-tap and drag. A separate scroll mode supports one-finger
+  scrolling. Pointer sensitivity and scroll direction can be adjusted.
+- **Keyboard input:** Type using a mobile on-screen keyboard, including
+  IME composition, or use a physical keyboard from a desktop browser.
+  The on-screen key dock includes sticky modifiers for shortcuts,
+  navigation keys, F1–F12, and media controls.
+
+### Virtual gamepad
+
+- **On-screen controls:** Use two analog sticks with stick clicks, a
+  D-pad, face buttons, shoulder buttons, triggers, and Start/Select.
+- **Adjustable layout:** Move and resize control groups to suit your
+  device. Layout preferences are saved in the browser.
+- **Host support:** Windows virtual Xbox 360 controller input requires
+  ViGEmBus. Linux virtual joystick input requires access to
+  `/dev/uinput`.
+
+### Clipboard and file sharing
+
+- **Clipboard text:** Copy text from the host clipboard to the browser's
+  clipboard, or paste text from the client clipboard into the host.
+  Client-to-host clipboard reading depends on browser permissions and
+  a secure context. If reading is unavailable, the Paste button uses
+  the host's existing clipboard rather than transferring client text.
+- **Shared files:** Browse the host's configured shared directory,
+  upload files with a picker or drag-and-drop (up to 512 MB per file),
+  and download files to the client. The file list updates when files
+  are added or removed. Uploaded files remain until removed manually.
+
+### Connecting and personalizing Rein
+
+- **Browser pairing:** Install Rein on the host, then connect a phone,
+  tablet, or computer on the same local network without installing a
+  separate client. The host settings show a QR code and connection link
+  containing an access token; multiple clients can connect to the same
+  host desktop.
+- **Client settings:** Choose from eight light and dark themes, adjust
+  pointer sensitivity and scroll direction, customize the gamepad,
+  and control audio, mirror visibility, and Keep Awake. Screen wake lock
+  depends on browser support.
+- **Host settings:** Change the server port, shared directory, stream
+  quality, and frame-rate limit. Some changes require a host restart.
+  Windows and Linux are Rein's first-party priorities; macOS support
+  remains experimental and best-effort.
+
+For installation requirements and connection steps, see
+[Development Setup](#development-setup),
+[Prerequisites: GStreamer](#prerequisites-gstreamer), and
+[Connecting a Client](#connecting-a-client).
+
+### Diagnostics and troubleshooting
+
+Rein's `/debug` page shows session and connection status,
+network throughput and latency charts, and server/client logs with
+filtering and copying tools. You can also consult the
+[architecture documentation](https://github.com/AOSSIE-Org/Rein/wiki)
+for more detail about the host, browser client, and streaming system.
 
 ## Technical Overview
 
-Rein is designed to provide a common interface between a desktop environment and browser-based clients. This makes it suitable not only for direct remote desktop use, but also as an interface layer for **cloud PC and cloud gaming providers**.
+Rein separates the browser-based client from the host-side services. The host manages screen capture, remote input, and connections, while connected browsers provide the interface for viewing and controlling the desktop.
 
-The client is entirely browser-based, so providers can expose Rein without requiring users to install or maintain a separate native client application.
-
-Multiple clients can connect to the same server, with the server coordinating communication and input between connected clients.
+Multiple clients can connect to the same host and interact with its existing desktop session.
 
 ## Input
 
@@ -39,10 +123,10 @@ Rein supports multiple forms of remote input, including:
 
 <table>
 <tr>
-<td align="center" ><img width="180" height="139" alt="Trackpad" src="https://github.com/user-attachments/assets/1f74a40d-69de-45d7-a878-335c18fa2774" /></td>
-<td align="center"><img width="180" height="139" alt="Keyboard and Mouse" src="https://github.com/user-attachments/assets/6c9e0c38-3544-42c1-885e-b77354a6246e" /></td>
-<td align="center"><img width="180" height="139" alt="Touch" src="https://github.com/user-attachments/assets/477eeaa6-22ce-4fa8-90d1-8d5e58ddeabb" /></td>
-<td align="center"><img width="180" height="139" alt="Virtual Gamepad" src="https://github.com/user-attachments/assets/a332ac8e-89bd-4fed-977b-c13ef2c96b05" /></td>
+<td align="center" ><img width="180" height="139" alt="Trackpad interface showing touch gesture area and quick action controls" src="https://github.com/user-attachments/assets/1f74a40d-69de-45d7-a878-335c18fa2774" /></td>
+<td align="center"><img width="180" height="139" alt="Keyboard and mouse input options with physical and on-screen controls" src="https://github.com/user-attachments/assets/6c9e0c38-3544-42c1-885e-b77354a6246e" /></td>
+<td align="center"><img width="180" height="139" alt="Direct touch screen interaction mapping taps to desktop coordinates" src="https://github.com/user-attachments/assets/477eeaa6-22ce-4fa8-90d1-8d5e58ddeabb" /></td>
+<td align="center"><img width="180" height="139" alt="Customizable virtual gamepad with dual analog sticks and buttons" src="https://github.com/user-attachments/assets/a332ac8e-89bd-4fed-977b-c13ef2c96b05" /></td>
 </tr>
 <tr>
 <td>Pointer movement, scrolling and gestures.</td>
@@ -120,7 +204,7 @@ Rein uses **WebRTC** for real-time communication instead of implementing a custo
 >
 > macOS support is experimental and best-effort, as it is not currently a first-party priority; sustained support and testing depend on community sponsorship. Input injection requires Accessibility permissions granted to your terminal or IDE under **System Settings → Privacy & Security → Accessibility**.
 
-### Prerequisites - GStreamer
+### Prerequisites: GStreamer
 
 Rein relies on a **system-installed GStreamer** for screen capture and streaming. Install the required packages before running the project.
 
@@ -202,7 +286,7 @@ gst-launch-1.0 --version
 
 ### Quick Start
 
-1. Install GStreamer for your platform (see [Prerequisites - GStreamer](#prerequisites--gstreamer) above).
+1. Install GStreamer for your platform (see [Prerequisites: GStreamer](#prerequisites-gstreamer) above).
 
 2. Install Node.js dependencies:
 
@@ -253,11 +337,15 @@ Port `5004/UDP` is an internal loopback relay between GStreamer and Rein and mus
 
 ### 2. Connect Through a Browser
 
-Open the Rein server from a browser using:
+Connecting is as simple as scanning a QR code. On the PC running Rein, open the Settings page:
 
 ```text
-http://<YOUR_PC_IP>:3000
+http://localhost:3000/settings
 ```
+
+You'll see a QR code there. Scan it with your phone (or copy the connection link shown there to any device on the same network), and the trackpad opens right in the browser.
+
+The QR code carries a small access token that tells Rein this device is yours, so nobody else on your network can control your PC. That's also why opening the Rein address directly on a new device shows "Disconnected from host": scan the QR code first.
 
 The client does not require a separate installation.
 
@@ -284,7 +372,7 @@ Grant Accessibility permission to your terminal or IDE in:
 
 ## Architecture
 
-<img width="1280" height="946" alt="Rein application architecture and data flow" src="https://github.com/user-attachments/assets/335632e6-de89-41fa-b9a7-fe222548e578" />
+<img width="1280" height="946" alt="Rein application architecture and data flow diagram showing client browser, signalling server, WebRTC engine, and native drivers" src="https://github.com/user-attachments/assets/335632e6-de89-41fa-b9a7-fe222548e578" />
 
 ### At a Glance
 
@@ -295,7 +383,7 @@ Grant Accessibility permission to your terminal or IDE in:
 * **Input Manager / Drivers** - Converts remote input into platform-specific system input.
 * **WebRTC** - Provides real-time communication for input and media.
 * **HTTP** - Used during connection setup and handshake.
-* **FTP / File Transfer** - Handles file transfers between the client and host.
+* **File Transfer** - Handles file transfers and directory browsing between the client and host.
 
 The architecture separates the browser-based client from the host-side services, allowing multiple clients to connect while keeping platform-specific functionality on the desktop server.
 
