@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { useWebRtcStream } from "./useWebRtcStream"
+import { useWebRtcStream } from "@/hooks/useWebRtcStream"
 
 const mockRegisterDataChannel = vi.fn()
 const mockUnregisterDataChannels = vi.fn()
 const mockSend = vi.fn()
 
-vi.mock("../contexts/ConnectionProvider", () => ({
+vi.mock("@/contexts/ConnectionProvider", () => ({
 	useConnection: () => ({
 		status: "connected",
 		latency: null,
@@ -17,7 +17,7 @@ vi.mock("../contexts/ConnectionProvider", () => ({
 	}),
 }))
 
-vi.mock("../utils/i18n", () => ({
+vi.mock("@/utils/i18n", () => ({
 	t: (_cat: string, key: string) => key,
 }))
 

@@ -2,7 +2,10 @@
 import { act, renderHook } from "@testing-library/react"
 import type React from "react"
 import { describe, expect, it, vi } from "vitest"
-import { ConnectionProvider, useConnection } from "./ConnectionProvider"
+import {
+	ConnectionProvider,
+	useConnection,
+} from "@/contexts/ConnectionProvider"
 
 function createMockDataChannel(label: string): RTCDataChannel {
 	const dc = {
