@@ -97,7 +97,11 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 	const [reconnectAttempt, setReconnectAttempt] = useState(0)
 	const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
 
-	const { registerDataChannel, send: sendInputEvent } = useConnection()
+	const {
+		registerDataChannel,
+		unregisterDataChannels,
+		send: sendInputEvent,
+	} = useConnection()
 
 	const pcRef = useRef<RTCPeerConnection | null>(null)
 	const sessionIdRef = useRef<string | null>(null)
@@ -135,6 +139,7 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 
 	const cleanup = useCallback(() => {
 		setActiveSessionId(null)
+		unregisterDataChannels()
 		if (iceSseRef.current) {
 			iceSseRef.current.close()
 			iceSseRef.current = null
@@ -149,7 +154,7 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 			} catch {}
 			pcRef.current = null
 		}
-	}, [])
+	}, [unregisterDataChannels])
 
 	const triggerRetry = useCallback(() => {
 		if (
