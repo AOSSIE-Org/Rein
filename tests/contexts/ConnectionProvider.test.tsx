@@ -1,11 +1,21 @@
 // @vitest-environment jsdom
-import { act, renderHook } from "@testing-library/react"
+import { act, cleanup, renderHook } from "@testing-library/react"
 import type React from "react"
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import {
 	ConnectionProvider,
 	useConnection,
 } from "@/contexts/ConnectionProvider"
+
+// Stub fetch so the latency-reporting side-effect inside handleMessage stays
+// isolated: the provider fires fetch on the first pong when lastReportTimeRef
+// is fresh (> 10 s since epoch 0).
+vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true } as Response))
+
+afterEach(() => {
+	cleanup()
+	vi.restoreAllMocks()
+})
 
 function createMockDataChannel(label: string): RTCDataChannel {
 	const dc = {
@@ -41,8 +51,8 @@ describe("ConnectionProvider DataChannel lifecycle", () => {
 		act(() => {
 			;(unordered as { readyState: string }).readyState = "open"
 			;(ordered as { readyState: string }).readyState = "open"
-			unordered.onopen?.(new Event("open"))
-			ordered.onopen?.(new Event("open"))
+			unordered.onopen?.call(unordered, new Event("open"))
+			ordered.onopen?.call(ordered, new Event("open"))
 		})
 		expect(result.current.status).toBe("connected")
 	})
@@ -102,7 +112,7 @@ describe("ConnectionProvider DataChannel lifecycle", () => {
 			result.current.registerDataChannel(pair1Unordered, pair1Ordered)
 		})
 
-		// Capture the stale onclose callback before it gets detached
+		// Capture the stale handlers before they get detached by the second registerDataChannel
 		const staleOnClose = pair1Unordered.onclose
 		const staleOnMessage = pair1Unordered.onmessage
 
@@ -113,31 +123,50 @@ describe("ConnectionProvider DataChannel lifecycle", () => {
 			result.current.registerDataChannel(pair2Unordered, pair2Ordered)
 		})
 
+		// Bring the active (pair2) channels to connected state
 		act(() => {
 			;(pair2Unordered as { readyState: string }).readyState = "open"
 			;(pair2Ordered as { readyState: string }).readyState = "open"
-			pair2Unordered.onopen?.(new Event("open"))
-			pair2Ordered.onopen?.(new Event("open"))
+			pair2Unordered.onopen?.call(pair2Unordered, new Event("open"))
+			pair2Ordered.onopen?.call(pair2Ordered, new Event("open"))
 		})
 		expect(result.current.status).toBe("connected")
 
-		// Simulate stale closure execution from the old channel
+		// Deliver a valid pong on the ACTIVE channel to establish a measured latency
+		const activePongTimestamp = Date.now() - 30
 		act(() => {
-			;(pair1Unordered as { readyState: string }).readyState = "closed"
-			staleOnClose?.(new Event("close"))
-		})
-		// Status must remain connected; stale channel closure must NOT reset status to disconnected
-		expect(result.current.status).toBe("connected")
-
-		// Simulate stale pong message from the old channel
-		act(() => {
-			staleOnMessage?.(
+			pair2Unordered.onmessage?.call(
+				pair2Unordered,
 				new MessageEvent("message", {
-					data: JSON.stringify({ type: "pong", timestamp: Date.now() - 50 }),
+					data: JSON.stringify({
+						type: "pong",
+						timestamp: activePongTimestamp,
+					}),
 				}),
 			)
 		})
-		expect(result.current.latency).toBeNull()
+		const measuredLatency = result.current.latency
+		expect(measuredLatency).toBeGreaterThanOrEqual(0)
+
+		// Simulate stale closure from the superseded channel — status must stay connected
+		act(() => {
+			;(pair1Unordered as { readyState: string }).readyState = "closed"
+			staleOnClose?.call(pair1Unordered, new Event("close"))
+		})
+		expect(result.current.status).toBe("connected")
+
+		// Simulate stale pong from the superseded channel — latency must not change
+		act(() => {
+			staleOnMessage?.call(
+				pair1Unordered,
+				new MessageEvent("message", {
+					data: JSON.stringify({ type: "pong", timestamp: Date.now() - 500 }),
+				}),
+			)
+		})
+		// Status stays connected and latency preserves the value set by the active channel
+		expect(result.current.status).toBe("connected")
+		expect(result.current.latency).toBe(measuredLatency)
 	})
 
 	it("unregisterDataChannels detaches active listeners and resets state to disconnected", () => {
@@ -153,8 +182,8 @@ describe("ConnectionProvider DataChannel lifecycle", () => {
 			result.current.registerDataChannel(unordered, ordered)
 			;(unordered as { readyState: string }).readyState = "open"
 			;(ordered as { readyState: string }).readyState = "open"
-			unordered.onopen?.(new Event("open"))
-			ordered.onopen?.(new Event("open"))
+			unordered.onopen?.call(unordered, new Event("open"))
+			ordered.onopen?.call(ordered, new Event("open"))
 		})
 		expect(result.current.status).toBe("connected")
 
