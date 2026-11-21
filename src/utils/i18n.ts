@@ -9,6 +9,7 @@ export const i18n = {
 			gamepad: "GamePad",
 			settings: "Settings",
 			sendFile: "Send Files",
+			logoAlt: "Rein logo",
 		},
 		themePicker: {
 			selectTheme: "Select {theme} theme",
@@ -102,6 +103,9 @@ export const i18n = {
 			sharedDirectoryHelp:
 				"Directory on the host server where files uploaded by connected devices will be stored.",
 			sharedDirectoryPlaceholder: "Default: Downloads/ReinShared",
+			saveConfigFailed: "Failed to save configuration: {error}",
+			connectServerFailed: "Failed to connect to the server: {error}",
+			unknownError: "Unknown error",
 		},
 		controlBar: {
 			scrollMode: "Toggle scroll",
@@ -111,6 +115,45 @@ export const i18n = {
 			paste: "Paste",
 			keyboard: "Keyboard",
 			modifier: "Modifier",
+			press: "Press",
+			release: "Release",
+			hold: "Hold",
+		},
+		buffer: {
+			hold: "HOLD",
+		},
+		touchArea: {
+			scrollMode: "Scroll Mode",
+			touchArea: "Touch Area",
+		},
+		trackpad: {
+			scrollActive: "SCROLL Active",
+		},
+		extraKeys: {
+			mute: "Mute",
+			volDown: "Vol Down",
+			volUp: "Vol Up",
+			prev: "Previous",
+			playPause: "Play/Pause",
+			next: "Next",
+			esc: "Esc",
+			tab: "Tab",
+			ptrSc: "PtrSc",
+			end: "End",
+			pgUp: "PgUp",
+			pgDn: "PgDn",
+			meta: "Meta",
+			alt: "Alt",
+			space: "Space",
+			shift: "Shift",
+			up: "Up",
+			enter: "Enter",
+			ctrl: "Ctrl",
+			menu: "Menu",
+			del: "Del",
+			left: "Left",
+			down: "Down",
+			right: "Right",
 		},
 		settings: {
 			title: "Settings",
@@ -153,6 +196,7 @@ export const i18n = {
 			captureEngineError: "Capture Engine Error",
 			inputDriverError: "Input Driver Error",
 			errorPrefix: "Error: ",
+			reconnect: "Reconnect",
 		},
 		server: {
 			welcomeTitle: "Welcome to Rein",
@@ -208,6 +252,8 @@ export const i18n = {
 			secondsAgo: "{s}s ago",
 			minutesAgo: "{m}m ago",
 			hoursAgo: "{h}h ago",
+			yes: "yes",
+			no: "no",
 		},
 		notFound: {
 			code: "404",
@@ -231,6 +277,7 @@ export const i18n = {
 			directoryEmpty: "Directory is empty",
 			folder: "Folder",
 			clearSelection: "Clear selection",
+			dropZoneAriaLabel: "File explorer drop zone",
 		},
 	},
 } as const

@@ -1,10 +1,7 @@
 "use client"
 import type React from "react"
 import { Layers } from "lucide-react"
-
-const TEXTS = {
-	HOLD: "Hold",
-}
+import { t } from "@/utils/i18n"
 
 interface BufferBarProps {
 	bufferText: string
@@ -18,7 +15,7 @@ export const BufferBar: React.FC<BufferBarProps> = ({ bufferText }) => {
 			</div>
 			<div className="flex items-center gap-1.5">
 				<span className="text-[10px] font-black uppercase tracking-widest text-primary/80">
-					{TEXTS.HOLD}
+					{t("buffer", "hold")}
 				</span>
 				<div className="w-[1px] h-3 bg-white/10" />
 				<span className="text-sm font-medium text-white/90 font-mono">

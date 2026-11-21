@@ -146,13 +146,15 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 					if (trimmedPort !== "") setLoadedPort(trimmedPort)
 				} else {
 					alert(
-						`Failed to save configuration: ${data.error || "Unknown error"}`,
+						t("serverTab", "saveConfigFailed", {
+							error: data.error || t("serverTab", "unknownError"),
+						}),
 					)
 				}
 			})
 			.catch((err) => {
 				setServerConfigSaving(false)
-				alert(`Failed to connect to the server: ${String(err)}`)
+				alert(t("serverTab", "connectServerFailed", { error: String(err) }))
 			})
 	}
 

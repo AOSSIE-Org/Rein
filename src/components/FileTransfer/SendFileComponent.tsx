@@ -148,7 +148,7 @@ export function FileShareOverlay() {
 
 			<section
 				ref={dropZoneRef}
-				aria-label="File explorer drop zone"
+				aria-label={t("sendFile", "dropZoneAriaLabel")}
 				onDragOver={handleDragOver}
 				onDragLeave={handleDragLeave}
 				onDrop={handleDrop}
