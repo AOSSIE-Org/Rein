@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http"
 import { randomUUID } from "node:crypto"
 import fs from "node:fs"
+import os from "node:os"
 import path from "node:path"
 import { json, requireAuth } from "../utils.ts"
 import logger from "../../../utils/logger.ts"
@@ -216,6 +217,27 @@ export async function handleFileUpload(
 }
 
 /** GET /api/files/browse?path=<dirPath>  — list host files and directories */
+/**
+ * Returns true when targetPath resolves inside the user's home directory or the
+ * configured upload directory. Used to sandbox filesystem browsing/downloads.
+ * On Windows, paths are compared case-insensitively to avoid bypasses.
+ */
+function isPathSafe(targetPath: string): boolean {
+	const resolved = path.resolve(targetPath)
+	const home = path.resolve(os.homedir())
+	const upload = path.resolve(getUploadDir())
+
+	const normalize = (p: string) =>
+		process.platform === "win32" ? p.toLowerCase() : p
+
+	const r = normalize(resolved)
+	const within = (base: string) => {
+		const b = normalize(base)
+		return r === b || r.startsWith(b + path.sep)
+	}
+	return within(home) || within(upload)
+}
+
 export async function handleFileBrowse(
 	req: IncomingMessage,
 	res: ServerResponse,
@@ -227,6 +249,10 @@ export async function handleFileBrowse(
 	const defaultDir = getUploadDir()
 
 	let targetPath = reqPath ? path.resolve(reqPath) : defaultDir
+
+	if (!isPathSafe(targetPath)) {
+		targetPath = defaultDir
+	}
 
 	if (!fs.existsSync(targetPath)) {
 		targetPath = defaultDir
@@ -312,6 +338,11 @@ export function handleFileDownload(
 
 	if (filePathParam) {
 		const targetPath = path.resolve(filePathParam)
+
+		if (!isPathSafe(targetPath)) {
+			json(res, 403, { error: "Forbidden" })
+			return
+		}
 
 		if (!fs.existsSync(targetPath) || !fs.statSync(targetPath).isFile()) {
 			json(res, 404, { error: "File not found" })
