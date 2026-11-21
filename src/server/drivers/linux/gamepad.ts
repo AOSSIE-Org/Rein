@@ -37,6 +37,7 @@ import {
 	ABS_HAT0X,
 	ABS_HAT0Y,
 } from "./constants.ts"
+import { GAMEPAD_AXIS_MAX } from "../../constants.ts"
 
 export const GAMEPAD_BUTTON_MAP: Record<string, number> = {
 	a: BTN_A,
@@ -57,8 +58,6 @@ export const GAMEPAD_BUTTON_MAP: Record<string, number> = {
 	"dpad-left": BTN_DPAD_LEFT,
 	"dpad-right": BTN_DPAD_RIGHT,
 }
-
-const AXIS_MAX = 32767
 
 export class LinuxGamepad {
 	private device: UinputDevice
@@ -124,8 +123,8 @@ export class LinuxGamepad {
 		const normAx = clamp(ax)
 		const normAy = clamp(ay)
 
-		const intX = Math.round(normAx * AXIS_MAX)
-		const intY = Math.round(normAy * AXIS_MAX)
+		const intX = Math.round(normAx * GAMEPAD_AXIS_MAX)
+		const intY = Math.round(normAy * GAMEPAD_AXIS_MAX)
 
 		if (axis === "ls") {
 			this.device.emit(EV_ABS, ABS_X, intX)

@@ -6,19 +6,22 @@ const MAX_BODY_BYTES = 1024 * 1024 // 1 MB
 
 export function parseJsonBody<T = unknown>(req: IncomingMessage): Promise<T> {
 	return new Promise((resolve, reject) => {
-		let body = ""
+		// Collect raw bytes and decode once: decoding chunk by chunk breaks
+		// multi-byte UTF-8 characters that straddle a chunk boundary.
+		const chunks: Buffer[] = []
 		let size = 0
-		req.on("data", (chunk) => {
+		req.on("data", (chunk: Buffer) => {
 			size += chunk.length
 			if (size > MAX_BODY_BYTES) {
 				req.destroy()
 				reject(new Error("Payload too large"))
 				return
 			}
-			body += chunk
+			chunks.push(chunk)
 		})
 		req.on("end", () => {
 			try {
+				const body = Buffer.concat(chunks).toString("utf-8")
 				resolve(body ? JSON.parse(body) : ({} as T))
 			} catch (err) {
 				reject(err)
@@ -51,8 +54,15 @@ export function requireAuth(
 		: null
 
 	if (!token) {
-		const url = new URL(req.url ?? "", `http://${req.headers.host}`)
-		token = url.searchParams.get("token")
+		// The base is a placeholder: a missing or malformed Host header must not
+		// make URL parsing throw.
+		try {
+			token = new URL(req.url ?? "", "http://localhost").searchParams.get(
+				"token",
+			)
+		} catch {
+			token = null
+		}
 	}
 
 	if (!token || !isKnownToken(token)) {

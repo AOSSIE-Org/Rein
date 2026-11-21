@@ -227,6 +227,21 @@ export class WebRTCManager {
 		}
 		this.clients.set(sessionId, session)
 
+		let handshakeTimer: ReturnType<typeof setTimeout> | null = setTimeout(
+			() => {
+				handshakeTimer = null
+				if (
+					session.pc.iceConnectionState !== "connected" &&
+					session.pc.iceConnectionState !== "completed"
+				) {
+					logger.warn(`WebRTC handshake timed out for session: ${sessionId}`)
+					cleanupSession(this.clients, sessionId)
+				}
+			},
+			30_000,
+		)
+		handshakeTimer.unref()
+
 		// Flush errors that fired before the session was registered
 		for (const ev of preInitErrors) {
 			session.pendingEvents.push(ev)
@@ -260,6 +275,10 @@ export class WebRTCManager {
 
 			// Connection recovered — cancel the grace-period timer.
 			if (state === "connected" || state === "completed") {
+				if (handshakeTimer) {
+					clearTimeout(handshakeTimer)
+					handshakeTimer = null
+				}
 				if (session.disconnectTimer) {
 					clearTimeout(session.disconnectTimer)
 					session.disconnectTimer = null
@@ -272,6 +291,10 @@ export class WebRTCManager {
 			// cleanupSession itself, so handling it here would cause a
 			// redundant double-cleanup.
 			if (state === "failed") {
+				if (handshakeTimer) {
+					clearTimeout(handshakeTimer)
+					handshakeTimer = null
+				}
 				if (session.disconnectTimer) {
 					clearTimeout(session.disconnectTimer)
 					session.disconnectTimer = null
@@ -287,6 +310,10 @@ export class WebRTCManager {
 			return { ok: true, sessionId, offer: offer as RTCSessionDescriptionInit }
 		} catch (err) {
 			logger.error(`Failed to create offer [${sessionId}]: ${String(err)}`)
+			if (handshakeTimer) {
+				clearTimeout(handshakeTimer)
+				handshakeTimer = null
+			}
 			cleanupSession(this.clients, sessionId)
 			return { ok: false, status: 500, error: "Failed to create WebRTC offer" }
 		}
@@ -313,6 +340,7 @@ export class WebRTCManager {
 			return { ok: true }
 		} catch (err) {
 			logger.error(`Failed to apply answer [${sessionId}]: ${String(err)}`)
+			cleanupSession(this.clients, sessionId)
 			return { ok: false, status: 400, error: "Failed to apply SDP answer" }
 		}
 	}
