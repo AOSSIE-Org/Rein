@@ -20,6 +20,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 		useState<StreamQuality>("performance")
 	const [framerate, setFramerate] = useState<number | null>(null)
 	const [uploadDir, setUploadDir] = useState("")
+	const [monitorIndex, setMonitorIndex] = useState<number>(0)
 	const [serverConfigSaved, setServerConfigSaved] = useState(false)
 	const [serverConfigSaving, setServerConfigSaving] = useState(false)
 
@@ -29,6 +30,24 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 	const [loadedFramerate, setLoadedFramerate] = useState<number | null>(null)
 	const [loadedPort, setLoadedPort] = useState("")
 	const [loadedUploadDir, setLoadedUploadDir] = useState("")
+	const [loadedMonitorIndex, setLoadedMonitorIndex] = useState<number>(0)
+
+	const displayOptions: {
+		value: number
+		label: string
+		desc: string
+	}[] = [
+		{
+			value: 0,
+			label: t("serverTab", "displayPrimary"),
+			desc: t("serverTab", "displayPrimaryDesc"),
+		},
+		{
+			value: 1,
+			label: t("serverTab", "displaySecondary"),
+			desc: t("serverTab", "displaySecondaryDesc"),
+		},
+	]
 
 	const qualityOptions: {
 		value: StreamQuality
@@ -56,6 +75,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 		streamQuality !== loadedStreamQuality ||
 		framerate !== loadedFramerate ||
 		uploadDir !== loadedUploadDir ||
+		monitorIndex !== loadedMonitorIndex ||
 		(frontendPort !== "" && frontendPort !== loadedPort)
 
 	useEffect(() => {
@@ -99,6 +119,12 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 						setUploadDir(data.config.uploadDir)
 						setLoadedUploadDir(data.config.uploadDir)
 					}
+
+					if (typeof data.config.monitorIndex === "number") {
+						const idx = data.config.monitorIndex > 0 ? 1 : 0
+						setMonitorIndex(idx)
+						setLoadedMonitorIndex(idx)
+					}
 				}
 			})
 			.catch((e) => console.error("Config fetch error:", e))
@@ -132,6 +158,8 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 				streamQuality,
 				framerate,
 				uploadDir,
+				displayMode: monitorIndex === 1 ? "extended" : "duplicate",
+				monitorIndex,
 			}),
 		})
 			.then((r) => r.json())
@@ -142,6 +170,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 					setLoadedStreamQuality(streamQuality)
 					setLoadedFramerate(framerate)
 					setLoadedUploadDir(uploadDir)
+					setLoadedMonitorIndex(monitorIndex)
 					setFrontendPort(trimmedPort)
 					if (trimmedPort !== "") setLoadedPort(trimmedPort)
 				} else {
@@ -167,6 +196,68 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 					</span>
 				</div>
 			)}
+
+			{/* Display Mode / Screen */}
+			<div className="form-control w-full">
+				<div className="label mb-3">
+					<span className="label-text font-medium">
+						{t("serverTab", "displaySource")}
+					</span>
+				</div>
+				<div className="flex flex-col gap-2">
+					{displayOptions.map((opt) => (
+						<label
+							key={opt.value}
+							htmlFor={`display-opt-${opt.value}`}
+							className={[
+								"flex items-start gap-3 p-3 rounded-lg border-2",
+								"cursor-pointer transition-all",
+								monitorIndex === opt.value
+									? "border-primary bg-primary/10"
+									: "border-base-300 hover:border-primary/50",
+							].join(" ")}
+						>
+							<input
+								id={`display-opt-${opt.value}`}
+								type="radio"
+								name="display-mode"
+								className="radio radio-primary mt-0.5 shrink-0"
+								value={opt.value}
+								checked={monitorIndex === opt.value}
+								onChange={() => setMonitorIndex(opt.value)}
+							/>
+							<div className="flex-1 min-w-0">
+								<div className="font-semibold text-sm wrap-break-word">
+									{opt.label}
+								</div>
+								<div className="text-xs opacity-60 wrap-break-word whitespace-normal">
+									{opt.desc}
+								</div>
+							</div>
+						</label>
+					))}
+				</div>
+				{monitorIndex === 1 && (
+					<div
+						className={[
+							"alert alert-info text-xs mt-2 p-3 shadow-sm",
+							"wrap-break-word whitespace-normal text-left",
+						].join(" ")}
+					>
+						<span className="wrap-break-word whitespace-normal leading-relaxed">
+							{t("serverTab", "displayDriverNotice")}
+						</span>
+					</div>
+				)}
+				<p
+					className={[
+						"text-xs opacity-50 mt-1.5 px-0.5",
+						"wrap-break-word whitespace-normal leading-normal",
+					].join(" ")}
+				>
+					{t("serverTab", "displaySourceHelp")}
+				</p>
+			</div>
 
 			{/* Stream Quality */}
 			<div className="form-control w-full">
@@ -258,15 +349,23 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 					onChange={(e) => setIp(e.target.value)}
 				/>
 
-				<label className="label" htmlFor="server-ip-input">
-					<span className="label-text-alt opacity-50">
-						{t("serverTab", "lanIpHelp")}
-					</span>
-				</label>
+				<p
+					className={[
+						"text-xs opacity-50 mt-1.5 px-0.5",
+						"wrap-break-word whitespace-normal leading-normal",
+					].join(" ")}
+				>
+					{t("serverTab", "lanIpHelp")}
+				</p>
 			</div>
-			<div className="alert alert-warning text-xs shadow-lg">
+			<div
+				className={[
+					"alert alert-warning text-xs shadow-lg",
+					"wrap-break-word whitespace-normal text-left",
+				].join(" ")}
+			>
 				<TriangleAlert className="w-5 h-5 shrink-0" />
-				<span>
+				<span className="wrap-break-word whitespace-normal leading-relaxed">
 					{t("serverTab", "firewallAlert", {
 						port: frontendPort || APP_CONFIG.PORT,
 					})}
@@ -288,9 +387,16 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 					onChange={(e) => setFrontendPort(e.target.value)}
 				/>
 			</div>
-			<div className="alert alert-warning text-xs shadow-lg">
+			<div
+				className={[
+					"alert alert-warning text-xs shadow-lg",
+					"wrap-break-word whitespace-normal text-left",
+				].join(" ")}
+			>
 				<TriangleAlert className="w-5 h-5 shrink-0" />
-				<span>{t("serverTab", "restartWarningAlert")}</span>
+				<span className="wrap-break-word whitespace-normal leading-relaxed">
+					{t("serverTab", "restartWarningAlert")}
+				</span>
 			</div>
 			{/* Shared Upload Directory */}
 			<div className="form-control w-full">
@@ -307,11 +413,14 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 					value={uploadDir}
 					onChange={(e) => setUploadDir(e.target.value)}
 				/>
-				<label className="label mt-1" htmlFor="upload-dir-input">
-					<span className="label-text-alt opacity-50">
-						{t("serverTab", "sharedDirectoryHelp")}
-					</span>
-				</label>
+				<p
+					className={[
+						"text-xs opacity-50 mt-1.5 px-0.5",
+						"wrap-break-word whitespace-normal leading-normal",
+					].join(" ")}
+				>
+					{t("serverTab", "sharedDirectoryHelp")}
+				</p>
 			</div>
 			{/* Save Config — only visible in Server tab */}
 			<button

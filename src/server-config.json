@@ -8,5 +8,7 @@
 	"verboseLogs": true,
 	"framerate": 60,
 	"version": "0.1.0",
-	"streamQuality": "performance"
+	"streamQuality": "performance",
+	"displayMode": "duplicate",
+	"monitorIndex": 0
 }
