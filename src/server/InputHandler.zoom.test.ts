@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { InputHandler } from "./InputHandler.ts"
+import { DEFAULT_CONFIG } from "./constants.ts"
 import type { InputConfig, PlatformInjector } from "./types.ts"
 
 // Force the stub injector so these tests never touch real input devices.
@@ -15,17 +16,30 @@ vi.mock("node:os", async (importOriginal) => {
  */
 function setup(invertScroll: boolean) {
 	const handler = new InputHandler({ invertScroll }, 0)
-	const config = { invertScroll } as InputConfig
+	const config: InputConfig = { ...DEFAULT_CONFIG, invertScroll }
 	const calls: string[] = []
 	const osWheel: number[] = []
-	const injector = {
-		updateConfig: (c: Partial<InputConfig>) => Object.assign(config, c),
+	const injector: PlatformInjector = {
+		updateConfig: (c: Partial<InputConfig>) => {
+			Object.assign(config, c)
+		},
+		injectMouseMove: () => {},
+		injectMouseAbsolute: () => {},
+		injectMouseButton: () => {},
 		injectMouseWheel: (dx: number, dy: number) => {
 			calls.push(`wheel:${dx},${dy}`)
 			osWheel.push(config.invertScroll ? -dy : dy)
 		},
-		injectKey: (key: string, pos: string) => calls.push(`${key}:${pos}`),
-	} as unknown as PlatformInjector
+		injectKey: (key: string, pos?: string) => {
+			calls.push(`${key}:${pos ?? ""}`)
+		},
+		injectCombo: () => {},
+		injectText: () => {},
+		injectTouch: () => {},
+		injectGamepadButton: () => {},
+		injectGamepadAxis: () => {},
+		destroy: () => {},
+	}
 	;(handler as unknown as { injector: PlatformInjector }).injector = injector
 
 	const zoom = (delta: number) => handler.handleMessage({ type: "zoom", delta })

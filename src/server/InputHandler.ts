@@ -15,18 +15,14 @@ import {
 	MAX_COMBO_KEYS,
 	MAX_COORD,
 	MAX_KEY_LENGTH,
+	MAX_ZOOM_STEP,
+	ZOOM_IDLE_RESET_MS,
+	ZOOM_SCALE,
 } from "./constants.ts"
 import type { InputConfig, InputMessage, PlatformInjector } from "./types.ts"
 
 const VALID_BUTTONS = ["left", "right", "middle"] as const
 type MouseButton = (typeof VALID_BUTTONS)[number]
-
-/** Wheel steps per pixel of change in pinch distance. */
-const ZOOM_SCALE = 0.5
-/** Largest wheel step a single pinch event may produce. */
-const MAX_ZOOM_STEP = 5
-/** A pause longer than this starts a new pinch and drops any leftover fraction. */
-const ZOOM_IDLE_RESET_MS = 300
 
 export class InputHandler {
 	private injector: PlatformInjector
