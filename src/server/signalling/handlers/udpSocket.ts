@@ -99,6 +99,10 @@ export class UdpSocketManager {
 
 		socket.on("message", (msg) => {
 			for (const client of this.clients.values()) {
+				// Skip peers until DTLS/SRTP negotiation completes and while
+				// disconnected/failed/closed to avoid futile writeRtp throws and
+				// inflated bytesSent counters.
+				if (client.pc.connectionState !== "connected") continue
 				try {
 					if (trackKind === "video") {
 						client.videoTrack.writeRtp(msg)
