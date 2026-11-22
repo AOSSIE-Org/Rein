@@ -201,12 +201,13 @@ export async function handleFileUpload(
 			return
 		}
 
-		const filePath = path.join(uploadDir, safeName)
+		const id = randomUUID()
+		const targetDir = path.join(uploadDir, id)
+		await fs.promises.mkdir(targetDir, { recursive: true })
+		const filePath = path.join(targetDir, safeName)
 
 		// Save uploaded file to host disk asynchronously
 		await fs.promises.writeFile(filePath, data)
-
-		const id = randomUUID()
 		const file: SharedFile = {
 			id,
 			name: safeName,
@@ -361,6 +362,9 @@ export function handleFileDownload(
 			"Content-Disposition": `attachment; filename="${encodeURIComponent(fileName)}"; filename*=UTF-8''${encodeURIComponent(fileName)}`,
 		})
 		const readStream = fs.createReadStream(targetPath)
+		res.on("close", () => {
+			readStream.destroy()
+		})
 		readStream.on("error", (err) => {
 			logger.error(`Download stream error for ${targetPath}: ${err}`)
 			if (!res.headersSent) {
@@ -402,6 +406,9 @@ export function handleFileDownload(
 		"Content-Disposition": `attachment; filename="${encodeURIComponent(file.name)}"; filename*=UTF-8''${encodeURIComponent(file.name)}`,
 	})
 	const readStream = fs.createReadStream(file.diskPath)
+	res.on("close", () => {
+		readStream.destroy()
+	})
 	readStream.on("error", (err) => {
 		logger.error(`Download stream error for fileId ${fileId}: ${err}`)
 		if (!res.headersSent) {

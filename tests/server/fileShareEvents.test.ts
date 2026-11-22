@@ -107,6 +107,7 @@ describe("file share event stream", () => {
 	beforeEach(() => {
 		vi.useFakeTimers()
 		vi.spyOn(fs.promises, "writeFile").mockResolvedValue(undefined)
+		vi.spyOn(fs.promises, "mkdir").mockResolvedValue(undefined)
 	})
 
 	afterEach(async () => {
@@ -196,15 +197,23 @@ describe("file share event stream", () => {
 			.mockReturnValue(mockStream as unknown as fs.ReadStream)
 
 		const res = new FakeResponse()
+		const streamEnded = new Promise((resolve) => mockStream.on("end", resolve))
+
 		handleFileDownload(
 			loopbackRequest(`/api/files/download?fileId=${fileId}`),
 			asResponse(res),
 		)
 
+		await streamEnded
+
 		expect(res.statusCode).toBe(200)
 		expect(createStreamSpy).toHaveBeenCalledWith(
 			expect.stringContaining("stream-test.txt"),
 		)
+		expect(res.writes).toContain("stream-bytes")
+		const destroySpy = vi.spyOn(mockStream, "destroy")
+		res.emit("close")
+		expect(destroySpy).toHaveBeenCalled()
 	})
 
 	it("returns 404 when fileId does not exist on disk during download", async () => {
