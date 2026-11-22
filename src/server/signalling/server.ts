@@ -11,7 +11,7 @@ import {
 } from "../InputHandler.ts"
 import type { InputConfig } from "../types.ts"
 import { getLanIp, isLoopbackAddress } from "../../utils/net.ts"
-import { requireAuth, parseJsonBody, json } from "./utils.ts"
+import { requireAuth, parseJsonBody, parseRequestUrl, json } from "./utils.ts"
 import {
 	loadServerConfig,
 	saveServerConfig,
@@ -174,10 +174,11 @@ export function attachSignalingRoutes(server: any): void {
 			res: ServerResponse,
 			next?: () => void,
 		) => {
-			const url = new URL(
-				req.url ?? "",
-				`http://${req.headers.host ?? "localhost"}`,
-			)
+			const url = parseRequestUrl(req)
+			if (!url) {
+				json(res, 400, { error: "Invalid request URL" })
+				return
+			}
 			const { pathname } = url
 
 			if (!pathname.startsWith("/api/")) {

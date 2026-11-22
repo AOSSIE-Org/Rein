@@ -47,6 +47,14 @@ function makeRequest(url: string, body?: string): IncomingMessage {
 	return request as unknown as IncomingMessage
 }
 
+function makeMalformedRequest(): IncomingMessage {
+	return Object.assign(new EventEmitter(), {
+		url: "http://[",
+		headers: { host: "[" },
+		socket: { remoteAddress: "192.0.2.10" },
+	}) as unknown as IncomingMessage
+}
+
 function managerStub() {
 	return {
 		handleOffer: vi.fn(),
@@ -70,6 +78,57 @@ async function readResponse(response: FakeResponse) {
 }
 
 describe("RTC signaling HTTP handlers", () => {
+	it("returns 400 for malformed request URLs across RTC handlers", async () => {
+		const manager = asManager(managerStub())
+		const cases = [
+			(response: FakeResponse) =>
+				handleOffer(
+					makeMalformedRequest(),
+					response as unknown as ServerResponse,
+					{
+						webrtcManager: manager,
+					},
+				),
+			(response: FakeResponse) =>
+				handleAnswer(
+					makeMalformedRequest(),
+					response as unknown as ServerResponse,
+					{
+						webrtcManager: manager,
+					},
+				),
+			(response: FakeResponse) =>
+				handleIce(
+					makeMalformedRequest(),
+					response as unknown as ServerResponse,
+					{
+						webrtcManager: manager,
+					},
+				),
+			(response: FakeResponse) =>
+				handleSessionSSE(
+					makeMalformedRequest(),
+					response as unknown as ServerResponse,
+					{ webrtcManager: manager },
+				),
+			(response: FakeResponse) =>
+				handleSessionDelete(
+					makeMalformedRequest(),
+					response as unknown as ServerResponse,
+					{ webrtcManager: manager },
+				),
+		]
+
+		for (const runHandler of cases) {
+			const response = new FakeResponse()
+			expect(() => runHandler(response)).not.toThrow()
+			expect(await readResponse(response)).toEqual({
+				status: 400,
+				body: { error: "Invalid request URL" },
+			})
+		}
+	})
+
 	it("returns 503 when the WebRTC engine is unavailable", async () => {
 		const response = new FakeResponse()
 

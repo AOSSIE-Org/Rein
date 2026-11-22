@@ -1,7 +1,7 @@
 import type { IncomingMessage } from "node:http"
 import { PassThrough } from "node:stream"
 import { describe, expect, it } from "vitest"
-import { parseJsonBody } from "./utils.ts"
+import { parseJsonBody, parseRequestUrl } from "./utils.ts"
 
 function mockRequest(chunks: Buffer[]): IncomingMessage {
 	const stream = new PassThrough()
@@ -32,5 +32,28 @@ describe("parseJsonBody", () => {
 	it("rejects bodies over 1 MB", async () => {
 		const req = mockRequest([Buffer.alloc(1024 * 1024 + 1, "a")])
 		await expect(parseJsonBody(req)).rejects.toThrow("Payload too large")
+	})
+})
+
+describe("parseRequestUrl", () => {
+	it.each([
+		["malformed Host header", "[", "/api/host/status"],
+		["missing Host header", undefined, "/api/host/status"],
+	])("parses requests with a %s", (_description, host, reqUrl) => {
+		const req = {
+			url: reqUrl,
+			headers: host === undefined ? {} : { host },
+		} as IncomingMessage
+
+		expect(parseRequestUrl(req)?.pathname).toBe("/api/host/status")
+	})
+
+	it("returns null for a malformed request URL", () => {
+		const req = {
+			url: "http://[",
+			headers: { host: "[" },
+		} as IncomingMessage
+
+		expect(parseRequestUrl(req)).toBeNull()
 	})
 })

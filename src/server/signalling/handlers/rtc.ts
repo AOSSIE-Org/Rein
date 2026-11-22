@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http"
 import type { WebRTCManager } from "../webRTC.ts"
 import logger from "../../../utils/logger.ts"
-import { parseJsonBody, json } from "../utils.ts"
+import { parseJsonBody, parseRequestUrl, json } from "../utils.ts"
 
 export interface RtcHandlerDeps {
 	webrtcManager: WebRTCManager | null
@@ -12,14 +12,15 @@ export function handleOffer(
 	res: ServerResponse,
 	deps: RtcHandlerDeps,
 ): void {
+	const url = parseRequestUrl(req)
+	if (!url) {
+		json(res, 400, { error: "Invalid request URL" })
+		return
+	}
 	if (!deps.webrtcManager) {
 		json(res, 503, { error: "WebRTC engine not ready" })
 		return
 	}
-	const url = new URL(
-		req.url ?? "",
-		`http://${req.headers.host ?? "localhost"}`,
-	)
 	const remoteAddr = req.socket.remoteAddress
 	const authHeader = req.headers.authorization
 	const queryToken = url.searchParams.get("token")
@@ -47,14 +48,15 @@ export function handleAnswer(
 	res: ServerResponse,
 	deps: RtcHandlerDeps,
 ): void {
+	const url = parseRequestUrl(req)
+	if (!url) {
+		json(res, 400, { error: "Invalid request URL" })
+		return
+	}
 	if (!deps.webrtcManager) {
 		json(res, 503, { error: "WebRTC engine not ready" })
 		return
 	}
-	const url = new URL(
-		req.url ?? "",
-		`http://${req.headers.host ?? "localhost"}`,
-	)
 	const remoteAddr = req.socket.remoteAddress
 	const authHeader = req.headers.authorization
 	const queryToken = url.searchParams.get("token")
@@ -92,14 +94,15 @@ export function handleIce(
 	res: ServerResponse,
 	deps: RtcHandlerDeps,
 ): void {
+	const url = parseRequestUrl(req)
+	if (!url) {
+		json(res, 400, { error: "Invalid request URL" })
+		return
+	}
 	if (!deps.webrtcManager) {
 		json(res, 503, { error: "WebRTC engine not ready" })
 		return
 	}
-	const url = new URL(
-		req.url ?? "",
-		`http://${req.headers.host ?? "localhost"}`,
-	)
 	const remoteAddr = req.socket.remoteAddress
 	const authHeader = req.headers.authorization
 	const queryToken = url.searchParams.get("token")
@@ -137,12 +140,12 @@ export function handleSessionSSE(
 	res: ServerResponse,
 	deps: RtcHandlerDeps,
 ): void {
+	const url = parseAddress(req, res)
+	if (url === undefined) return
 	if (!deps.webrtcManager) {
 		json(res, 503, { error: "WebRTC engine not ready" })
 		return
 	}
-	const url = parseAddress(req, res)
-	if (url === undefined) return
 	const accepted = deps.webrtcManager.handleSessionSse(
 		url.remoteAddr,
 		url.authHeader,
@@ -161,12 +164,14 @@ export function handleSessionDelete(
 	res: ServerResponse,
 	deps: RtcHandlerDeps,
 ): void {
+	const requestMeta = parseRequestMeta(req, res)
+	if (requestMeta === undefined) return
 	if (!deps.webrtcManager) {
 		json(res, 503, { error: "WebRTC engine not ready" })
 		return
 	}
 	// sessionId comes from the request body, not the URL — parse auth fields inline
-	const { remoteAddr, authHeader, queryToken } = parseRequestMeta(req)
+	const { remoteAddr, authHeader, queryToken } = requestMeta
 	const wm = deps.webrtcManager
 
 	parseJsonBody<{ sessionId?: string }>(req)
@@ -196,11 +201,21 @@ export function handleSessionDelete(
 }
 
 /** Extracts auth fields from a request — no sessionId guard (use parseAddress for SSE). */
-function parseRequestMeta(req: IncomingMessage) {
-	const url = new URL(
-		req.url ?? "",
-		`http://${req.headers.host ?? "localhost"}`,
-	)
+function parseRequestMeta(
+	req: IncomingMessage,
+	res: ServerResponse,
+):
+	| {
+			remoteAddr: string | undefined
+			authHeader: string | undefined
+			queryToken: string | null
+	  }
+	| undefined {
+	const url = parseRequestUrl(req)
+	if (!url) {
+		json(res, 400, { error: "Invalid request URL" })
+		return undefined
+	}
 	return {
 		remoteAddr: req.socket.remoteAddress,
 		authHeader: req.headers.authorization,
@@ -223,10 +238,11 @@ function parseAddress(
 			sessionId: string
 	  }
 	| undefined {
-	const url = new URL(
-		req.url ?? "",
-		`http://${req.headers.host ?? "localhost"}`,
-	)
+	const url = parseRequestUrl(req)
+	if (!url) {
+		json(res, 400, { error: "Invalid request URL" })
+		return undefined
+	}
 	const sessionId = url.searchParams.get("sessionId")
 	if (!sessionId) {
 		json(res, 400, { error: "Missing sessionId" })

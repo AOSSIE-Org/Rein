@@ -40,6 +40,14 @@ export function json(res: ServerResponse, status: number, body: unknown): void {
 	res.end(payload)
 }
 
+export function parseRequestUrl(req: IncomingMessage): URL | null {
+	try {
+		return new URL(req.url ?? "", "http://localhost")
+	} catch {
+		return null
+	}
+}
+
 /** Returns true when the caller is authorized (local or valid bearer token). */
 export function requireAuth(
 	req: IncomingMessage,
