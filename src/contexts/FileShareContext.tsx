@@ -10,15 +10,13 @@ import {
 	useRef,
 } from "react"
 import { getLocalStorageItem } from "../utils/safeLocalStorage"
+import {
+	applySharedFileEvent,
+	type SharedFileEvent,
+	type SharedFileInfo,
+} from "../utils/sharedFileEvents"
 
-export interface SharedFileInfo {
-	fileId: string
-	name: string
-	size: number
-	mimeType: string
-	uploadedAt: number
-	uploadedBy: string
-}
+export type { SharedFileInfo }
 
 export interface DirectoryItem {
 	name: string
@@ -138,35 +136,16 @@ export function FileShareProvider({ children }: { children: React.ReactNode }) {
 
 		es.onmessage = (ev) => {
 			try {
-				const msg = JSON.parse(ev.data) as {
-					type: string
-					fileId?: string
-					name?: string
-					size?: number
-					mimeType?: string
-					uploadedAt?: number
-					uploadedBy?: string
-				}
+				const msg = JSON.parse(ev.data) as SharedFileEvent
 
-				if (msg.type === "incoming-file" && msg.fileId) {
-					const info: SharedFileInfo = {
-						fileId: msg.fileId,
-						name: msg.name ?? "file",
-						size: msg.size ?? 0,
-						mimeType: msg.mimeType ?? "application/octet-stream",
-						uploadedAt: msg.uploadedAt ?? Date.now(),
-						uploadedBy: msg.uploadedBy ?? "unknown",
-					}
-					setSharedFiles((prev) => {
-						if (prev.some((f) => f.fileId === info.fileId)) return prev
-						return [info, ...prev]
-					})
+				if (msg.type === "incoming-file" || msg.type === "snapshot") {
+					setSharedFiles((prev) => applySharedFileEvent(prev, msg))
 					// Refresh directory when overlay is open
 					if (overlayOpenRef.current) {
 						fetchDirectory(currentPathRef.current || undefined)
 					}
-				} else if (msg.type === "file-deleted" && msg.fileId) {
-					setSharedFiles((prev) => prev.filter((f) => f.fileId !== msg.fileId))
+				} else if (msg.type === "file-deleted") {
+					setSharedFiles((prev) => applySharedFileEvent(prev, msg))
 				}
 			} catch {}
 		}
