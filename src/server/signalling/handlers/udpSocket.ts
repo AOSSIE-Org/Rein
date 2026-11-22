@@ -7,6 +7,30 @@ import type { ClientSession } from "./sessionStore.ts"
 // UdpSocketManager — owns the UDP sockets that receive RTP from GStreamer
 // ---------------------------------------------------------------------------
 
+export interface RtpClientSession {
+	pc: {
+		connectionState: ClientSession["pc"]["connectionState"]
+		iceConnectionState: ClientSession["pc"]["iceConnectionState"]
+	}
+	videoTrack: Pick<ClientSession["videoTrack"], "writeRtp">
+	audioTrack: Pick<ClientSession["audioTrack"], "writeRtp">
+	bytesSent: number
+}
+
+function isClientReadyForMedia(client: RtpClientSession): boolean {
+	const { connectionState, iceConnectionState } = client.pc
+	// Before initial DTLS/SRTP completion, connectionState stays "new" or
+	// "connecting" even once ICE connects; after a transient drop, werift sets
+	// connectionState to "disconnected" without restoring it when ICE recovers.
+	// Allow forwarding when ICE is connected/completed and the peer has moved
+	// past initial handshake without failing or closing.
+	const pastInitialHandshake =
+		connectionState === "connected" || connectionState === "disconnected"
+	const iceConnected =
+		iceConnectionState === "connected" || iceConnectionState === "completed"
+	return pastInitialHandshake && iceConnected
+}
+
 export class UdpSocketManager {
 	private videoSocket: dgram.Socket | null = null
 	private audioSocket: dgram.Socket | null = null
@@ -17,7 +41,7 @@ export class UdpSocketManager {
 	private rebindBackoffMs = 500
 	private readonly maxBackoffMs = 10_000
 
-	constructor(private readonly clients: Map<string, ClientSession>) {
+	constructor(private readonly clients: ReadonlyMap<string, RtpClientSession>) {
 		this.setup()
 	}
 
@@ -99,10 +123,7 @@ export class UdpSocketManager {
 
 		socket.on("message", (msg) => {
 			for (const client of this.clients.values()) {
-				// Skip peers until DTLS/SRTP negotiation completes and while
-				// disconnected/failed/closed to avoid futile writeRtp throws and
-				// inflated bytesSent counters.
-				if (client.pc.connectionState !== "connected") continue
+				if (!isClientReadyForMedia(client)) continue
 				try {
 					if (trackKind === "video") {
 						client.videoTrack.writeRtp(msg)
