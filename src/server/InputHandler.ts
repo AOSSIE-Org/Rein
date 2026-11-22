@@ -43,6 +43,9 @@ export class InputHandler {
 	private zoomRemainder = 0
 	private lastZoomTime = 0
 	private onError?: (errorType: string, message: string) => void
+	private heldKeys = new Set<string>()
+	private heldMouseButtons = new Set<MouseButton>()
+	private heldGamepadButtons = new Set<string>()
 
 	private config: InputConfig = {
 		sensitivity: 1.0,
@@ -128,6 +131,7 @@ export class InputHandler {
 			if (msg.type === "click" && msg.press && isValidButton(msg.button)) {
 				try {
 					this.injector.injectMouseButton(msg.button, false)
+					this.heldMouseButtons.delete(msg.button)
 				} catch (cleanupErr) {
 					console.error(
 						"[InputHandler] Cleanup after click failure:",
@@ -139,6 +143,39 @@ export class InputHandler {
 	}
 
 	destroy(): void {
+		for (const key of this.heldKeys) {
+			try {
+				this.injector.injectKey(key, "RELEASE")
+			} catch (err) {
+				console.error("[InputHandler] Failed to release held key:", err)
+			}
+		}
+		this.heldKeys.clear()
+
+		for (const button of this.heldMouseButtons) {
+			try {
+				this.injector.injectMouseButton(button, false)
+			} catch (err) {
+				console.error(
+					"[InputHandler] Failed to release held mouse button:",
+					err,
+				)
+			}
+		}
+		this.heldMouseButtons.clear()
+
+		for (const button of this.heldGamepadButtons) {
+			try {
+				this.injector.injectGamepadButton(button, false)
+			} catch (err) {
+				console.error(
+					"[InputHandler] Failed to release held gamepad button:",
+					err,
+				)
+			}
+		}
+		this.heldGamepadButtons.clear()
+
 		this.injector.destroy()
 		clearTimeout(this.moveTimer ?? undefined)
 		clearTimeout(this.scrollTimer ?? undefined)
@@ -288,7 +325,9 @@ export class InputHandler {
 			case "click": {
 				if (!isValidButton(msg.button)) break
 				if (typeof msg.press !== "boolean") break
+				if (msg.press) this.heldMouseButtons.add(msg.button)
 				this.injector.injectMouseButton(msg.button, msg.press)
+				if (!msg.press) this.heldMouseButtons.delete(msg.button)
 				break
 			}
 
@@ -299,7 +338,9 @@ export class InputHandler {
 				const absY = msg.y * this.config.screenHeight
 				this.injector.injectMouseAbsolute(absX, absY)
 				console.log({ "Injected at": { absX, absY } })
+				if (msg.press) this.heldMouseButtons.add(msg.button)
 				this.injector.injectMouseButton(msg.button, msg.press)
+				if (!msg.press) this.heldMouseButtons.delete(msg.button)
 				break
 			}
 
@@ -349,7 +390,9 @@ export class InputHandler {
 					msg.key === " " || msg.key.toLowerCase() === "space"
 						? "space"
 						: msg.key
+				if (msg.pos === "HOLD") this.heldKeys.add(key)
 				this.injector.injectKey(key, msg.pos ?? "")
+				if (msg.pos === "RELEASE") this.heldKeys.delete(key)
 				break
 			}
 
@@ -400,7 +443,9 @@ export class InputHandler {
 			case "gamepad": {
 				if (!msg.button || typeof msg.button !== "string") break
 				if (typeof msg.press !== "boolean") break
+				if (msg.press) this.heldGamepadButtons.add(msg.button)
 				this.injector.injectGamepadButton(msg.button, msg.press)
+				if (!msg.press) this.heldGamepadButtons.delete(msg.button)
 				break
 			}
 
