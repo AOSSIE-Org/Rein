@@ -7,6 +7,34 @@ import type { ClientSession } from "./sessionStore.ts"
 // UdpSocketManager — owns the UDP sockets that receive RTP from GStreamer
 // ---------------------------------------------------------------------------
 
+export interface RtpClientSession {
+	pc: {
+		connectionState?: ClientSession["pc"]["connectionState"]
+		iceConnectionState?: ClientSession["pc"]["iceConnectionState"]
+	}
+	videoTrack: Pick<ClientSession["videoTrack"], "writeRtp">
+	audioTrack: Pick<ClientSession["audioTrack"], "writeRtp">
+	bytesSent: number
+}
+
+/**
+ * Verifies whether a client session is actively ready to receive and process RTP media packets.
+ *
+ * Excludes sessions before DTLS/SRTP handshake completion ('new', 'connecting') and terminal states ('failed', 'closed').
+ * Accurately handles Werift's ICE reconnection semantics where iceConnectionState recovers to 'connected'/'completed'.
+ */
+export function isClientReadyForMedia(client: RtpClientSession): boolean {
+	const connectionState = client.pc?.connectionState
+	const iceConnectionState = client.pc?.iceConnectionState
+
+	const pastInitialHandshake =
+		connectionState === "connected" || connectionState === "disconnected"
+	const iceConnected =
+		iceConnectionState === "connected" || iceConnectionState === "completed"
+
+	return pastInitialHandshake && iceConnected
+}
+
 export class UdpSocketManager {
 	private videoSocket: dgram.Socket | null = null
 	private audioSocket: dgram.Socket | null = null
@@ -17,7 +45,7 @@ export class UdpSocketManager {
 	private rebindBackoffMs = 500
 	private readonly maxBackoffMs = 10_000
 
-	constructor(private readonly clients: Map<string, ClientSession>) {
+	constructor(private readonly clients: ReadonlyMap<string, RtpClientSession>) {
 		this.setup()
 	}
 
@@ -97,14 +125,19 @@ export class UdpSocketManager {
 			this.onFailure()
 		})
 
+		const isVideo = trackKind === "video"
+
 		socket.on("message", (msg) => {
+			if (this.clients.size === 0) return
+
 			for (const client of this.clients.values()) {
+				if (!isClientReadyForMedia(client)) {
+					continue
+				}
+
 				try {
-					if (trackKind === "video") {
-						client.videoTrack.writeRtp(msg)
-					} else {
-						client.audioTrack.writeRtp(msg)
-					}
+					const track = isVideo ? client.videoTrack : client.audioTrack
+					track.writeRtp(msg)
 					client.bytesSent += msg.length
 				} catch {
 					// Individual track write errors are non-fatal
