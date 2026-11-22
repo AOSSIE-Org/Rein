@@ -1,4 +1,5 @@
 import type React from "react"
+import { t } from "@/utils/i18n"
 
 interface TouchAreaProps {
 	scrollMode: boolean
@@ -38,7 +39,9 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
 		>
 			<div className="text-neutral-600 text-center pointer-events-none">
 				<div className="text-4xl mb-2 opacity-20">
-					{scrollMode ? "Scroll Mode" : "Touch Area"}
+					{scrollMode
+						? t("touchArea", "scrollMode")
+						: t("touchArea", "touchArea")}
 				</div>
 				{isTracking && <div className="loading loading-ring loading-lg" />}
 			</div>

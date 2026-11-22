@@ -5,6 +5,11 @@ describe("t (translation helper)", () => {
 	it("looks up a known key", () => {
 		expect(t("nav", "trackpad")).toBe("Trackpad")
 		expect(t("nav", "settings")).toBe("Settings")
+		expect(t("errorComponent", "reconnect")).toBe("Reconnect")
+		expect(t("touchArea", "scrollMode")).toBe("Scroll Mode")
+		expect(t("trackpad", "scrollActive")).toBe("SCROLL Active")
+		expect(t("controlBar", "hold")).toBe("Hold")
+		expect(t("extraKeys", "mute")).toBe("Mute")
 	})
 
 	it("interpolates a single param", () => {

@@ -422,7 +422,7 @@ function TrackpadPage() {
 						)}
 						{scrollMode && (
 							<div className="absolute top-4 right-4 z-40 badge badge-info shadow-lg pointer-events-none select-none">
-								SCROLL Active
+								{t("trackpad", "scrollActive")}
 							</div>
 						)}
 						{bufferText !== "" && <BufferBar bufferText={bufferText} />}
