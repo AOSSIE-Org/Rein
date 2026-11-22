@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http"
 import { randomUUID } from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
-import { json, requireAuth } from "../utils.ts"
+import { json, parseRequestUrl, requireAuth } from "../utils.ts"
 import logger from "../../../utils/logger.ts"
 import { getUploadDir } from "../../../utils/configHelper.ts"
 
@@ -248,9 +248,13 @@ export async function handleFileBrowse(
 	req: IncomingMessage,
 	res: ServerResponse,
 ): Promise<void> {
+	const url = parseRequestUrl(req)
+	if (!url) {
+		json(res, 400, { error: "Invalid request URL" })
+		return
+	}
 	if (!requireAuth(req, res)) return
 
-	const url = new URL(req.url ?? "", `http://${req.headers.host}`)
 	const reqPath = url.searchParams.get("path")
 	const defaultDir = getUploadDir()
 
@@ -333,8 +337,12 @@ export function handleFileDownload(
 	req: IncomingMessage,
 	res: ServerResponse,
 ): void {
+	const url = parseRequestUrl(req)
+	if (!url) {
+		json(res, 400, { error: "Invalid request URL" })
+		return
+	}
 	if (!requireAuth(req, res)) return
-	const url = new URL(req.url ?? "", `http://${req.headers.host}`)
 	const filePathParam = url.searchParams.get("path")
 	const fileId = url.searchParams.get("fileId")
 
@@ -397,8 +405,12 @@ export function handleFileDelete(
 	req: IncomingMessage,
 	res: ServerResponse,
 ): void {
+	const url = parseRequestUrl(req)
+	if (!url) {
+		json(res, 400, { error: "Invalid request URL" })
+		return
+	}
 	if (!requireAuth(req, res)) return
-	const url = new URL(req.url ?? "", `http://${req.headers.host}`)
 	const fileId = url.searchParams.get("fileId")
 	if (!fileId) {
 		json(res, 400, { error: "Missing fileId" })
