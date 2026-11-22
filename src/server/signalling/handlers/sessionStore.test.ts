@@ -141,7 +141,7 @@ describe("sessionStore lifecycle and SSE delivery", () => {
 		const response = new FakeResponse()
 		client.sessionSseRes = response as unknown as ServerResponse
 		const onTimeout = vi.fn()
-		client.disconnectTimer = setTimeout(onTimeout, 1000)
+		client.disconnectTimer = setTimeout(() => onTimeout(), 1000)
 		const clients = new Map([["session-1", client]])
 
 		cleanupSession(clients, "session-1")
