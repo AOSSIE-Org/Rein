@@ -26,3 +26,10 @@ export const RTP_HOST = "127.0.0.1"
 export const RTP_PORT = 5004
 export const RTP_PORT_AUDIO = 5006
 export const GAMEPAD_AXIS_MAX = 32767
+
+/** Wheel steps per pixel of change in pinch distance. */
+export const ZOOM_SCALE = 0.5
+/** Largest wheel step a single pinch event may produce. */
+export const MAX_ZOOM_STEP = 5
+/** A pause longer than this starts a new pinch and drops any leftover fraction. */
+export const ZOOM_IDLE_RESET_MS = 300
