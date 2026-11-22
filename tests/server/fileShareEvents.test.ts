@@ -5,6 +5,7 @@ import { Readable } from "node:stream"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
 	handleFileDelete,
+	handleFileDownload,
 	handleFileEvents,
 	handleFileUpload,
 } from "@/server/signalling/handlers/fileShare.ts"
@@ -182,5 +183,45 @@ describe("file share event stream", () => {
 		res.failDataWrites = false
 		await upload("y.txt")
 		expect(res.events()).toEqual([])
+	})
+	it("streams file from disk when downloaded by fileId", async () => {
+		const fileId = await upload("stream-test.txt")
+		vi.spyOn(fs, "statSync").mockReturnValue({
+			isFile: () => true,
+			size: 12,
+		} as unknown as fs.Stats)
+		const mockStream = Readable.from(["stream-bytes"])
+		const createStreamSpy = vi
+			.spyOn(fs, "createReadStream")
+			.mockReturnValue(mockStream as unknown as fs.ReadStream)
+
+		const res = new FakeResponse()
+		handleFileDownload(
+			loopbackRequest(`/api/files/download?fileId=${fileId}`),
+			asResponse(res),
+		)
+
+		expect(res.statusCode).toBe(200)
+		expect(createStreamSpy).toHaveBeenCalledWith(
+			expect.stringContaining("stream-test.txt"),
+		)
+	})
+
+	it("returns 404 when fileId does not exist on disk during download", async () => {
+		const fileId = await upload("missing.txt")
+		vi.spyOn(fs, "statSync").mockImplementation(() => {
+			throw new Error("ENOENT")
+		})
+
+		const res = new FakeResponse()
+		handleFileDownload(
+			loopbackRequest(`/api/files/download?fileId=${fileId}`),
+			asResponse(res),
+		)
+
+		expect(res.statusCode).toBe(404)
+		expect(JSON.parse(res.writes.join(""))).toEqual({
+			error: "File not found on disk",
+		})
 	})
 })

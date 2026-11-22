@@ -17,7 +17,7 @@ export interface SharedFile {
 	mimeType: string
 	uploadedAt: number
 	uploadedBy: string
-	data: Buffer
+	diskPath: string
 }
 
 export interface DirectoryItem {
@@ -214,7 +214,7 @@ export async function handleFileUpload(
 			size: data.length,
 			uploadedAt: Date.now(),
 			uploadedBy,
-			data,
+			diskPath: filePath,
 		}
 		fileStore.set(id, file)
 		logger.info(
@@ -383,12 +383,34 @@ export function handleFileDownload(
 		json(res, 404, { error: "File not found" })
 		return
 	}
+
+	let stat: fs.Stats
+	try {
+		stat = fs.statSync(file.diskPath)
+	} catch {
+		json(res, 404, { error: "File not found on disk" })
+		return
+	}
+	if (!stat.isFile()) {
+		json(res, 404, { error: "File not found on disk" })
+		return
+	}
+
 	res.writeHead(200, {
 		"Content-Type": file.mimeType,
-		"Content-Length": file.data.length,
-		"Content-Disposition": `attachment; filename="${encodeURIComponent(file.name)}"`,
+		"Content-Length": stat.size,
+		"Content-Disposition": `attachment; filename="${encodeURIComponent(file.name)}"; filename*=UTF-8''${encodeURIComponent(file.name)}`,
 	})
-	res.end(file.data)
+	const readStream = fs.createReadStream(file.diskPath)
+	readStream.on("error", (err) => {
+		logger.error(`Download stream error for fileId ${fileId}: ${err}`)
+		if (!res.headersSent) {
+			json(res, 500, { error: "Failed to stream file" })
+		} else {
+			res.destroy()
+		}
+	})
+	readStream.pipe(res)
 	logger.info(`File downloaded: ${file.name} (${file.id})`)
 }
 
