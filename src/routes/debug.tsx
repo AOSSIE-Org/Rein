@@ -547,7 +547,9 @@ function DebugScreen() {
 																: "text-base-content/40"
 														}
 													>
-														{session.hasSseConnection ? "yes" : "no"}
+														{session.hasSseConnection
+															? t("debug", "yes")
+															: t("debug", "no")}
 													</span>
 												</div>
 												<div className="text-base-content/60">

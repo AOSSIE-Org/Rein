@@ -49,11 +49,13 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 	const getModifierLabel = () => {
 		switch (modifier) {
 			case "Active":
-				return buffer.length > 0 ? "Press" : "Release"
+				return buffer.length > 0
+					? t("controlBar", "press")
+					: t("controlBar", "release")
 			case "Hold":
-				return "Release"
+				return t("controlBar", "release")
 			case "Release":
-				return "Hold"
+				return t("controlBar", "hold")
 		}
 	}
 	if (orientation === "horizontal") {
@@ -129,7 +131,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 					onPointerDown={(e) => handleInteraction(e, onModifierToggle)}
 					aria-label={t("controlBar", "modifier")}
 				>
-					{modLabel === "Release" ? (
+					{modLabel === t("controlBar", "release") ? (
 						<X size={26} strokeWidth={3.5} className="text-red-600" />
 					) : (
 						<span className="text-xs font-bold">{modLabel}</span>
@@ -212,7 +214,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 				onPointerDown={(e) => handleInteraction(e, onModifierToggle)}
 				aria-label={t("controlBar", "modifier")}
 			>
-				{modLabel === "Release" ? (
+				{modLabel === t("controlBar", "release") ? (
 					<X size={20} strokeWidth={3.5} className="text-red-600" />
 				) : (
 					<span className="text-xs font-bold">{modLabel}</span>

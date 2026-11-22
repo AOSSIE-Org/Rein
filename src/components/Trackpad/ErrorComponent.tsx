@@ -38,7 +38,7 @@ export const ErrorComponent = ({
 						className="btn btn-block btn-primary gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
 					>
 						<RefreshCw className="w-4 h-4" />
-						Reconnect
+						{t("errorComponent", "reconnect")}
 					</button>
 				</div>
 			</div>

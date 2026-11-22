@@ -168,7 +168,7 @@ function Navbar() {
 						src="/app_icon/Icon512.png"
 						width={32}
 						height={32}
-						alt="Rein logo"
+						alt={t("nav", "logoAlt")}
 						className="size-8 shrink-0 object-contain transition-transform duration-200 group-hover:scale-105"
 					/>
 				</Link>
