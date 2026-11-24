@@ -177,7 +177,24 @@ export class InputHandler {
 		const timerKey = isMove ? "moveTimer" : "scrollTimer"
 
 		if (now - this[lastKey] < this.throttleMs) {
-			this[pendingKey] = msg
+			// move and scroll carry relative deltas, so a message that arrives inside
+			// the window is added to the pending one instead of replacing it.
+			const prev = this[pendingKey]
+			this[pendingKey] = prev
+				? {
+						...msg,
+						dx: clampFinite(
+							(prev.dx ?? 0) + (msg.dx ?? 0),
+							-MAX_COORD,
+							MAX_COORD,
+						),
+						dy: clampFinite(
+							(prev.dy ?? 0) + (msg.dy ?? 0),
+							-MAX_COORD,
+							MAX_COORD,
+						),
+					}
+				: msg
 			if (!this[timerKey]) {
 				this[timerKey] = setTimeout(() => {
 					this[timerKey] = null
