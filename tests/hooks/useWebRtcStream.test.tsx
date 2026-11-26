@@ -160,4 +160,64 @@ describe("useWebRtcStream cleanup lifecycle", () => {
 
 		expect(mockUnregisterDataChannels).toHaveBeenCalled()
 	})
+
+	it("sets playoutDelayHint and jitterBufferTarget to 0 on incoming track receivers", async () => {
+		renderHook(() => useWebRtcStream({ token: "test-token" }))
+
+		expect(lastCreatedPc).not.toBeNull()
+
+		const mockReceiver = {
+			playoutDelayHint: 1,
+			jitterBufferTarget: 100,
+		}
+		const mockTrack = { id: "video-1", kind: "video" }
+		const mockStream = new MockMediaStream()
+
+		await act(async () => {
+			const ontrack = lastCreatedPc?.ontrack as (ev: unknown) => void
+			ontrack?.({
+				track: mockTrack,
+				receiver: mockReceiver,
+				streams: [mockStream],
+			})
+		})
+
+		expect(mockReceiver.playoutDelayHint).toBe(0)
+		expect(mockReceiver.jitterBufferTarget).toBe(0)
+	})
+
+	it("retains the same MediaStream instance when subsequent tracks are added", async () => {
+		const { result } = renderHook(() =>
+			useWebRtcStream({ token: "test-token" }),
+		)
+
+		expect(lastCreatedPc).not.toBeNull()
+
+		const videoTrack = { id: "video-1", kind: "video" }
+		const audioTrack = { id: "audio-1", kind: "audio" }
+		const initialStream = new MockMediaStream()
+
+		await act(async () => {
+			const ontrack = lastCreatedPc?.ontrack as (ev: unknown) => void
+			ontrack?.({
+				track: videoTrack,
+				streams: [initialStream],
+			})
+		})
+
+		const streamAfterVideo = result.current.videoStream
+		expect(streamAfterVideo).toBe(initialStream)
+
+		await act(async () => {
+			const ontrack = lastCreatedPc?.ontrack as (ev: unknown) => void
+			ontrack?.({
+				track: audioTrack,
+				streams: [initialStream],
+			})
+		})
+
+		// Reference should not change to a new MediaStream instance
+		expect(result.current.videoStream).toBe(streamAfterVideo)
+		expect(initialStream.addTrack).toHaveBeenCalledWith(audioTrack)
+	})
 })

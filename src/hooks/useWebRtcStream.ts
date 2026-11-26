@@ -256,15 +256,37 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 			if (isDisposed || isRetryingRef.current) return
 			console.log(`[WebRTC] Received track: ${event.track.kind}`)
 
-			if (!activeStream) {
-				activeStream = event.streams[0] || new MediaStream()
-				setVideoStream(activeStream)
+			// Instruct the browser's jitter buffer to bypass conversational delay
+			// and render frames immediately for real-time remote desktop streaming.
+			if (event.receiver) {
+				if ("playoutDelayHint" in event.receiver) {
+					try {
+						;(
+							event.receiver as unknown as { playoutDelayHint: number }
+						).playoutDelayHint = 0
+					} catch {}
+				}
+				if ("jitterBufferTarget" in event.receiver) {
+					try {
+						;(
+							event.receiver as unknown as { jitterBufferTarget: number }
+						).jitterBufferTarget = 0
+					} catch {}
+				}
 			}
 
-			if (!activeStream.getTracks().some((t) => t.id === event.track.id)) {
+			if (!activeStream) {
+				activeStream = event.streams[0] || new MediaStream()
+				if (!activeStream.getTracks().some((t) => t.id === event.track.id)) {
+					activeStream.addTrack(event.track)
+				}
+				setVideoStream(activeStream)
+			} else if (
+				!activeStream.getTracks().some((t) => t.id === event.track.id)
+			) {
+				// Attach new tracks to the existing stream without creating a new
+				// MediaStream reference, preventing HTMLMediaElement pipeline reload.
 				activeStream.addTrack(event.track)
-				// Create a new stream copy to trigger React dependency update
-				setVideoStream(new MediaStream(activeStream.getTracks()))
 			}
 
 			if (event.track.kind === "video") {
