@@ -116,6 +116,17 @@ describe("parseJsonBody", () => {
 		await expect(p).rejects.toThrow()
 	})
 
+	it.each(["null", "[]", "42", '"text"', "true"])(
+		"rejects a non-object JSON body (%s)",
+		async (body) => {
+			const req = streamReq()
+			const p = parseJsonBody(req as unknown as IncomingMessage)
+			req.emit("data", Buffer.from(body))
+			req.emit("end")
+			await expect(p).rejects.toThrow("Request body must be a JSON object")
+		},
+	)
+
 	it("rejects bodies over 1 MB", async () => {
 		const req = streamReq()
 		const p = parseJsonBody(req as unknown as IncomingMessage)
