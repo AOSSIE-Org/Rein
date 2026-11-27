@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http"
 import type { WebRTCManager } from "../webRTC.ts"
 import logger from "../../../utils/logger.ts"
-import { parseJsonBody, json } from "../utils.ts"
+import { parseJsonBody, json, respondIfPayloadTooLarge } from "../utils.ts"
 
 export interface RtcHandlerDeps {
 	webrtcManager: WebRTCManager | null
@@ -82,6 +82,7 @@ export function handleAnswer(
 			}
 		})
 		.catch((err) => {
+			if (respondIfPayloadTooLarge(res, err)) return
 			logger.error(`/api/rtc/answer error: ${String(err)}`)
 			json(res, 400, { error: "Invalid request body" })
 		})
@@ -127,6 +128,7 @@ export function handleIce(
 			}
 		})
 		.catch((err) => {
+			if (respondIfPayloadTooLarge(res, err)) return
 			logger.error(`/api/rtc/ice (POST) error: ${String(err)}`)
 			json(res, 400, { error: "Invalid request body" })
 		})
@@ -190,6 +192,7 @@ export function handleSessionDelete(
 			}
 		})
 		.catch((err) => {
+			if (respondIfPayloadTooLarge(res, err)) return
 			logger.error(`/api/rtc/session DELETE error: ${String(err)}`)
 			json(res, 400, { error: "Invalid request body" })
 		})
