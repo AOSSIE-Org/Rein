@@ -11,7 +11,13 @@ import {
 } from "../InputHandler.ts"
 import type { InputConfig } from "../types.ts"
 import { getLanIp, isLoopbackAddress } from "../../utils/net.ts"
-import { requireAuth, parseJsonBody, json } from "./utils.ts"
+import {
+	requireAuth,
+	parseJsonBody,
+	json,
+	respondIfPayloadTooLarge,
+	PayloadTooLargeError,
+} from "./utils.ts"
 import {
 	loadServerConfig,
 	saveServerConfig,
@@ -324,7 +330,10 @@ export function attachSignalingRoutes(server: any): void {
 			if (pathname === "/api/clipboard/copy" && req.method === "POST") {
 				if (!requireAuth(req, res)) return
 				parseJsonBody<{ sessionId?: string }>(req)
-					.catch(() => ({}) as { sessionId?: string })
+					.catch((err) => {
+						if (err instanceof PayloadTooLargeError) throw err
+						return {} as { sessionId?: string }
+					})
 					.then(async (body) => {
 						try {
 							const handler = webrtcManager?.getInputHandler(body.sessionId)
@@ -343,6 +352,11 @@ export function attachSignalingRoutes(server: any): void {
 							logger.error(`Error in /api/clipboard/copy: ${String(err)}`)
 							json(res, 500, { ok: false, error: "Failed to copy clipboard" })
 						}
+					})
+					.catch((err) => {
+						if (respondIfPayloadTooLarge(res, err)) return
+						logger.error(`Error in /api/clipboard/copy: ${String(err)}`)
+						json(res, 500, { ok: false, error: "Failed to copy clipboard" })
 					})
 				return
 			}
@@ -373,6 +387,7 @@ export function attachSignalingRoutes(server: any): void {
 						}
 					})
 					.catch((err) => {
+						if (respondIfPayloadTooLarge(res, err)) return
 						json(res, 400, { ok: false, error: String(err) })
 					})
 				return
@@ -464,6 +479,7 @@ export function attachSignalingRoutes(server: any): void {
 						json(res, 200, { ok: true })
 					})
 					.catch((err) => {
+						if (respondIfPayloadTooLarge(res, err)) return
 						json(res, 400, { ok: false, error: String(err) })
 					})
 				return
