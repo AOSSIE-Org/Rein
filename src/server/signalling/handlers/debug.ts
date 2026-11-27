@@ -77,6 +77,6 @@ export function handleLogs(
 		deps.sseClients.delete(res)
 		clearInterval(keepAliveTimer)
 	}
-	req.on("close", cleanupSse)
-	req.on("error", cleanupSse)
+	res.on("close", cleanupSse)
+	res.on("error", cleanupSse)
 }
