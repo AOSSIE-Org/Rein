@@ -324,7 +324,6 @@ export function attachSignalingRoutes(server: any): void {
 			if (pathname === "/api/clipboard/copy" && req.method === "POST") {
 				if (!requireAuth(req, res)) return
 				parseJsonBody<{ sessionId?: string }>(req)
-					.catch(() => ({}) as { sessionId?: string })
 					.then(async (body) => {
 						try {
 							const handler = webrtcManager?.getInputHandler(body.sessionId)
@@ -343,6 +342,9 @@ export function attachSignalingRoutes(server: any): void {
 							logger.error(`Error in /api/clipboard/copy: ${String(err)}`)
 							json(res, 500, { ok: false, error: "Failed to copy clipboard" })
 						}
+					})
+					.catch((err) => {
+						json(res, 400, { ok: false, error: String(err) })
 					})
 				return
 			}
