@@ -22,7 +22,22 @@ export function parseJsonBody<T = unknown>(req: IncomingMessage): Promise<T> {
 		req.on("end", () => {
 			try {
 				const body = Buffer.concat(chunks).toString("utf-8")
-				resolve(body ? JSON.parse(body) : ({} as T))
+				if (!body) {
+					resolve({} as T)
+					return
+				}
+				const parsed: unknown = JSON.parse(body)
+				// Callers read fields off the body, so a valid JSON value like
+				// `null` or `[]` must be rejected here instead of throwing later.
+				if (
+					typeof parsed !== "object" ||
+					parsed === null ||
+					Array.isArray(parsed)
+				) {
+					reject(new Error("Request body must be a JSON object"))
+					return
+				}
+				resolve(parsed as T)
 			} catch (err) {
 				reject(err)
 			}
